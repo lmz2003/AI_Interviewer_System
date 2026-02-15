@@ -4,7 +4,6 @@ export interface Resume {
   content: string;
   fileType: string;
   fileName?: string;
-  fileUrl?: string;
   fileSize?: number;
   createdAt: string;
   updatedAt: string;

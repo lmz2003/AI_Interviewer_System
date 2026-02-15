@@ -28,11 +28,8 @@ export class Resume {
   @Column({ default: 'pdf' })
   fileType!: string; // 文件类型: pdf, docx, doc, txt
 
-  @Column({ nullable: true })
-  fileUrl?: string; // 文件保存路径
-
   @Column({ type: 'bytea', nullable: true })
-  fileBinary?: Buffer; // 原始文件二进制数据（用于 PDF 预览）
+  fileBinary?: Buffer; // 原始文件二进制数据
 
   @Column({ type: 'jsonb', nullable: true })
   parsedData?: {

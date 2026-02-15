@@ -90,7 +90,6 @@ interface Resume {
   title: string;
   content: string;
   fileType: string;
-  fileUrl?: string;
   parsedData?: any;
   createdAt: string;
 }

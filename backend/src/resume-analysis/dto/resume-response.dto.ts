@@ -3,7 +3,6 @@ export class ResumeResponseDto {
   title!: string;
   fileName?: string;
   fileType!: string;
-  fileUrl?: string;
   createdAt!: Date;
   updatedAt!: Date;
   status!: string;

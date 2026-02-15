@@ -18,59 +18,16 @@ import {
   Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
 import { ResumeAnalysisService } from './services/resume-analysis.service';
 import { UploadResumeDto } from './dto/upload-resume.dto';
 import { AnalyzeResumeDto, CompareResumeDto } from './dto/analyze-resume.dto';
 import * as path from 'path';
-import * as iconv from 'iconv-lite';
-
-const fixFileNameEncoding = (fileName: string): string => {
-  try {
-    const hasGarbledChars = /[\u00E4\u00E5\u00F6\u00FC\u00C4\u00C5\u00D6\u00DC]/.test(fileName);
-
-    if (hasGarbledChars) {
-      try {
-        const decoded = iconv.decode(iconv.encode(fileName, 'latin1'), 'utf8');
-        if (decoded && decoded.length > 0) {
-          return decoded;
-        }
-      } catch (e) {
-        return fileName;
-      }
-    }
-
-    const hasChinese = /[\u4e00-\u9fa5]/.test(fileName);
-    if (!hasChinese && fileName.length > 0) {
-      try {
-        const decoded = iconv.decode(iconv.encode(fileName, 'latin1'), 'utf8');
-        if (decoded && /[\u4e00-\u9fa5]/.test(decoded)) {
-          return decoded;
-        }
-      } catch (e) {
-        return fileName;
-      }
-    }
-
-    return fileName;
-  } catch (error) {
-    return fileName;
-  }
-};
 
 const getMulterOptions = () => {
   return {
-    storage: diskStorage({
-      destination: path.join(process.cwd(), 'uploads', 'resumes'),
-      filename: (req: any, file: any, cb: any) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = path.extname(file.originalname);
-        const originalBaseName = path.basename(file.originalname, ext);
-        const fixedBaseName = fixFileNameEncoding(originalBaseName);
-        cb(null, `${fixedBaseName}-${uniqueSuffix}${ext}`);
-      },
-    }),
+    storage: memoryStorage(),
     fileFilter: (req: any, file: any, cb: any) => {
       const supportedFormats = ['.pdf', '.docx', '.doc', '.txt'];
       const ext = path.extname(file.originalname).toLowerCase();
@@ -121,14 +78,13 @@ export class ResumeAnalysisController {
       let resume;
 
       if (file) {
-        // 文件上传
+        // 文件上传（内存模式）
         this.logger.log(`[Upload] File upload started: ${file.originalname} (${file.size} bytes) by user ${userId}`);
-        this.logger.log(`[Upload] File path: ${file.path}`);
         this.logger.log(`[Upload] Resume title: ${dto.title}`);
         
         resume = await this.resumeAnalysisService.uploadResumeFile(
           dto.title,
-          file.path,
+          file.buffer,
           file.originalname,
           path.extname(file.originalname),
           file.size,

@@ -60,26 +60,22 @@ export class ResumeAnalysisService {
    */
   async uploadResumeFile(
     title: string,
-    filePath: string,
+    fileBuffer: Buffer,
     fileName: string,
     fileType: string,
     fileSize: number,
     userId: string
   ): Promise<Resume> {
     try {
-      // 首先解析文件内容和读取二进制数据
-      const [content, fileBinary] = await Promise.all([
-        this.parserService.parseResumeFile(filePath, fileType),
-        this.parserService.readFileBinary(filePath),
-      ]);
+      // 解析文件内容
+      const content = await this.parserService.parseResumeBuffer(fileBuffer, fileType);
 
       const resume = this.resumeRepository.create({
         title,
         content,
-        fileBinary,
+        fileBinary: fileBuffer,
         fileName,
         fileType: fileType.toLowerCase().replace(/^\./, ''),
-        fileUrl: filePath,
         fileSize,
         ownerId: userId,
         isProcessed: false,
@@ -112,7 +108,7 @@ export class ResumeAnalysisService {
         return;
       }
 
-      // 1. 解析简历内容
+      // 1. 解析简历内容 - 使用 LLM
       const parsedData = await this.parserService.parseResumeContent(resume.content);
 
       // 2. 更新解析数据
