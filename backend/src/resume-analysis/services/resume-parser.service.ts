@@ -330,6 +330,7 @@ ${text}`;
 
       // 尝试解析 JSON 响应
       let parsedData: ParsedResume;
+      this.logger.log(`[Resume Parser parsedData: ] ${responseContent}`);
       try {
         // 尝试直接解析
         parsedData = JSON.parse(responseContent);
