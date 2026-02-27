@@ -9,7 +9,7 @@ interface AIAssistantContextType {
 const AIAssistantContext = createContext<AIAssistantContextType | undefined>(undefined);
 
 export const AIAssistantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isOpen, setIsOpen] = useState<boolean>(true); // Default to open
+  const [isOpen, setIsOpen] = useState<boolean>(false); // Default to open
 
   const toggleOpen = () => {
     setIsOpen(prev => !prev);
