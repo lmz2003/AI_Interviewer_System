@@ -8,18 +8,9 @@ interface AnalysisResult {
   keywordScore: number;
   experienceScore: number;
   skillsScore: number;
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: {
-    [key: string]: string;
-  };
   keywordAnalysis: {
     keywords: { [key: string]: number };
     categoryScores: { [key: string]: number };
-  };
-  structureAnalysis: {
-    issues: string[];
-    suggestions: string[];
   };
   contentAnalysis: {
     totalWords: number;
@@ -84,27 +75,27 @@ export class ResumeAnalyzerService {
       scores.skillsScore * 0.3
     );
 
-    // ✨ 第四步：使用LLM生成详细分析报告
+    // ✨ 第四步：使用LLM生成详细分析报告（包含优势、劣势、建议）
     const basicScores = {
       overallScore,
       completenessScore: scores.completenessScore,
       keywordScore: scores.keywordScoreData.score,
+      experienceScore: scores.experienceScore,
+      skillsScore: scores.skillsScore,
     };
     
-    const detailedReport = await this.resumeLLMService.generateDetailedAnalysisReport(text, parsedData, basicScores);
+    const detailedReport = await this.resumeLLMService.generateDetailedAnalysisReport(text, parsedData, basicScores,resumeType);
     
-    // ✨ 第五步：使用LLM生成优势和劣势分析
-    const strengths = await this.generateLLMStrengths(text, parsedData, resumeType);
-    const weaknesses = await this.generateLLMWeaknesses(text, parsedData, resumeType);
-    const suggestions = await this.generateLLMSuggestions(text, parsedData, resumeType);
+    // // ✨ 从详细报告中提取优势、劣势、建议（避免重复调用LLM）
+    // const { strengths, weaknesses, suggestions } = this.extractAnalysisFromDetailedReport(detailedReport);
 
-    // ✨ 第六步：生成岗位匹配度分析
+    // ✨ 第五步：生成岗位匹配度分析
     let jobMatchAnalysis = undefined;
     if (jobDescription) {
       jobMatchAnalysis = await this.generateJobMatchAnalysis(text, jobDescription);
     }
 
-    // ✨ 第七步：生成能力素质评估
+    // ✨ 第六步：生成能力素质评估
     const competencyAnalysis = await this.generateCompetencyAnalysis(text, parsedData, resumeType);
 
     const contentAnalysis = this.analyzeContent(text, parsedData);
@@ -115,22 +106,15 @@ export class ResumeAnalyzerService {
       keywordScore: scores.keywordScoreData.score,
       experienceScore: scores.experienceScore,
       skillsScore: scores.skillsScore,
-      strengths,
-      weaknesses,
-      suggestions,
+      detailedReport,
+      resumeType,  // ✨ 返回简历类型
       keywordAnalysis: {
         keywords: scores.keywordScoreData.keywords,
         categoryScores: scores.keywordScoreData.categoryScores
       },
-      structureAnalysis: {
-        issues: [],
-        suggestions: [],
-      },
       contentAnalysis,
       jobMatchAnalysis,
       competencyAnalysis,
-      detailedReport,
-      resumeType,  // ✨ 返回简历类型
     };
   }
   /**
@@ -490,46 +474,92 @@ export class ResumeAnalyzerService {
 
   /**
    * 计算技能评分（支持行业和职位特定的高价值技能）
+   * ✨ 改进：使用结构化的高价值技能，精确匹配英文关键字
    */
-  private async calculateSkillsScore(skills: string[],  jobTitle: string,jobDescription?: string): Promise<number> {
+  private async calculateSkillsScore(skills: string[], jobTitle: string, jobDescription?: string): Promise<number> {
     if (!skills || skills.length === 0) {
       return 0;
     }
 
-    let score = 20; // 基础分
+    let score = 0;
+    let maxScore = 0;
 
-    // 1. 按技能数量加分
-    score += Math.min(50, skills.length * 3);
+    // 1. 基础分：有技能列表（0-20分）
+    maxScore += 20;
+    score += 20;
 
-    // 2. 检查技能的多样性
+    // 2. 按技能数量加分（0-30分）
+    // 数量越多越好，但有上限
+    maxScore += 30;
+    const quantityScore = Math.min(30, skills.length * 3);
+    score += quantityScore;
+
+    // 3. 检查技能多样性（0-20分）
+    maxScore += 20;
     const uniqueSkills = new Set(skills.map(s => s.toLowerCase()));
     const diversity = uniqueSkills.size / Math.max(1, skills.length);
 
     if (diversity > 0.8) {
-      score += 20;
+      score += 20;  // 极少重复，很多样
     } else if (diversity > 0.6) {
-      score += 10;
+      score += 12;  // 中等多样化
+    } else if (diversity > 0.4) {
+      score += 6;   // 一些重复
     }
 
-    // 3. 检查是否包含高价值技能
-    let jobSpecificHighValueSkills: string[] = [];
+    // 4. 检查是否包含高价值技能（0-30分）
+    maxScore += 30;
     if (jobDescription) {
-      jobSpecificHighValueSkills = await this.resumeLLMService.extractJobSpecificHighSkills(jobDescription, jobTitle);
+      const jobSpecificHighValueSkills = await this.resumeLLMService.extractJobSpecificHighSkills(jobDescription, jobTitle);
+      
+      // ✨ 改进：遍历高价值技能，检查关键字匹配
+      const matchedHighValueSkills = new Set<string>();
+      
+      for (const highValueSkill of jobSpecificHighValueSkills) {
+        const skillLower = highValueSkill.name.toLowerCase();
+        const keywords = highValueSkill.keywords;
+        
+        // 检查简历中是否有匹配的技能
+        const hasMatch = skills.some(resumeSkill => {
+          const resumeSkillLower = resumeSkill.toLowerCase();
+          
+          // 1. 直接名称匹配
+          if (resumeSkillLower === skillLower) {
+            return true;
+          }
+          
+          // 2. 包含匹配
+          if (resumeSkillLower.includes(skillLower)) {
+            return true;
+          }
+          
+          // 3. 关键字匹配：检查任何关键字是否出现在简历技能中
+          return keywords.some(keyword => 
+            resumeSkillLower.includes(keyword.toLowerCase())
+          );
+        });
+        
+        if (hasMatch) {
+          matchedHighValueSkills.add(highValueSkill.name);
+        }
+      }
+      
+      // 按匹配数量计分
+      const matchCount = matchedHighValueSkills.size;
+      if (matchCount >= jobSpecificHighValueSkills.length) {
+        // 全部匹配
+        score += 30;
+      } else if (matchCount >= Math.ceil(jobSpecificHighValueSkills.length * 0.5)) {
+        // 至少50%匹配
+        score += 20;
+      } else if (matchCount > 0) {
+        // 部分匹配
+        score += 10;
+      }
     }
 
-    // 3.4 检查技能匹配
-    const hasHighValueSkills = skills.some(skill => {
-      const skillLower = skill.toLowerCase();
-      return jobSpecificHighValueSkills.some(highValueSkill => 
-        skillLower.includes(highValueSkill.toLowerCase())
-      );
-    });
-
-    if (hasHighValueSkills) {
-      score += 10;
-    }
-
-    return Math.min(100, score);
+    // ✨ 归一化到0-100分
+    return maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
   }
 
 
@@ -848,111 +878,71 @@ export class ResumeAnalyzerService {
   }
 
   /**
-   * 使用LLM生成优势分析
+   * ✨ 新增：从详细分析报告中提取优势、劣势、建议
+   * 避免重复调用LLM（原第五步已废弃）
    */
-  private async generateLLMStrengths(text: string, parsedData: any, resumeType: 'freshman' | 'experienced'): Promise<string[]> {
+  private extractAnalysisFromDetailedReport(reportContent: string): {
+    strengths: string[];
+    weaknesses: string[];
+    suggestions: { [key: string]: string };
+  } {
     try {
-      const content = await this.resumeLLMService.generateStrengthsAnalysis(text, resumeType);
-      
-      if (!content) {
-        return [];
+      if (!reportContent) {
+        return {
+          strengths: [],
+          weaknesses: [],
+          suggestions: {}
+        };
       }
-      
-      let analysisResult: any;
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          analysisResult = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error('No JSON found in response');
-        }
-      } catch (parseError) {
-        this.logger.error('Error parsing strengths JSON:', parseError);
-        return [];
-      }
-      
-      return Array.isArray(analysisResult.strengths) ? analysisResult.strengths : [];
-    } catch (error) {
-      this.logger.error('Error generating LLM strengths:', error);
-      return this.generateStrengths(parsedData, {}, resumeType);
-    }
-  }
 
-  /**
-   * 使用LLM生成劣势分析
-   */
-  private async generateLLMWeaknesses(text: string, parsedData: any, resumeType: 'freshman' | 'experienced'): Promise<string[]> {
-    try {
-      const content = await this.resumeLLMService.generateWeaknessesAnalysis(text, resumeType);
-      
-      if (!content) {
-        return [];
-      }
-      
-      let analysisResult: any;
+      let reportData: any;
       try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        const jsonMatch = reportContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          analysisResult = JSON.parse(jsonMatch[0]);
+          reportData = JSON.parse(jsonMatch[0]);
         } else {
           throw new Error('No JSON found in response');
         }
       } catch (parseError) {
-        this.logger.error('Error parsing weaknesses JSON:', parseError);
-        return [];
+        this.logger.error('Error parsing detailed report JSON:', parseError);
+        return {
+          strengths: [],
+          weaknesses: [],
+          suggestions: {}
+        };
       }
-      
-      return Array.isArray(analysisResult.weaknesses) ? analysisResult.weaknesses : [];
-    } catch (error) {
-      this.logger.error('Error generating LLM weaknesses:', error);
-      return this.generateWeaknesses(parsedData, {}, text, resumeType);
-    }
-  }
 
-  /**
-   * 使用LLM生成改进建议
-   */
-  private async generateLLMSuggestions(text: string, parsedData: any, resumeType: 'freshman' | 'experienced'): Promise<{ [key: string]: string }> {
-    try {
-      const content = await this.resumeLLMService.generateSuggestionsAnalysis(text, resumeType);
+      const strengths = Array.isArray(reportData.strengths) ? reportData.strengths : [];
+      const weaknesses = Array.isArray(reportData.improvements) ? reportData.improvements : [];
       
-      if (!content) {
-        return {};
-      }
-      
-      let analysisResult: any;
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          analysisResult = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error('No JSON found in response');
-        }
-      } catch (parseError) {
-        this.logger.error('Error parsing suggestions JSON:', parseError);
-        return {};
-      }
-      
+      // 将建议数组转换为对象格式
+      const suggestionsList = Array.isArray(reportData.suggestions) ? reportData.suggestions : [];
       const suggestions: { [key: string]: string } = {};
-      const suggestionList = Array.isArray(analysisResult.suggestions) ? analysisResult.suggestions : [];
       
-      if (suggestionList.length > 0) {
-        suggestions.structure = suggestionList[0] || '';
+      if (suggestionsList.length > 0) {
+        suggestions.structure = suggestionsList[0] || '';
       }
-      if (suggestionList.length > 1) {
-        suggestions.experience = suggestionList[1] || '';
+      if (suggestionsList.length > 1) {
+        suggestions.experience = suggestionsList[1] || '';
       }
-      if (suggestionList.length > 2) {
-        suggestions.skills = suggestionList[2] || '';
+      if (suggestionsList.length > 2) {
+        suggestions.skills = suggestionsList[2] || '';
       }
-      if (suggestionList.length > 3) {
-        suggestions.format = suggestionList[3] || '';
+      if (suggestionsList.length > 3) {
+        suggestions.format = suggestionsList[3] || '';
       }
-      
-      return suggestions;
+      if (suggestionsList.length > 4) {
+        suggestions.keywords = suggestionsList[4] || '';
+      }
+
+      return { strengths, weaknesses, suggestions };
     } catch (error) {
-      this.logger.error('Error generating LLM suggestions:', error);
-      return this.generateSuggestions(parsedData, {}, resumeType);
+      this.logger.error('Error extracting analysis from detailed report:', error);
+      return {
+        strengths: [],
+        weaknesses: [],
+        suggestions: {}
+      };
     }
   }
 

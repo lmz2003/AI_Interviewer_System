@@ -158,14 +158,9 @@ export class ResumeAnalysisService {
         overallScore: analysisResult.overallScore,
         completenessScore: analysisResult.completenessScore,
         keywordScore: analysisResult.keywordScore,
-        formatScore: analysisResult.formatScore,
         experienceScore: analysisResult.experienceScore,
         skillsScore: analysisResult.skillsScore,
-        strengths: JSON.stringify(analysisResult.strengths),
-        weaknesses: JSON.stringify(analysisResult.weaknesses),
-        suggestions: JSON.stringify(analysisResult.suggestions),
         keywordAnalysis: JSON.stringify(analysisResult.keywordAnalysis), // 包含keywords和categoryScores
-        structureAnalysis: JSON.stringify(analysisResult.structureAnalysis),
         contentAnalysis: JSON.stringify(analysisResult.contentAnalysis),
         jobMatchAnalysis: analysisResult.jobMatchAnalysis ? JSON.stringify(analysisResult.jobMatchAnalysis) : undefined,
         competencyAnalysis: analysisResult.competencyAnalysis ? JSON.stringify(analysisResult.competencyAnalysis) : undefined,
@@ -174,17 +169,6 @@ export class ResumeAnalysisService {
 
       await this.analysisRepository.save(analysis);
 
-      // 5. 异步调用 LLM 生成更详细的建议
-      this.generateLLMSuggestionsAsync(
-        analysis.id,
-        resume,
-        parsedData,
-        analysisResult,
-        analysisResult.resumeType || 'freshman'
-      ).catch((error) => {
-        this.logger.error(`Error generating LLM suggestions for analysis ${analysis.id}:`, error);
-      });
-
       // 更新简历状态
       resume.isProcessed = true;
       await this.resumeRepository.save(resume);
@@ -192,84 +176,6 @@ export class ResumeAnalysisService {
       this.logger.log(`Resume processed successfully: ${resumeId}`);
     } catch (error) {
       this.logger.error(`Error processing resume ${resumeId}:`, error);
-    }
-  }
-
-  /**
-   * 异步生成 LLM 建议
-   */
-  private async generateLLMSuggestionsAsync(
-    analysisId: string,
-    resume: Resume,
-    parsedData: any,
-    analysisResult: any,
-    resumeType: 'freshman' | 'experienced'
-  ): Promise<void> {
-    try {
-      const analysis = await this.analysisRepository.findOne({ where: { id: analysisId } });
-      if (!analysis) return;
-
-      // 根据简历类型生成针对性的建议
-      const [personalInfoOpt, experienceOpt, skillsOpt] = await Promise.all([
-        this.llmService.generatePersonalInfoOptimization(parsedData.personalInfo),
-        
-        // 校招 vs 社招差异化处理
-        resumeType === 'freshman'
-          ? (parsedData.internshipExperience?.length ? this.llmService.generateExperienceOptimization(parsedData.internshipExperience) : Promise.resolve(''))
-          : (parsedData.workExperience?.length ? this.llmService.generateExperienceOptimization(parsedData.workExperience) : Promise.resolve('')),
-        
-        parsedData.skills?.length ? this.llmService.generateSkillsOptimization(parsedData.skills) : Promise.resolve(''),
-      ]);
-
-      // 更新分析结果
-      analysis.personalInfoSuggestions = {
-        suggestion: personalInfoOpt,
-      };
-
-      if (experienceOpt) {
-        analysis.experienceSuggestions = [
-          {
-            suggestion: experienceOpt,
-          },
-        ];
-      }
-
-      // 将其他建议添加到 suggestions 中
-      const suggestions = JSON.parse(analysis.suggestions || '{}');
-      
-      // 添加简历类型信息到建议中
-      suggestions.resumeType = resumeType;
-      
-      // 根据简历类型添加针对性的优化建议
-      if (resumeType === 'freshman') {
-        suggestions.freshmanSpecificTips = {
-          education: '教育背景是校招简历的核心，确保突出学校、学位和GPA（如果优秀）',
-          internship: '实习经历展示了职场适应能力，建议补充2-3段高质量实习',
-          projects: '项目经验和毕设是展示技能的关键，要突出技术深度和创新性',
-          campus: '校园活动展示领导力，建议补充学生会或社团等组织经验',
-          skills: '技能列表要与应聘岗位相关，突出核心技术栈'
-        };
-      } else {
-        suggestions.experiencedSpecificTips = {
-          professionalSummary: '职业总结要清晰表达职业定位和核心竞争力',
-          workExperience: '用数据和具体案例展示商业价值，突出成就而非职责',
-          management: '如有管理经验，要明确说明团队规模和管理成果',
-          skills: '技能要与职业等级匹配，标注掌握深度，优化关键词',
-          projects: '项目描述要体现商业影响力和你的核心贡献'
-        };
-      }
-      
-      if (skillsOpt) {
-        suggestions.skillsOptimization = skillsOpt;
-      }
-      
-      analysis.suggestions = JSON.stringify(suggestions);
-
-      await this.analysisRepository.save(analysis);
-
-      this.logger.log(`LLM suggestions generated for analysis: ${analysisId} (resumeType: ${resumeType})`);
-    } catch (error) {
-      this.logger.error(`Error in generateLLMSuggestionsAsync:`, error);
     }
   }
 
@@ -294,16 +200,20 @@ export class ResumeAnalysisService {
    * 获取简历分析结果
    */
   async getResumeAnalysis(resumeId: string, userId: string): Promise<ResumeAnalysis> {
-    await this.getUserResume(resumeId, userId);
-
+    // 1. 验证简历所有权
+    const resume = await this.getUserResume(resumeId, userId);
+    // 2. 获取分析结果
     const analysis = await this.analysisRepository.findOne({
       where: { resumeId },
     });
-
     if (!analysis) {
-      throw new NotFoundException('Analysis not found. Resume may still be processing.');
+      throw new NotFoundException(
+        resume.isProcessed 
+          ? 'Analysis result not found' 
+          : 'Resume is still being processed. Please try again later.'
+      );
     }
-
+    this.logger.debug(`Retrieved analysis for resume ${resumeId} by user ${userId}`);
     return analysis;
   }
 
@@ -338,19 +248,19 @@ export class ResumeAnalysisService {
     await this.resumeRepository.save(resume);
   }
 
-  /**
-   * 对标职位描述
-   */
-  async compareWithJobDescription(
-    resumeId: string,
-    userId: string,
-    jobDescription: string
-  ): Promise<string> {
-    const resume = await this.getUserResume(resumeId, userId);
+//   /**
+//    * 对标职位描述
+//    */
+//   async compareWithJobDescription(
+//     resumeId: string,
+//     userId: string,
+//     jobDescription: string
+//   ): Promise<string> {
+//     const resume = await this.getUserResume(resumeId, userId);
 
-    return this.llmService.generateJobMatchAnalysis(
-      resume.content,
-      jobDescription
-    );
-  }
+//     return this.llmService.generateJobMatchAnalysis(
+//       resume.content,
+//       jobDescription
+//     );
+//   }
 }

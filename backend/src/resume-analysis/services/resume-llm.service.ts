@@ -179,7 +179,8 @@ ${jobDescription}
   async generateDetailedAnalysisReport(
     resumeContent: string,
     parsedData: any,
-    basicScores: any
+    basicScores: any,
+    resumeType: 'freshman' | 'experienced'
   ): Promise<string> {
     try {
       if (!this.llm) {
@@ -187,15 +188,18 @@ ${jobDescription}
         return '';
       }
 
-      const prompt = `请作为资深HR和招聘顾问,为以下简历生成一份详细评估报告,并以JSON格式返回结果:
+      const prompt = `请作为资深HR和招聘顾问以及相关技术专家,为以下简历生成一份详细评估报告,并以JSON格式返回结果:
 
-简历基本信息:
+简历基本信息（分数）:
 - 总体评分: ${basicScores.overallScore}/100
 - 完整性: ${basicScores.completenessScore}/100
 - 关键词覆盖: ${basicScores.keywordScore}/100
+- 工作经验: ${basicScores.experienceScore}/100
+- 技能覆盖: ${basicScores.skillsScore}/100
 
 简历内容:
 ${resumeContent}
+简历类型：${resumeType === 'freshman' ? '校招生' : '社招'}
 
 请严格按照以下JSON格式返回结果:
 {
@@ -233,8 +237,8 @@ ${resumeContent}
 
 简历类型：${resumeType === 'freshman' ? '校招生' : '社招'}
 
-简历内容（前500字）：
-${text.substring(0, 500)}
+简历内容：
+${text}
 
 请从以下方面进行评估：
 1. 核心竞争力（列出3-5个最突出的能力）
@@ -256,108 +260,6 @@ ${text.substring(0, 500)}
       return response.content as string;
     } catch (error) {
       this.logger.error('Error generating competency analysis:', error);
-      return '';
-    }
-  }
-
-  /**
-   * 生成简历优势分析(结构化JSON格式)
-   */
-  async generateStrengthsAnalysis(resumeContent: string, resumeType: 'freshman' | 'experienced'): Promise<string> {
-    try {
-      if (!this.llm) {
-        this.logger.warn('LLM not initialized');
-        return '';
-      }
-
-      const prompt = `作为资深HR专家,请分析以下简历并提取3-5个最突出的优势,以JSON格式返回结果:
-
-简历类型：${resumeType === 'freshman' ? '校招生' : '社招'}
-
-简历内容：
-${resumeContent}
-
-请严格按照以下JSON格式返回结果:
-{
-  "strengths": ["优势1", "优势2", "优势3", "..."]
-}
-
-确保返回的JSON格式正确,可以直接被解析。`;
-
-      const response = await this.llm.invoke([new HumanMessage(prompt)]);
-      return response.content as string;
-    } catch (error) {
-      this.logger.error('Error generating strengths analysis:', error);
-      return '';
-    }
-  }
-
-  /**
-   * 生成简历劣势分析(结构化JSON格式)
-   */
-  async generateWeaknessesAnalysis(resumeContent: string, resumeType: 'freshman' | 'experienced'): Promise<string> {
-    try {
-      if (!this.llm) {
-        this.logger.warn('LLM not initialized');
-        return '';
-      }
-
-      const prompt = `作为资深HR专家,请分析以下简历并提取3-5个需要改进的方面,以JSON格式返回结果:
-
-简历类型：${resumeType === 'freshman' ? '校招生' : '社招'}
-
-简历内容：
-${resumeContent}
-
-请严格按照以下JSON格式返回结果:
-{
-  "weaknesses": ["劣势1", "劣势2", "劣势3", "..."]
-}
-
-确保返回的JSON格式正确,可以直接被解析。`;
-
-      const response = await this.llm.invoke([new HumanMessage(prompt)]);
-      return response.content as string;
-    } catch (error) {
-      this.logger.error('Error generating weaknesses analysis:', error);
-      return '';
-    }
-  }
-
-  /**
-   * 生成简历改进建议(结构化JSON格式)
-   */
-  async generateSuggestionsAnalysis(resumeContent: string, resumeType: 'freshman' | 'experienced'): Promise<string> {
-    try {
-      if (!this.llm) {
-        this.logger.warn('LLM not initialized');
-        return '';
-      }
-
-      const prompt = `作为资深HR专家,请针对以下简历提供具体的改进建议,以JSON格式返回结果:
-
-简历类型：${resumeType === 'freshman' ? '校招生' : '社招'}
-
-简历内容：
-${resumeContent}
-
-请从以下方面提供建议：
-1. 内容结构
-2. 工作/实习经验描述
-3. 技能展示
-4. 格式排版
-
-请严格按照以下JSON格式返回结果:
-{
-  "suggestions": ["改进建议1", "改进建议2", "改进建议3", "..."]
-}
-
-确保返回的JSON格式正确,可以直接被解析。`;
-
-      const response = await this.llm.invoke([new HumanMessage(prompt)]);
-      return response.content as string;
-    } catch (error) {
-      this.logger.error('Error generating suggestions analysis:', error);
       return '';
     }
   }
@@ -394,30 +296,48 @@ ${resumeContent}
   }
 
     /**
-   * 提取岗位亮点技能
+   * 提取岗位亮点技能（结构化返回，方便匹配）
+   * ✨ 改进：返回规范化的技能格式，每个技能只包含英文关键字
    */
-  async extractJobSpecificHighSkills(jobDescription: string, jobTitle: string): Promise<string[]> {
+  async extractJobSpecificHighSkills(jobDescription: string, jobTitle: string): Promise<{ name: string; keywords: string[] }[]> {
     try {
       if (!this.llm) {
         this.logger.warn('LLM not initialized');
         return [];
       }
 
-      const prompt = `请根据提供的求职岗位${jobTitle}和职位描述${jobDescription}，给出该岗位4-6个最关键的技能（中英文配对给出，相同含义的中英文关键词算一个）：
+      const prompt = `请根据提供的求职岗位"${jobTitle}"和职位描述"${jobDescription}"，给出该岗位4-6个最关键的高价值技能。
 
+要求：
+1. 每行一个技能
+2. 格式：技能名称(中英文)|英文关键字1|英文关键字2|...
+3. 例如：Python编程|python|coding|programming
 
-
-请以逗号分隔的形式返回关键词，不要包含任何解释或引言。`;
+请严格按照以下格式返回，不要包含任何解释或其他内容：
+Python编程|python|programming
+JavaScript/Node.js|javascript|nodejs|node
+React框架|react|reactjs
+Docker容器化|docker
+...`;
 
       const response = await this.llm.invoke([new HumanMessage(prompt)]);
       const content = response.content as string;
 
-      // 解析返回的关键词列表
-      return content
-        .split(',')
-        .map(skill => skill.trim())
-        .filter(skill => skill.length > 0)
-        .slice(0, 6); // 限制最多6个关键词
+      // 解析返回的技能列表
+      const highSkills: { name: string; keywords: string[] }[] = [];
+      const lines = content.split('\n').filter(line => line.trim().length > 0);
+      
+      for (const line of lines) {
+        const parts = line.split('|').map(p => p.trim()).filter(p => p.length > 0);
+        if (parts.length >= 2) {
+          highSkills.push({
+            name: parts[0],           // 技能名称（中英文）
+            keywords: parts.slice(1)  // 英文关键字列表
+          });
+        }
+      }
+
+      return highSkills.slice(0, 6); // 限制最多6个高价值技能
     } catch (error) {
       this.logger.error('Error extracting job specific high value skills:', error);
       return [];
