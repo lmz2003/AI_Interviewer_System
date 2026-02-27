@@ -205,7 +205,7 @@ ${jobDescription}
 ${resumeContent}
 简历类型：${resumeType === 'freshman' ? '校招生' : '社招'}
 
-请严格按照以下JSON格式返回结果:
+请严格按照以下格式返回结果:
 {
   "overallEvaluation": "整体评价(2句)",
   "strengths": ["最突出的3个优势1", "最突出的3个优势2", "最突出的3个优势3"],
@@ -213,7 +213,7 @@ ${resumeContent}
   "suggestions": ["针对求职岗位的5条具体改进建议1", "2", "3", "4", "5"]
 }
 
-确保返回的JSON格式正确,可以直接被解析。`;
+确保返回的格式正确,可以直接被解析。`;
 
       this.logger.log(`[Stage: LLM - DetailedReport] Calling LLM for detailed report generation`);
       const response = await this.llm.invoke([new HumanMessage(prompt)]);

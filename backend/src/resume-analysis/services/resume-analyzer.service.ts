@@ -9,7 +9,7 @@ interface AnalysisResult {
   experienceScore: number;
   skillsScore: number;
   keywordAnalysis: {
-    keywords: { [key: string]: number };
+    keywords: string[];
     categoryScores: { [key: string]: number };
   };
   contentAnalysis: {
@@ -295,7 +295,7 @@ export class ResumeAnalyzerService {
     text: string, 
     jobDescription?: string,
     jobTitle?: string
-  ): Promise<{ score: number; keywords: { [key: string]: number }; categoryScores: { [key: string]: number } }> {
+  ): Promise<{ score: number; keywords: string[]; categoryScores: { [key: string]: number } }> {
     this.logger.log(`[Stage: Scoring - Keywords] Starting keyword score calculation - TextLength: ${text.length}, HasJobDesc: ${!!jobDescription}, JobTitle: ${jobTitle || 'N/A'}`);
     
     // 1. 准备文本（支持中英文）
@@ -401,7 +401,7 @@ export class ResumeAnalyzerService {
 
     return { 
       score: normalizedScore, 
-      keywords: foundKeywords,
+      keywords: Object.keys(foundKeywords),
       categoryScores 
     };
   }

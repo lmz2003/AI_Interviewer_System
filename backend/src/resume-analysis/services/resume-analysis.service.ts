@@ -184,7 +184,7 @@ export class ResumeAnalysisService {
         contentAnalysis: JSON.stringify(analysisResult.contentAnalysis),
         jobMatchAnalysis: analysisResult.jobMatchAnalysis ? JSON.stringify(analysisResult.jobMatchAnalysis) : undefined,
         competencyAnalysis: analysisResult.competencyAnalysis ? JSON.stringify(analysisResult.competencyAnalysis) : undefined,
-        detailedReport: analysisResult.detailedReport,
+        detailedReport: analysisResult.detailedReport ? JSON.stringify(analysisResult.detailedReport) : undefined,
       });
 
       await this.analysisRepository.save(analysis);

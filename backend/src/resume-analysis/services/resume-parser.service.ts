@@ -216,8 +216,38 @@ export class ResumeParserService {
       const fileBuffer = fs.readFileSync(filePath);
       this.logger.log(`[PDF Parser] File buffer size: ${fileBuffer.length} bytes`);
 
-      const pdfData = await PDFParser(fileBuffer);
-      const text = pdfData.text || '';
+      // 使用自定义页面渲染器处理乱码问题
+      const pdfData = await PDFParser(fileBuffer, {
+        pagerender: (pageData: any) => {
+          // 获取页面文本
+          let text = pageData.getTextContent();
+          let finalText = '';
+          
+          if (text && text.items) {
+            // 逐个处理每个文本项，确保正确的字符编码
+            for (let item of text.items) {
+              // 处理特殊字符和乱码
+              if (item.str) {
+                finalText += item.str;
+              }
+              // 处理空格
+              if (item.width) {
+                finalText += ' ';
+              }
+            }
+            // 添加换行符
+            finalText += '\n';
+          }
+          
+          return finalText;
+        },
+        max: 0, // 0 表示解析所有页面，不限制
+      });
+
+      let text = pdfData.text || '';
+
+      // 清理提取的文本中的乱码字符
+      text = this.cleanupTextContent(text);
 
       this.logger.log(`[PDF Parser] PDF parsed successfully. Total characters: ${text.length}`);
       this.logger.log(`[PDF Parser] Number of pages: ${pdfData.numpages}`);
@@ -303,8 +333,38 @@ export class ResumeParserService {
     try {
       this.logger.log(`[PDF Parser] Starting to parse PDF from buffer (${fileBuffer.length} bytes)`);
 
-      const pdfData = await PDFParser(fileBuffer);
-      const text = pdfData.text || '';
+      // 使用自定义页面渲染器处理乱码问题
+      const pdfData = await PDFParser(fileBuffer, {
+        pagerender: (pageData: any) => {
+          // 获取页面文本
+          let text = pageData.getTextContent();
+          let finalText = '';
+          
+          if (text && text.items) {
+            // 逐个处理每个文本项，确保正确的字符编码
+            for (let item of text.items) {
+              // 处理特殊字符和乱码
+              if (item.str) {
+                finalText += item.str;
+              }
+              // 处理空格
+              if (item.width) {
+                finalText += ' ';
+              }
+            }
+            // 添加换行符
+            finalText += '\n';
+          }
+          
+          return finalText;
+        },
+        max: 0, // 0 表示解析所有页面，不限制
+      });
+
+      let text = pdfData.text || '';
+
+      // 清理提取的文本中的乱码字符
+      text = this.cleanupTextContent(text);
 
       this.logger.log(`[PDF Parser] PDF parsed successfully. Total characters: ${text.length}`);
       this.logger.log(`[PDF Parser] Number of pages: ${pdfData.numpages}`);
@@ -316,6 +376,62 @@ export class ResumeParserService {
       this.logger.error(`[PDF Parser] PDF parsing failed: ${errorMsg}`, error);
       throw new BadRequestException(`PDF parsing failed: ${errorMsg}`);
     }
+  }
+
+  /**
+   * 清理文本中的乱码字符
+   */
+  private cleanupTextContent(text: string): string {
+    if (!text) return text;
+
+    // 1. 移除控制字符（除了换行和制表符）
+    text = text.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+
+    // 2. 处理 PDF 特殊符号和 bullet points 导致的乱码
+    // 这些通常是 PDF 中的图标、符号或装饰字符
+    text = text
+      .replace(/\ufffd/g, '') // 替换替换字符
+      // 移除常见的 PDF 符号乱码（如 •、◦、‣ 等及其错误编码版本）
+      .replace(/[\u0080-\u009F]/g, '') // 控制字符
+      .replace(/[\u2000-\u206F]/g, '') // 一般标点符号范围
+      .replace(/[ª­®¯°±²³´µ¶·¸¹º»¼½¾¿]/g, '') // Latin-1 补充中的符号
+      .replace(/[À-ß]/g, (match) => {
+        // 保留常见的 Latin 字符（如 Á, á 等），移除其他
+        // 这些通常是乱码
+        return '';
+      })
+      // 保留基本字符：ASCII、中文、日文、Cyrillic 等常见文字
+      // 移除其他异常单字符
+      .replace(/[^\x20-\x7E\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\u0400-\u04FF\s\n\r\-—–]/g, (match) => {
+        // 仅保留：
+        // \x20-\x7E: ASCII 可打印字符
+        // \u4E00-\u9FFF: 中文
+        // \u3040-\u309F: 日文平假名
+        // \u30A0-\u30FF: 日文片假名
+        // \u0400-\u04FF: Cyrillic (俄文等)
+        // \s: 空格
+        // \n\r: 换行
+        // \-—–: 各种破折号
+        return '';
+      });
+
+    // 3. 清理 bullet points 和列表符号前的乱码
+    // 处理常见的 bullet point 模式：乱码字符后跟内容
+    text = text
+      .replace(/^[•◦‣\-\*\+]+\s*/gm, '• ') // 规范化列表符号
+      .replace(/^\s*[•◦‣\-\*\+]\s*/gm, '• ') // 规范化行首列表符号
+      .replace(/^[\w]*[•◦‣\-\*\+]/gm, '• '); // 修复乱码+bullet 的情况
+
+    // 4. 规范化空格和换行
+    text = text
+      .replace(/\r\n/g, '\n') // 统一换行符
+      .replace(/\t/g, ' ')    // 制表符转空格
+      .replace(/\n\s+\n/g, '\n') // 移除多余空行
+      .replace(/[ ]{2,}/g, ' ') // 多个空格合并为一个
+      .trim();
+
+    this.logger.log(`[PDF Parser] Text cleanup completed - Removed garbled characters`);
+    return text;
   }
 
   /**
