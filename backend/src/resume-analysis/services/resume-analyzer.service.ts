@@ -47,10 +47,15 @@ export class ResumeAnalyzerService {
    * 主分析方法（优化：根据简历类型差异化评分）
    */
   async analyzeResume(text: string, parsedData: any, jobDescription?: string, jobTitle?: string): Promise<AnalysisResult> {
+    this.logger.log(`[Stage: Analyzer] Starting resume analysis - TextLength: ${text.length}, HasJobDescription: ${!!jobDescription}`);
+    
     // ✨ 第一步：识别简历类型
+    this.logger.log(`[Stage: Analyzer] Step 1: Detecting resume type`);
     const resumeType = this.detectResumeType(parsedData);
+    this.logger.log(`[Stage: Analyzer] Resume type detected: ${resumeType}`);
 
     // ✨ 第二步：根据简历类型进行差异化评分
+    this.logger.log(`[Stage: Analyzer] Step 2: Calculating scores based on resume type`);
     const [keywordScoreData, completenessScore, experienceScore, skillsScore] = await Promise.all([
       this.calculateKeywordScore(text, jobDescription, jobTitle),
       Promise.resolve(this.calculateCompletenessScore(text, parsedData, resumeType)),
@@ -64,18 +69,22 @@ export class ResumeAnalyzerService {
       experienceScore,
       skillsScore,
     };
+    this.logger.log(`[Stage: Analyzer] Scores calculated - Completeness: ${completenessScore}, Keyword: ${keywordScoreData.score}, Experience: ${experienceScore}, Skills: ${skillsScore}`);
 
     // ✨ 第三步：计算总体评分（加权平均）
     // 注：权重已经在各个评分方法内进行了差异化处理
     // ✨ formatScore 已合并到 completenessScore，调整权重
+    this.logger.log(`[Stage: Analyzer] Step 3: Calculating weighted overall score`);
     const overallScore = Math.round(
       scores.completenessScore * 0.25 +
       scores.keywordScoreData.score * 0.2 +
       scores.experienceScore * 0.25 +
       scores.skillsScore * 0.3
     );
+    this.logger.log(`[Stage: Analyzer] Overall score calculated: ${overallScore}`);
 
     // ✨ 第四步：使用LLM生成详细分析报告（包含优势、劣势、建议）
+    this.logger.log(`[Stage: Analyzer] Step 4: Generating detailed analysis report via LLM`);
     const basicScores = {
       overallScore,
       completenessScore: scores.completenessScore,
@@ -84,22 +93,32 @@ export class ResumeAnalyzerService {
       skillsScore: scores.skillsScore,
     };
     
-    const detailedReport = await this.resumeLLMService.generateDetailedAnalysisReport(text, parsedData, basicScores,resumeType);
+    const detailedReport = await this.resumeLLMService.generateDetailedAnalysisReport(text, parsedData, basicScores, resumeType);
+    this.logger.log(`[Stage: Analyzer] Detailed report generated - ReportLength: ${detailedReport.length} chars`);
     
     // // ✨ 从详细报告中提取优势、劣势、建议（避免重复调用LLM）
     // const { strengths, weaknesses, suggestions } = this.extractAnalysisFromDetailedReport(detailedReport);
 
     // ✨ 第五步：生成岗位匹配度分析
+    this.logger.log(`[Stage: Analyzer] Step 5: Generating job match analysis`);
     let jobMatchAnalysis = undefined;
     if (jobDescription) {
       jobMatchAnalysis = await this.generateJobMatchAnalysis(text, jobDescription);
+      this.logger.log(`[Stage: Analyzer] Job match analysis completed`);
+    } else {
+      this.logger.log(`[Stage: Analyzer] Skipping job match analysis - no job description provided`);
     }
 
     // ✨ 第六步：生成能力素质评估
+    this.logger.log(`[Stage: Analyzer] Step 6: Generating competency analysis`);
     const competencyAnalysis = await this.generateCompetencyAnalysis(text, parsedData, resumeType);
+    this.logger.log(`[Stage: Analyzer] Competency analysis completed`);
 
+    this.logger.log(`[Stage: Analyzer] Step 7: Analyzing content structure`);
     const contentAnalysis = this.analyzeContent(text, parsedData);
+    this.logger.log(`[Stage: Analyzer] Content analysis completed`);
 
+    this.logger.log(`[Stage: Analyzer] All analysis steps completed successfully`);
     return {
       overallScore,
       completenessScore: scores.completenessScore,
@@ -123,6 +142,8 @@ export class ResumeAnalyzerService {
    * experienced: 社招（有工作经验的专业人士）
    */
   private detectResumeType(parsedData: any): 'freshman' | 'experienced' {
+    this.logger.log(`[Stage: Type Detection] Starting resume type detection`);
+    
     // 指标1：工作经验数量
     const workExperienceCount = parsedData.workExperience?.length || 0;
     
@@ -148,18 +169,24 @@ export class ResumeAnalyzerService {
       }
     }
     
+    this.logger.log(`[Stage: Type Detection] Detection indicators - WorkExp: ${workExperienceCount}, Internships: ${internshipCount}, Campus: ${campusExperienceCount}, HasSocialInfo: ${hasSocialRecruitmentInfo}, TotalWorkMonths: ${totalWorkMonths}`);
+    
     // 判断逻辑
     // 如果有社招特有字段或工作经验 > 2个，则为社招
     // 如果主要是校园活动和实习，则为校招
+    let resumeType: 'freshman' | 'experienced';
     if (workExperienceCount > 2 || hasSocialRecruitmentInfo || totalWorkMonths > 24) {
-      return 'experienced';
+      resumeType = 'experienced';
     } else if (campusExperienceCount > 2 || internshipCount >= 2) {
-      return 'freshman';
+      resumeType = 'freshman';
     } else if (workExperienceCount > 0) {
-      return 'experienced';
+      resumeType = 'experienced';
     } else {
-      return 'freshman';
+      resumeType = 'freshman';
     }
+    
+    this.logger.log(`[Stage: Type Detection] Resume type determined: ${resumeType}`);
+    return resumeType;
   }
 
   /**
@@ -168,6 +195,7 @@ export class ResumeAnalyzerService {
    * 综合评价：内容是否完整 + 格式是否规范
    */
   private calculateCompletenessScore(text: string, parsedData: any, resumeType: 'freshman' | 'experienced'): number {
+    this.logger.log(`[Stage: Scoring - Completeness] Starting completeness score calculation - ResumeType: ${resumeType}`);
     let score = 0;
     let maxScore = 0;
 
@@ -254,7 +282,9 @@ export class ResumeAnalyzerService {
     maxScore += 10;
 
     // ========== 最终评分 ==========
-    return maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    const finalScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    this.logger.log(`[Stage: Scoring - Completeness] Completeness score calculated - Score: ${finalScore}/100, Points: ${score}/${maxScore}`);
+    return finalScore;
   }
 
   /**
@@ -266,6 +296,8 @@ export class ResumeAnalyzerService {
     jobDescription?: string,
     jobTitle?: string
   ): Promise<{ score: number; keywords: { [key: string]: number }; categoryScores: { [key: string]: number } }> {
+    this.logger.log(`[Stage: Scoring - Keywords] Starting keyword score calculation - TextLength: ${text.length}, HasJobDesc: ${!!jobDescription}, JobTitle: ${jobTitle || 'N/A'}`);
+    
     // 1. 准备文本（支持中英文）
     const textLower = text.toLowerCase();
     const foundKeywords: { [key: string]: number } = {};
@@ -365,6 +397,8 @@ export class ResumeAnalyzerService {
       ? Math.min(100, Math.round((totalScore / maxScore) * 100))
       : 0;
 
+    this.logger.log(`[Stage: Scoring - Keywords] Keyword score calculated - Score: ${normalizedScore}/100, KeywordsFound: ${Object.keys(foundKeywords).length}, CategoryMatches: ${JSON.stringify(categoryMatchCounts)}`);
+
     return { 
       score: normalizedScore, 
       keywords: foundKeywords,
@@ -384,6 +418,7 @@ export class ResumeAnalyzerService {
    * ✨ 改进：标准化为0-100分制
    */
   private calculateExperienceScore(parsedData: any, resumeType: 'freshman' | 'experienced'): number {
+    this.logger.log(`[Stage: Scoring - Experience] Starting experience score calculation - ResumeType: ${resumeType}`);
     let score = 0;
     let maxScore = 0;
 
@@ -469,7 +504,9 @@ export class ResumeAnalyzerService {
     }
 
     // 归一化到0-100分
-    return maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    const finalScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    this.logger.log(`[Stage: Scoring - Experience] Experience score calculated - Score: ${finalScore}/100, Points: ${score}/${maxScore}`);
+    return finalScore;
   }
 
   /**
@@ -477,7 +514,10 @@ export class ResumeAnalyzerService {
    * ✨ 改进：使用结构化的高价值技能，精确匹配英文关键字
    */
   private async calculateSkillsScore(skills: string[], jobTitle: string, jobDescription?: string): Promise<number> {
+    this.logger.log(`[Stage: Scoring - Skills] Starting skills score calculation - SkillsCount: ${skills?.length || 0}, JobTitle: ${jobTitle || 'N/A'}, HasJobDesc: ${!!jobDescription}`);
+    
     if (!skills || skills.length === 0) {
+      this.logger.log(`[Stage: Scoring - Skills] No skills found, returning 0`);
       return 0;
     }
 
@@ -559,7 +599,9 @@ export class ResumeAnalyzerService {
     }
 
     // ✨ 归一化到0-100分
-    return maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    const finalScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    this.logger.log(`[Stage: Scoring - Skills] Skills score calculated - Score: ${finalScore}/100, Points: ${score}/${maxScore}`);
+    return finalScore;
   }
 
 

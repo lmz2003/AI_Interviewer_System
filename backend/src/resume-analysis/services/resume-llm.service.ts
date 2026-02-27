@@ -43,9 +43,10 @@ export class ResumeLLMService {
    * 生成个人信息优化建议
    */
   async generatePersonalInfoOptimization(currentInfo: any): Promise<string> {
+    this.logger.log(`[Stage: LLM] Generating personal info optimization - Name: ${currentInfo?.name || 'N/A'}`);
     try {
       if (!this.llm) {
-        this.logger.warn('LLM not initialized');
+        this.logger.warn('[Stage: LLM] LLM not initialized');
         return '';
       }
 
@@ -59,10 +60,12 @@ export class ResumeLLMService {
 
 请给出2-3条具体的改进建议，格式为列表。`;
 
+      this.logger.log(`[Stage: LLM] Calling LLM for personal info optimization`);
       const response = await this.llm.invoke([new HumanMessage(prompt)]);
+      this.logger.log(`[Stage: LLM] Personal info optimization completed - ResponseLength: ${(response.content as string).length} chars`);
       return response.content as string;
     } catch (error) {
-      this.logger.error('Error generating personal info optimization:', error);
+      this.logger.error('[Stage: LLM] Error generating personal info optimization:', error);
       return '';
     }
   }
@@ -182,9 +185,10 @@ ${jobDescription}
     basicScores: any,
     resumeType: 'freshman' | 'experienced'
   ): Promise<string> {
+    this.logger.log(`[Stage: LLM - DetailedReport] Generating detailed analysis report - ResumeType: ${resumeType}, OverallScore: ${basicScores.overallScore}`);
     try {
       if (!this.llm) {
-        this.logger.warn('LLM not initialized');
+        this.logger.warn('[Stage: LLM - DetailedReport] LLM not initialized');
         return '';
       }
 
@@ -211,10 +215,12 @@ ${resumeContent}
 
 确保返回的JSON格式正确,可以直接被解析。`;
 
+      this.logger.log(`[Stage: LLM - DetailedReport] Calling LLM for detailed report generation`);
       const response = await this.llm.invoke([new HumanMessage(prompt)]);
+      this.logger.log(`[Stage: LLM - DetailedReport] Detailed report generated successfully - ResponseLength: ${(response.content as string).length} chars`);
       return response.content as string;
     } catch (error) {
-      this.logger.error('Error generating detailed analysis report:', error);
+      this.logger.error('[Stage: LLM - DetailedReport] Error generating detailed analysis report:', error);
       return '';
     }
   }
@@ -227,9 +233,10 @@ ${resumeContent}
     parsedData: any,
     resumeType: 'freshman' | 'experienced'
   ): Promise<string> {
+    this.logger.log(`[Stage: LLM - Competency] Generating competency analysis - ResumeType: ${resumeType}, TextLength: ${text.length}`);
     try {
       if (!this.llm) {
-        this.logger.warn('LLM not initialized');
+        this.logger.warn('[Stage: LLM - Competency] LLM not initialized');
         return '';
       }
 
@@ -256,10 +263,12 @@ ${text}
 
 确保返回的JSON格式正确,可以直接被解析。`;
 
+      this.logger.log(`[Stage: LLM - Competency] Calling LLM for competency analysis`);
       const response = await this.llm.invoke([new HumanMessage(prompt)]);
+      this.logger.log(`[Stage: LLM - Competency] Competency analysis completed - ResponseLength: ${(response.content as string).length} chars`);
       return response.content as string;
     } catch (error) {
-      this.logger.error('Error generating competency analysis:', error);
+      this.logger.error('[Stage: LLM - Competency] Error generating competency analysis:', error);
       return '';
     }
   }
@@ -268,9 +277,10 @@ ${text}
    * 提取岗位特定关键词
    */
   async extractJobSpecificKeywords(jobDescription: string, jobTitle: string): Promise<string[]> {
+    this.logger.log(`[Stage: LLM - Keywords] Extracting job specific keywords - JobTitle: ${jobTitle}`);
     try {
       if (!this.llm) {
-        this.logger.warn('LLM not initialized');
+        this.logger.warn('[Stage: LLM - Keywords] LLM not initialized');
         return [];
       }
 
@@ -280,17 +290,21 @@ ${text}
 
 请以逗号分隔的形式返回关键词，不要包含任何解释或引言。`;
 
+      this.logger.log(`[Stage: LLM - Keywords] Calling LLM for keyword extraction`);
       const response = await this.llm.invoke([new HumanMessage(prompt)]);
       const content = response.content as string;
 
       // 解析返回的关键词列表
-      return content
+      const keywords = content
         .split(',')
         .map(keyword => keyword.trim())
         .filter(keyword => keyword.length > 0)
         .slice(0, 20); // 限制最多15个关键词
+      
+      this.logger.log(`[Stage: LLM - Keywords] Keyword extraction completed - KeywordsExtracted: ${keywords.length}`);
+      return keywords;
     } catch (error) {
-      this.logger.error('Error extracting job specific keywords:', error);
+      this.logger.error('[Stage: LLM - Keywords] Error extracting job specific keywords:', error);
       return [];
     }
   }
@@ -300,9 +314,10 @@ ${text}
    * ✨ 改进：返回规范化的技能格式，每个技能只包含英文关键字
    */
   async extractJobSpecificHighSkills(jobDescription: string, jobTitle: string): Promise<{ name: string; keywords: string[] }[]> {
+    this.logger.log(`[Stage: LLM - HighSkills] Extracting high value job specific skills - JobTitle: ${jobTitle}`);
     try {
       if (!this.llm) {
-        this.logger.warn('LLM not initialized');
+        this.logger.warn('[Stage: LLM - HighSkills] LLM not initialized');
         return [];
       }
 
@@ -320,6 +335,7 @@ React框架|react|reactjs
 Docker容器化|docker
 ...`;
 
+      this.logger.log(`[Stage: LLM - HighSkills] Calling LLM for high value skills extraction`);
       const response = await this.llm.invoke([new HumanMessage(prompt)]);
       const content = response.content as string;
 
@@ -337,9 +353,11 @@ Docker容器化|docker
         }
       }
 
-      return highSkills.slice(0, 6); // 限制最多6个高价值技能
+      const result = highSkills.slice(0, 6); // 限制最多6个高价值技能
+      this.logger.log(`[Stage: LLM - HighSkills] High value skills extraction completed - SkillsExtracted: ${result.length}`);
+      return result;
     } catch (error) {
-      this.logger.error('Error extracting job specific high value skills:', error);
+      this.logger.error('[Stage: LLM - HighSkills] Error extracting job specific high value skills:', error);
       return [];
     }
   }

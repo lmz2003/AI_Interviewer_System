@@ -391,7 +391,7 @@ export class ResumeParserService {
       throw new BadRequestException('Resume content is empty');
     }
 
-    this.logger.log(`[Resume Parser] Starting to parse resume content with LLM (${text.length} characters)`);
+    this.logger.log(`[Stage: LLM Parsing] Starting to parse resume content with LLM - TextLength: ${text.length} characters`);
 
     try {
       const systemPrompt = `你是一个专业的简历解析助手。你的任务是从简历文本中提取结构化信息。
@@ -561,55 +561,64 @@ export class ResumeParserService {
 简历内容：
 ${text}`;
 
-      this.logger.debug('[LLM] Sending request to LLM for resume parsing');
+      this.logger.log(`[Stage: LLM Parsing] Sending request to LLM for resume parsing`);
       const response = await this.llm.invoke([
         new SystemMessage(systemPrompt),
         new HumanMessage(userPrompt),
       ]);
 
       const responseContent = response.content as string;
-      this.logger.debug(`[LLM] Response received (${responseContent.length} chars)`);
+      this.logger.log(`[Stage: LLM Parsing] Response received from LLM - ContentLength: ${responseContent.length} chars`);
 
       // 尝试解析 JSON 响应
       let parsedData: ParsedResume;
-      this.logger.log(`[Resume Parser parsedData: ] ${responseContent}`);
+      this.logger.log(`[Stage: LLM Parsing] LLM Response: ${responseContent}`);
       try {
         // 尝试直接解析
+        this.logger.log(`[Stage: JSON Extraction] Attempting direct JSON parsing`);
         parsedData = JSON.parse(responseContent);
+        this.logger.log(`[Stage: JSON Extraction] Direct parsing succeeded`);
       } catch {
+        this.logger.log(`[Stage: JSON Extraction] Direct parsing failed, trying markdown extraction`);
         // 尝试从 markdown 代码块中提取 JSON
         const jsonMatch = responseContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
         if (jsonMatch) {
+          this.logger.log(`[Stage: JSON Extraction] Markdown code block found, parsing`);
           parsedData = JSON.parse(jsonMatch[1]);
+          this.logger.log(`[Stage: JSON Extraction] Markdown extraction succeeded`);
         } else {
+          this.logger.log(`[Stage: JSON Extraction] No markdown found, trying object matching`);
           // 尝试找到 JSON 对象
           const objectMatch = responseContent.match(/\{[\s\S]*\}/);
           if (objectMatch) {
+            this.logger.log(`[Stage: JSON Extraction] JSON object found, parsing`);
             parsedData = JSON.parse(objectMatch[0]);
+            this.logger.log(`[Stage: JSON Extraction] Object extraction succeeded`);
           } else {
+            this.logger.error(`[Stage: JSON Extraction] Could not extract JSON from LLM response`);
             throw new Error('Could not extract JSON from LLM response');
           }
         }
       }
 
       // 验证和标准化数据
+      this.logger.log(`[Stage: Data Normalization] Starting data normalization and validation`);
       const normalizedData = this.normalizeParseResult(parsedData);
+      this.logger.log(`[Stage: Data Normalization] Data normalization completed`);
 
       // 详细日志输出
-      this.logger.log(`[Resume Parser] ========== PARSING RESULT ==========`);
-      this.logger.log(`[Resume Parser] Personal Info:`, JSON.stringify(normalizedData.personalInfo, null, 2));
-      this.logger.log(`[Resume Parser] Skills (${normalizedData.skills?.length || 0} total):`,
-        JSON.stringify(normalizedData.skills, null, 2));
-      this.logger.log(`[Resume Parser] Education (${normalizedData.education?.length || 0} total):`,
-        JSON.stringify(normalizedData.education, null, 2));
-      this.logger.log(`[Resume Parser] Work Experience (${normalizedData.workExperience?.length || 0} total):`,
-        JSON.stringify(normalizedData.workExperience, null, 2));
-      this.logger.log(`[Resume Parser] ====================================`);
+      this.logger.log(`[Stage: Parsing Summary] ========== PARSING RESULT ==========`);
+      this.logger.log(`[Stage: Parsing Summary] Personal Info: ${JSON.stringify(normalizedData.personalInfo)}`);
+      this.logger.log(`[Stage: Parsing Summary] Skills Found: ${normalizedData.skills?.length || 0}, Skill Categories: ${normalizedData.skillCategories?.length || 0}`);
+      this.logger.log(`[Stage: Parsing Summary] Education Entries: ${normalizedData.education?.length || 0}, Work Experience: ${normalizedData.workExperience?.length || 0}, Internships: ${normalizedData.internshipExperience?.length || 0}`);
+      this.logger.log(`[Stage: Parsing Summary] Projects: ${normalizedData.projects?.length || 0}, Certifications: ${normalizedData.certifications?.length || 0}, Languages: ${normalizedData.languages?.length || 0}`);
+      this.logger.log(`[Stage: Parsing Summary] Awards: ${normalizedData.awards?.length || 0}, Publications: ${normalizedData.publications?.length || 0}, Campus Experience: ${normalizedData.campusExperience?.length || 0}`);
+      this.logger.log(`[Stage: Parsing Summary] ====================================`);
 
       return normalizedData;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('[LLM] Error during LLM-based parsing:', errorMsg);
+      this.logger.error(`[Stage: LLM Parsing] Error during LLM-based parsing - Error: ${errorMsg}`, error);
       throw new BadRequestException(`Resume parsing failed: ${errorMsg}`);
     }
   }

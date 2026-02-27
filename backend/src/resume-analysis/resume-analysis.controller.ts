@@ -134,9 +134,13 @@ export class ResumeAnalysisController {
     @Response({ passthrough: true }) res: any
   ) {
     const userId = req.user?.id as string;
+    this.logger.log(`[Request] GET /resume-analysis/${id}/pdf - UserId: ${userId}`);
+    
     const resume = await this.resumeAnalysisService.getResumeById(id, userId);
+    this.logger.log(`[GetPDF] Resume retrieved - ResumeId: ${id}, FileName: ${resume.fileName}, FileSize: ${resume.fileBinary?.length || 0} bytes`);
 
     if (!resume.fileBinary) {
+      this.logger.warn(`[GetPDF] PDF file binary not found - ResumeId: ${id}`);
       throw new HttpException(
         {
           code: -1,
@@ -153,6 +157,7 @@ export class ResumeAnalysisController {
       'Content-Length': resume.fileBinary.length,
     });
 
+    this.logger.log(`[GetPDF] Streaming PDF file - FileName: ${resume.fileName}, FileSize: ${resume.fileBinary.length} bytes`);
     return new StreamableFile(resume.fileBinary);
   }
 
@@ -163,7 +168,10 @@ export class ResumeAnalysisController {
   @Get(':id/analysis')
   async getAnalysis(@Param('id') id: string, @Request() req: AuthRequest) {
     const userId = req.user?.id as string;
+    this.logger.log(`[Request] GET /resume-analysis/${id}/analysis - UserId: ${userId}`);
+    
     const analysis = await this.resumeAnalysisService.getResumeAnalysis(id, userId);
+    this.logger.log(`[GetAnalysis] Analysis retrieved successfully - ResumeId: ${id}, OverallScore: ${analysis.overallScore}`);
 
     return {
       code: 0,
@@ -204,7 +212,10 @@ export class ResumeAnalysisController {
   @Get()
   async getResumes(@Request() req: AuthRequest) {
     const userId = req.user?.id as string;
+    this.logger.log(`[Request] GET /resume-analysis - UserId: ${userId}`);
+    
     const resumes = await this.resumeAnalysisService.getResumesByUserId(userId);
+    this.logger.log(`[GetResumes] Resumes retrieved successfully - UserId: ${userId}, ResumeCount: ${resumes.length}`);
 
     return {
       code: 0,
@@ -220,7 +231,10 @@ export class ResumeAnalysisController {
   @Get(':id')
   async getResumeDetail(@Param('id') id: string, @Request() req: AuthRequest) {
     const userId = req.user?.id as string;
+    this.logger.log(`[Request] GET /resume-analysis/${id} - UserId: ${userId}`);
+    
     const resume = await this.resumeAnalysisService.getResumeById(id, userId);
+    this.logger.log(`[GetResumeDetail] Resume detail retrieved - ResumeId: ${id}, Title: "${resume.title}", IsProcessed: ${resume.isProcessed}`);
 
     return {
       code: 0,
@@ -239,7 +253,10 @@ export class ResumeAnalysisController {
     @Request() req: AuthRequest
   ) {
     const userId = req.user?.id as string;
+    this.logger.log(`[Request] PUT /resume-analysis/${id} - UserId: ${userId}, Title: "${body.title}", ContentLength: ${body.content?.length || 0} chars`);
+    
     const resume = await this.resumeAnalysisService.updateResume(id, userId, body.title, body.content);
+    this.logger.log(`[UpdateResume] Resume updated successfully - ResumeId: ${id}, NewTitle: "${resume.title}", Status: ${resume.status}`);
 
     return {
       code: 0,
@@ -254,7 +271,10 @@ export class ResumeAnalysisController {
   @Delete(':id')
   async deleteResume(@Param('id') id: string, @Request() req: AuthRequest) {
     const userId = req.user?.id as string;
+    this.logger.log(`[Request] DELETE /resume-analysis/${id} - UserId: ${userId}`);
+    
     await this.resumeAnalysisService.deleteResume(id, userId);
+    this.logger.log(`[DeleteResume] Resume deleted successfully - ResumeId: ${id}`);
 
     return {
       code: 0,
