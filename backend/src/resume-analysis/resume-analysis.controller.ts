@@ -180,31 +180,6 @@ export class ResumeAnalysisController {
     };
   }
 
-  /**
-   * 对标职位描述
-   * 必须在 GET :id 之前定义（更具体的路由）
-   */
-//   @Post(':id/compare')
-//   async compareWithJob(
-//     @Param('id') id: string,
-//     @Body() body: { jobDescription: string },
-//     @Request() req: AuthRequest
-//   ) {
-//     const userId = req.user?.id as string;
-//     const analysis = await this.resumeAnalysisService.compareWithJobDescription(
-//       id,
-//       userId,
-//       body.jobDescription
-//     );
-
-//     return {
-//       code: 0,
-//       message: 'ok',
-//       data: {
-//         matchAnalysis: analysis,
-//       },
-//     };
-//   }
 
   /**
    * 获取用户的所有简历

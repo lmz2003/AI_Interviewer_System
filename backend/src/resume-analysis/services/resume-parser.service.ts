@@ -210,31 +210,8 @@ export class ResumeParserService {
   async parsePDF(filePath: string): Promise<string> {
     try {
       const fileBuffer = fs.readFileSync(filePath);
-
-      const pdfData = await PDFParser(fileBuffer, {
-        pagerender: (pageData: any) => {
-          let text = pageData.getTextContent();
-          let finalText = '';
-          
-          if (text && text.items) {
-            for (let item of text.items) {
-              if (item.str) {
-                finalText += item.str;
-              }
-              if (item.width) {
-                finalText += ' ';
-              }
-            }
-            finalText += '\n';
-          }
-          
-          return finalText;
-        },
-        max: 0,
-      });
-
-      let text = pdfData.text || '';
-      text = this.cleanupTextContent(text);
+      const pdfData = await PDFParser(fileBuffer);
+      const text = pdfData.text || '';
 
       this.logger.log(`[PDF] Parsed - Pages: ${pdfData.numpages}, Chars: ${text.length}`);
       return text;
@@ -297,31 +274,9 @@ export class ResumeParserService {
 
   private async parsePDFBuffer(fileBuffer: Buffer): Promise<string> {
     try {
-      const pdfData = await PDFParser(fileBuffer, {
-        pagerender: (pageData: any) => {
-          let text = pageData.getTextContent();
-          let finalText = '';
-          
-          if (text && text.items) {
-            for (let item of text.items) {
-              if (item.str) {
-                finalText += item.str;
-              }
-              if (item.width) {
-                finalText += ' ';
-              }
-            }
-            finalText += '\n';
-          }
-          
-          return finalText;
-        },
-        max: 0,
-      });
+      const pdfData = await PDFParser(fileBuffer);
 
-      let text = pdfData.text || '';
-      text = this.cleanupTextContent(text);
-
+      const text = pdfData.text || ''
       this.logger.log(`[PDF] Parsed from buffer - Pages: ${pdfData.numpages}, Chars: ${text.length}`);
       return text;
     } catch (error) {

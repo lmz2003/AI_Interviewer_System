@@ -127,6 +127,13 @@ export class ResumeAnalysisService {
 
   /**
    * 异步处理简历（解析和分析）
+   * 分析阶段：
+   * 0: 待处理
+   * 1: 文本提取完成
+   * 2: 结构解析完成
+   * 3: 评分分析完成
+   * 4: 详细报告生成完成
+   * 5: 分析完全完成
    */
   private async processResumeAsync(resumeId: string, userId: string): Promise<void> {
     try {
@@ -136,18 +143,40 @@ export class ResumeAnalysisService {
         return;
       }
 
+      // 验证简历内容是否为空
+      if (!resume.content || resume.content.trim().length === 0) {
+        this.logger.warn(`[Process] Resume content is empty - ResumeId: ${resumeId}, FileName: "${resume.fileName}"`);
+        
+        // 标记为已处理但失败，避免重复尝试
+        resume.isProcessed = true;
+        await this.resumeRepository.save(resume);
+        return;
+      }
+
+      // 阶段1: 文本提取完成
       const parsedData = await this.parserService.parseResumeContent(resume.content);
-
       resume.parsedData = parsedData;
+      resume.analysisStage = 1;
       await this.resumeRepository.save(resume);
+      this.logger.log(`[Process] Stage 1 completed - Text extraction done - ResumeId: ${resumeId}`);
 
+      // 阶段2: 结构解析完成
+      resume.analysisStage = 2;
+      await this.resumeRepository.save(resume);
+      this.logger.log(`[Process] Stage 2 completed - Structure parsing done - ResumeId: ${resumeId}`);
+
+      // 阶段3: 评分分析完成
       const analysisResult = await this.analyzerService.analyzeResume(
         resume.content,
         parsedData,
         resume.jobDescription,
         resume.title
       );
+      resume.analysisStage = 3;
+      await this.resumeRepository.save(resume);
+      this.logger.log(`[Process] Stage 3 completed - Scoring analysis done - ResumeId: ${resumeId}`);
 
+      // 阶段4: 详细报告生成完成
       const analysis = this.analysisRepository.create({
         resumeId,
         overallScore: analysisResult.overallScore,
@@ -159,17 +188,23 @@ export class ResumeAnalysisService {
         contentAnalysis: JSON.stringify(analysisResult.contentAnalysis),
         jobMatchAnalysis: analysisResult.jobMatchAnalysis ? JSON.stringify(analysisResult.jobMatchAnalysis) : undefined,
         competencyAnalysis: analysisResult.competencyAnalysis ? JSON.stringify(analysisResult.competencyAnalysis) : undefined,
-        detailedReport: analysisResult.detailedReport ? JSON.stringify(analysisResult.detailedReport) : undefined,
+        detailedReport: analysisResult.detailedReport, // 已经是 JSON 字符串，不需要再 stringify
       });
 
       await this.analysisRepository.save(analysis);
+      resume.analysisStage = 4;
+      await this.resumeRepository.save(resume);
+      this.logger.log(`[Process] Stage 4 completed - Detailed report generated - ResumeId: ${resumeId}`);
 
+      // 阶段5: 分析完全完成
       resume.isProcessed = true;
+      resume.analysisStage = 5;
       await this.resumeRepository.save(resume);
 
       this.logger.log(`[Process] Resume analysis completed - ResumeId: ${resumeId}, OverallScore: ${analysisResult.overallScore}`);
     } catch (error) {
-      this.logger.error(`[Process] Failed to process resume ${resumeId} - Error: ${error instanceof Error ? error.message : 'Unknown'}`, error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown';
+      this.logger.error(`[Process] Failed to process resume ${resumeId} - Error: ${errorMsg}`, error);
     }
   }
 
@@ -192,20 +227,38 @@ export class ResumeAnalysisService {
 
   /**
    * 获取简历分析结果
+   * 如果分析未完成，返回当前分析进度阶段
    */
-  async getResumeAnalysis(resumeId: string, userId: string): Promise<ResumeAnalysis> {
+  async getResumeAnalysis(resumeId: string, userId: string): Promise<ResumeAnalysis & { analysisStage?: number }> {
     const resume = await this.getUserResume(resumeId, userId);
     
     const analysis = await this.analysisRepository.findOne({
       where: { resumeId },
     });
+    
     if (!analysis) {
+      // 分析未完成时，返回当前阶段信息
+      const analysisData = {
+        analysisStage: resume.analysisStage,
+      } as ResumeAnalysis & { analysisStage?: number };
+      
       const errorMsg = resume.isProcessed 
         ? 'Analysis result not found' 
-        : 'Resume is still being processed. Please try again later.';
+        : `Resume is still being processed. Current stage: ${resume.analysisStage}/5. Please try again later.`;
+      
+      // 如果还在处理中，不抛出异常，而是返回进度信息
+      if (!resume.isProcessed && resume.analysisStage > 0) {
+        return analysisData;
+      }
+      
       throw new NotFoundException(errorMsg);
     }
-    return analysis;
+    
+    // 将分析阶段信息附加到结果中
+    return {
+      ...analysis,
+      analysisStage: resume.analysisStage,
+    };
   }
 
   /**

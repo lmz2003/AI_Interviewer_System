@@ -85,6 +85,15 @@ export class Resume {
   @Column({ default: 'active' })
   status!: string; // active, archived, deleted
 
+  @Column({ default: 0 })
+  analysisStage!: number; // 分析进度阶段 (0-5)
+  // 0: 待处理
+  // 1: 文本提取完成
+  // 2: 结构解析完成
+  // 3: 评分分析完成
+  // 4: 详细报告生成完成
+  // 5: 分析完全完成
+
   @CreateDateColumn()
   createdAt!: Date;
 

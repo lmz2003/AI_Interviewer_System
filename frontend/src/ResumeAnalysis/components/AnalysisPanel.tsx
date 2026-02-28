@@ -204,18 +204,28 @@ interface AnalysisPanelProps {
   parsedData?: any;
 }
 
-// 安全的 JSON 解析函数
-const safeJsonParse = (jsonStr: string | null | undefined, fallback: any = {}) => {
-  if (!jsonStr) return fallback;
+// 安全的 JSON 解析函数（支持递归解析）
+const safeJsonParse = (jsonStr: string | null | undefined, fallback: any = {}): any => {
+  if (!jsonStr) {
+    return fallback;
+  }
+  
   try {
-    return JSON.parse(jsonStr);
+    let result = JSON.parse(jsonStr);
+    
+    // 递归处理：如果解析结果仍然是字符串，继续解析
+    // 这处理了双重序列化的情况（即 JSON.stringify 被调用了两次）
+    while (typeof result === 'string') {
+      result = JSON.parse(result);
+    }
+    
+    return result;
   } catch (e) {
-    console.error('Failed to parse JSON:', e, jsonStr);
     return fallback;
   }
 };
 
-const AnalysisPanel: React.FC<any> = ({ analysis, parsedData }) => {
+const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, parsedData }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'keywords' | 'content' | 'jobMatch' | 'competency' | 'report'>('overview');
 
   // 解析 JSON 字段
@@ -224,7 +234,6 @@ const AnalysisPanel: React.FC<any> = ({ analysis, parsedData }) => {
   const jobMatchData = useMemo(() => safeJsonParse(analysis.jobMatchAnalysis, { matchScore: 0, matchingSkills: [], missingSkills: [], jobSpecificSuggestions: [] }), [analysis.jobMatchAnalysis]);
   const competencyData = useMemo(() => safeJsonParse(analysis.competencyAnalysis, { coreCompetencies: [], technicalSkillsLevel: '', projectExperienceValue: '', careerPotential: '' }), [analysis.competencyAnalysis]);
   const reportData = useMemo(() => safeJsonParse(analysis.detailedReport, { overallEvaluation: '', strengths: [], improvements: [], suggestions: [] }), [analysis.detailedReport]);
-
   const renderOverview = () => (
     <>
       <Section>
@@ -419,13 +428,6 @@ const AnalysisPanel: React.FC<any> = ({ analysis, parsedData }) => {
           ))}
         </Section>
       )}
-
-      <Section>
-        <SectionTitle>ℹ️ 分析元数据</SectionTitle>
-        <TextContent>
-          分析时间: {new Date(analysis.createdAt).toLocaleString('zh-CN')}
-        </TextContent>
-      </Section>
     </>
   );
 

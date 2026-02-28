@@ -41,19 +41,7 @@ export class ResumeAnalysis {
 
   // 分析内容
   @Column({ type: 'text', nullable: true })
-  strengths?: string; // 优势分析（JSON 字符串数组）
-
-  @Column({ type: 'text', nullable: true })
-  weaknesses?: string; // 劣势分析（JSON 字符串数组）
-
-  @Column({ type: 'text', nullable: true })
-  suggestions?: string; // 改进建议（JSON 格式对象）
-
-  @Column({ type: 'text', nullable: true })
   keywordAnalysis?: string; // 关键词分析（JSON 格式）
-
-  @Column({ type: 'text', nullable: true })
-  structureAnalysis?: string; // 结构分析（JSON 格式）
 
   @Column({ type: 'text', nullable: true })
   contentAnalysis?: string; // 内容分析（JSON 格式）
@@ -66,43 +54,6 @@ export class ResumeAnalysis {
 
   @Column({ type: 'text', nullable: true })
   detailedReport?: string; // 详细分析报告
-
-  // 建议优化的各个部分
-  @Column({ type: 'jsonb', nullable: true })
-  personalInfoSuggestions?: {
-    current?: string;
-    suggestion?: string;
-    reason?: string;
-  };
-
-  @Column({ type: 'jsonb', nullable: true })
-  summaryOptimization?: {
-    current?: string;
-    optimized?: string;
-    reason?: string;
-  };
-
-  @Column({ type: 'jsonb', nullable: true })
-  experienceSuggestions?: Array<{
-    index?: number;
-    current?: string;
-    suggestion?: string;
-    improvement?: string;
-  }>;
-
-  @Column({ type: 'jsonb', nullable: true })
-  skillsSuggestions?: {
-    missing?: string[];
-    shouldAdd?: string[];
-    prioritize?: string[];
-  };
-
-  @Column({ type: 'jsonb', nullable: true })
-  formatIssues?: Array<{
-    type?: string;
-    issue?: string;
-    suggestion?: string;
-  }>;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -197,7 +197,13 @@ ${resumeContent}
 确保返回的格式正确,可以直接被解析。`;
 
       const response = await this.llm.invoke([new HumanMessage(prompt)]);
-      return response.content as string;
+      let content = response.content as string;
+      
+      // 移除 markdown 代码块包装（如果有）
+      // 例如：```json\n{...}\n``` 或 ```\n{...}\n```
+      content = content.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```$/, '').trim();
+      
+      return content;
     } catch (error) {
       this.logger.error('Error generating detailed analysis report:', error);
       return '';
