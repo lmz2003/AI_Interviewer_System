@@ -36,18 +36,25 @@ const InterviewModule: React.FC = () => {
   const loadInitialData = useCallback(async () => {
     try {
       setLoading(true);
-      const [scenesData, jobTypesData, difficultyData, interviewsData, resumesData] = await Promise.all([
+      const [scenesData, jobTypesData, difficultyData, interviewsData] = await Promise.all([
         interviewApi.getScenes(),
         interviewApi.getJobTypes(),
         interviewApi.getDifficultyLevels(),
         interviewApi.getInterviewList(),
-        interviewApi.getResumes(),
       ]);
       setScenes(scenesData);
       setJobTypes(jobTypesData);
       setDifficultyLevels(difficultyData);
       setInterviews(interviewsData);
-      setResumes(resumesData);
+      
+      // 单独加载简历列表，失败不影响其他功能
+      try {
+        const resumesData = await interviewApi.getResumes();
+        setResumes(resumesData);
+      } catch (resumeErr) {
+        console.warn('加载简历列表失败:', resumeErr);
+        setResumes([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载数据失败');
     } finally {
@@ -308,7 +315,7 @@ const InterviewModule: React.FC = () => {
                       <option value="">请选择简历</option>
                       {resumes.map((resume) => (
                         <option key={resume.id} value={resume.id}>
-                          {resume.fileName}
+                          {resume.title || resume.fileName || '未命名简历'}
                         </option>
                       ))}
                     </select>

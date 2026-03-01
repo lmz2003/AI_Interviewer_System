@@ -36,7 +36,13 @@ export const interviewApi = {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
-    if (!data.success) throw new Error(data.message || '获取简历列表失败');
+    // 兼容两种返回格式: { success: true, data } 或 { code: 0, data }
+    if (data.code !== undefined && data.code !== 0) {
+      throw new Error(data.message || '获取简历列表失败');
+    }
+    if (data.success !== undefined && !data.success) {
+      throw new Error(data.message || '获取简历列表失败');
+    }
     return data.data;
   },
 

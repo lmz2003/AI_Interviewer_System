@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { interviewApi } from './api';
-import type { Interview, InterviewMessage, MessageEvaluation, SSEEvent } from './types';
+import type { Interview, InterviewMessage, SSEEvent } from './types';
 import './Interview.scss';
 
 interface InterviewChatProps {
@@ -20,8 +20,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
-  const [currentEvaluation, setCurrentEvaluation] = useState<MessageEvaluation | null>(null);
-  const [showEvaluation, setShowEvaluation] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -141,8 +139,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
-    setCurrentEvaluation(null);
-    setShowEvaluation(false);
 
     const aiMessageId = (Date.now() + 1).toString();
 
@@ -150,17 +146,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       sessionId,
       input.trim(),
       (event: SSEEvent) => {
-        if (event.type === 'evaluation') {
-          setCurrentEvaluation(event.data.evaluation as MessageEvaluation);
-          setShowEvaluation(true);
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === userMessage.id
-                ? { ...msg, evaluation: event.data.evaluation as MessageEvaluation, score: event.data.score as number }
-                : msg,
-            ),
-          );
-        } else if (event.type === 'chunk') {
+        if (event.type === 'chunk') {
           const content = event.data as unknown as string;
           setMessages((prev) => {
             const lastMsg = prev[prev.length - 1];
@@ -214,12 +200,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     });
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return '#10b981';
-    if (score >= 6) return '#f59e0b';
-    return '#ef4444';
-  };
-
   return (
     <div className="interview-chat-page">
       <div className="chat-header">
@@ -260,17 +240,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
               </div>
               <div className="message-meta">
                 <span className="timestamp">{formatTime(msg.timestamp)}</span>
-                {msg.evaluation && (
-                  <button
-                    className="view-evaluation-btn"
-                    onClick={() => {
-                      setCurrentEvaluation(msg.evaluation || null);
-                      setShowEvaluation(true);
-                    }}
-                  >
-                    查看评分
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -289,65 +258,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
         <div ref={messagesEndRef} />
       </div>
-
-      {showEvaluation && currentEvaluation && (
-        <div className="evaluation-panel">
-          <div className="evaluation-header">
-            <h4>📊 回答评估</h4>
-            <button className="close-btn" onClick={() => setShowEvaluation(false)}>
-              ×
-            </button>
-          </div>
-          <div className="evaluation-body">
-            <div className="overall-score">
-              <span className="score-label">综合评分</span>
-              <span
-                className="score-value"
-                style={{ color: getScoreColor(currentEvaluation.overall) }}
-              >
-                {currentEvaluation.overall.toFixed(1)}
-              </span>
-            </div>
-            <div className="dimension-scores">
-              {[
-                { key: 'completeness', name: '完整性' },
-                { key: 'clarity', name: '清晰度' },
-                { key: 'depth', name: '深度' },
-                { key: 'expression', name: '表达' },
-                { key: 'highlights', name: '亮点' },
-              ].map((dim) => (
-                <div key={dim.key} className="dimension-item">
-                  <span className="dimension-name">{dim.name}</span>
-                  <div className="dimension-bar">
-                    <div
-                      className="dimension-fill"
-                      style={{
-                        width: `${(currentEvaluation[dim.key as keyof MessageEvaluation] as number) * 10}%`,
-                        backgroundColor: getScoreColor(
-                          currentEvaluation[dim.key as keyof MessageEvaluation] as number,
-                        ),
-                      }}
-                    />
-                  </div>
-                  <span className="dimension-score">
-                    {currentEvaluation[dim.key as keyof MessageEvaluation] as number}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {currentEvaluation.suggestions && currentEvaluation.suggestions.length > 0 && (
-              <div className="suggestions">
-                <h5>改进建议</h5>
-                <ul>
-                  {currentEvaluation.suggestions.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       <div className="chat-input">
         <textarea

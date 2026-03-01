@@ -211,8 +211,9 @@ export class ResumeAnalysisService {
   /**
    * 获取用户的所有简历
    */
-  async getResumesByUserId(userId: string): Promise<Resume[]> {
+  async getResumesByUserId(userId: string): Promise<Partial<Resume>[]> {
     return this.resumeRepository.find({
+      select: ['id', 'title', 'fileType', 'fileName', 'createdAt', 'isProcessed'],
       where: { ownerId: userId, status: 'active' },
       order: { createdAt: 'DESC' },
     });

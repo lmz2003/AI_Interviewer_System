@@ -43,6 +43,14 @@ const getMulterOptions = () => {
   };
 };
 
+const decodeFileName = (filename: string): string => {
+  try {
+    return Buffer.from(filename, 'latin1').toString('utf8');
+  } catch {
+    return filename;
+  }
+};
+
 interface AuthRequest extends Request {
   user?: {
     id: string;
@@ -78,15 +86,15 @@ export class ResumeAnalysisController {
       let resume;
 
       if (file) {
-        // 文件上传（内存模式）
-        this.logger.log(`[Upload] File upload started: ${file.originalname} (${file.size} bytes) by user ${userId}`);
+        const decodedFileName = decodeFileName(file.originalname);
+        this.logger.log(`[Upload] File upload started: ${decodedFileName} (${file.size} bytes) by user ${userId}`);
         this.logger.log(`[Upload] Resume title: ${dto.title}`);
         
         resume = await this.resumeAnalysisService.uploadResumeFile(
           dto.title,
           file.buffer,
-          file.originalname,
-          path.extname(file.originalname),
+          decodedFileName,
+          path.extname(decodedFileName),
           file.size,
           userId,
           dto.jobDescription

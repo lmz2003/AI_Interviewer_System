@@ -101,7 +101,7 @@ export class InterviewMessageService {
       return;
     }
 
-    await this.saveMessage(sessionId, 'user', userMessage);
+    const tempMessage = await this.saveMessage(sessionId, 'user', userMessage);
 
     const history = await this.getMessageHistory(sessionId);
 
@@ -110,27 +110,11 @@ export class InterviewMessageService {
       .find((msg) => msg.role === 'assistant');
     const currentQuestion = lastAssistantMessage?.content || '';
 
-    const evaluation = await this.evaluatorService.evaluateAnswer(
+    this.evaluateAnswerAsync(
+      tempMessage.id,
       currentQuestion,
       userMessage,
       interview,
-    );
-
-    yield {
-      type: 'evaluation',
-      data: {
-        evaluation,
-        score: evaluation.overall,
-      },
-    };
-
-    await this.saveMessage(
-      sessionId,
-      'user',
-      userMessage,
-      undefined,
-      evaluation,
-      evaluation.overall,
     );
 
     const sceneConfig = SCENE_CONFIG[interview.sceneType as keyof typeof SCENE_CONFIG];
@@ -187,6 +171,25 @@ export class InterviewMessageService {
         },
       };
     }
+  }
+
+  private async evaluateAnswerAsync(
+    messageId: string,
+    question: string,
+    answer: string,
+    interview: Interview,
+  ): Promise<void> {
+    this.evaluatorService.evaluateAnswer(question, answer, interview)
+      .then(async (evaluation) => {
+        await this.messageRepository.update(
+          { id: messageId },
+          { evaluation, score: evaluation.overall },
+        );
+        this.logger.log(`[异步评估] 消息 ${messageId} 评估完成 - 评分: ${evaluation.overall.toFixed(2)}`);
+      })
+      .catch((error) => {
+        this.logger.error(`[异步评估] 消息 ${messageId} 评估失败:`, error);
+      });
   }
 
   async *streamOpening(

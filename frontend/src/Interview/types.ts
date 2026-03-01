@@ -120,16 +120,16 @@ export interface StartSessionResult {
 }
 
 export interface SSEEvent {
-  type: 'request-id' | 'session' | 'chunk' | 'evaluation' | 'done' | 'error';
+  type: 'request-id' | 'session' | 'chunk' | 'done' | 'error';
   data: any;
 }
 
 export interface Resume {
   id: string;
-  userId: string;
-  fileName: string;
-  fileSize: number;
-  uploadDate: Date;
-  status: string;
-  analysisStatus: string;
+  title: string;
+  fileType: string;
+  fileName?: string;
+  createdAt: string;
+  isProcessed: boolean;
+  overallScore?: number;
 }
