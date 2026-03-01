@@ -9,6 +9,7 @@ import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 import { AIAssistantModule } from './ai-assistant/ai-assistant.module';
 import { UploadModule } from './upload/upload.module';
 import { ResumeAnalysisModule } from './resume-analysis/resume-analysis.module';
+import { InterviewModule } from './interview/interview.module';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { ResumeAnalysisModule } from './resume-analysis/resume-analysis.module';
       envFilePath: '.env',
     }),
     ThrottlerModule.forRoot([{
-      ttl: 15 * 60 * 1000, // 15 minutes
+      ttl: 15 * 60 * 1000,
       limit: process.env.MAX_REQUESTS_PER_15MIN ? parseInt(process.env.MAX_REQUESTS_PER_15MIN) : 5,
     }]),
     TypeOrmModule.forRoot({
@@ -40,6 +41,7 @@ import { ResumeAnalysisModule } from './resume-analysis/resume-analysis.module';
     AIAssistantModule,
     UploadModule,
     ResumeAnalysisModule,
+    InterviewModule,
   ],
   controllers: [],
   providers: [],
