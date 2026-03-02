@@ -317,7 +317,7 @@ export const interviewApi = {
    */
   async textToSpeech(
     text: string,
-    voice: string = 'nova',
+    voice: string = 'anna',
     speed: number = 1.0,
   ): Promise<Blob> {
     const response = await fetch(`${API_BASE}/interview/text-to-speech`, {
@@ -345,7 +345,7 @@ export const interviewApi = {
       voice?: string;
     } = {},
   ): Promise<VoiceMessageResult> {
-    const { mimeType = 'audio/webm', language = 'zh', voice = 'nova' } = options;
+    const { mimeType = 'audio/webm', language = 'zh', voice = 'anna' } = options;
 
     const response = await fetch(`${API_BASE}/interview/voice-session/${sessionId}/message`, {
       method: 'POST',

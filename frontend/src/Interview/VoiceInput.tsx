@@ -7,11 +7,6 @@ interface VoiceInputProps {
   language?: string;
 }
 
-/**
- * M-FE-08: 语音输入组件
- * 在文字对话面试中提供语音输入功能
- * 功能：录音、波形可视化、发送给后端识别、返回文字
- */
 const VoiceInput: React.FC<VoiceInputProps> = ({
   onTranscription,
   disabled = false,
@@ -30,10 +25,10 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const isRecordingRef = useRef(false);
 
   const MAX_RECORDING_SECONDS = 60;
 
-  // 清理函数
   const cleanup = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -52,21 +47,20 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       audioContextRef.current = null;
     }
     analyserRef.current = null;
+    isRecordingRef.current = false;
   }, []);
 
   useEffect(() => {
     return cleanup;
   }, [cleanup]);
 
-  // 更新波形动画
   const updateWaveform = useCallback(() => {
-    if (!analyserRef.current || !isRecording) return;
+    if (!analyserRef.current || !isRecordingRef.current) return;
 
     const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     analyserRef.current.getByteFrequencyData(dataArray);
 
-    // 取20个均匀采样点
     const sampleCount = 20;
     const step = Math.floor(bufferLength / sampleCount);
     const newWaveform = Array.from({ length: sampleCount }, (_, i) => {
@@ -81,12 +75,13 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 
     setWaveformData(newWaveform);
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
-  }, [isRecording]);
+  }, []);
 
   const startRecording = async () => {
     if (disabled || isRecording || isProcessing) return;
 
     setError(null);
+    isRecordingRef.current = true;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -99,7 +94,6 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 
       streamRef.current = stream;
 
-      // 设置音频分析器（用于波形显示）
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
       const source = audioContext.createMediaStreamSource(stream);
@@ -108,7 +102,6 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       source.connect(analyser);
       analyserRef.current = analyser;
 
-      // 确定支持的 MIME 类型
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/webm')
@@ -125,11 +118,10 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
         }
       };
 
-      mediaRecorder.start(100); // 每 100ms 触发一次 dataavailable
+      mediaRecorder.start(100);
       setIsRecording(true);
       setRecordingTime(0);
 
-      // 启动计时器
       timerRef.current = setInterval(() => {
         setRecordingTime((prev) => {
           if (prev >= MAX_RECORDING_SECONDS - 1) {
@@ -140,9 +132,9 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
         });
       }, 1000);
 
-      // 启动波形动画
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
     } catch (err) {
+      isRecordingRef.current = false;
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('麦克风权限被拒绝，请在浏览器设置中允许访问麦克风');
       } else if (err instanceof DOMException && err.name === 'NotFoundError') {
@@ -157,8 +149,8 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
 
     setIsRecording(false);
+    isRecordingRef.current = false;
 
-    // 停止定时器和动画
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -168,7 +160,6 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       animationFrameRef.current = null;
     }
 
-    // 重置波形
     setWaveformData(new Array(20).fill(0));
 
     mediaRecorderRef.current.onstop = async () => {
@@ -180,13 +171,11 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       audioChunksRef.current = [];
 
-      // 停止流
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
 
-      // 发送给后端识别
       setIsProcessing(true);
       try {
         const result = await interviewApi.speechToText(audioBlob, language);

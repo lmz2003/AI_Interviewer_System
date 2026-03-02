@@ -30,7 +30,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   sessionId,
   onEnd,
   onBack,
-  voice = 'nova',
+  voice = 'anna',
 }) => {
   const [callStatus, setCallStatus] = useState<VoiceCallStatus>('idle');
   const [isMuted, setIsMuted] = useState(false);

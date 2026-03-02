@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
-import { Readable } from 'stream';
+import FormData from 'form-data';
+import axios from 'axios';
 
 export interface TranscriptionResult {
   text: string;
@@ -10,84 +10,73 @@ export interface TranscriptionResult {
   language?: string;
 }
 
+export type ASRModel = 'FunAudioLLM/SenseVoiceSmall' | 'TeleAI/TeleSpeechASR';
+
 @Injectable()
 export class SpeechRecognitionService {
   private readonly logger = new Logger(SpeechRecognitionService.name);
-  private openai: OpenAI;
+  private apiKey: string;
+  private baseUrl: string;
+  private defaultModel: ASRModel;
 
   constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('LLM_API_KEY');
-    const baseUrl = this.configService.get<string>('LLM_BASE_URL');
-    const provider = this.configService.get<string>('LLM_PROVIDER') || 'openai';
-
-    // Whisper API 仅支持 OpenAI 官方端点，或者支持 whisper 的兼容端点
-    // 如果使用硅基流动等第三方，需要确认其是否支持 Whisper
-    if (provider === 'siliconflow' && baseUrl) {
-      this.openai = new OpenAI({
-        apiKey,
-        baseURL: baseUrl,
-      });
-    } else {
-      this.openai = new OpenAI({
-        apiKey,
-        ...(baseUrl ? { baseURL: baseUrl } : {}),
-      });
-    }
+    this.apiKey = this.configService.get<string>('LLM_API_KEY') || '';
+    this.baseUrl = this.configService.get<string>('LLM_BASE_URL') || 'https://api.siliconflow.cn/v1';
+    this.defaultModel = this.configService.get<ASRModel>('ASR_MODEL') || 'FunAudioLLM/SenseVoiceSmall';
   }
 
-  /**
-   * 转录音频文件（支持 webm, mp3, wav, m4a 等格式）
-   */
   async transcribeAudio(
     audioBuffer: Buffer,
     options: {
       language?: string;
       fileName?: string;
       mimeType?: string;
+      model?: ASRModel;
     } = {},
   ): Promise<TranscriptionResult> {
-    const { language = 'zh', fileName = 'audio.webm', mimeType = 'audio/webm' } = options;
+    const { fileName = 'audio.webm', mimeType = 'audio/webm', model = this.defaultModel } = options;
 
-    this.logger.log(`[语音识别] 开始转录，文件: ${fileName}, 大小: ${audioBuffer.length} bytes`);
+    this.logger.log(`[语音识别] 开始转录，文件: ${fileName}, 大小: ${audioBuffer.length} bytes, 模型: ${model}`);
 
     try {
-      // 将 Buffer 转为 File 对象
-      const audioFile = new File([audioBuffer], fileName, { type: mimeType });
+      const formData = new FormData();
+      formData.append('file', audioBuffer, {
+        filename: fileName,
+        contentType: mimeType,
+      });
+      formData.append('model', model);
 
-      const transcription = await this.openai.audio.transcriptions.create({
-        file: audioFile,
-        model: 'whisper-1',
-        language,
-        response_format: 'verbose_json',
+      const response = await axios.post(`${this.baseUrl}/audio/transcriptions`, formData, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          ...formData.getHeaders(),
+        },
       });
 
-      const result: TranscriptionResult = {
-        text: transcription.text,
-        language: (transcription as any).language || language,
-        duration: (transcription as any).duration || undefined,
-      };
+      const result = response.data;
 
       this.logger.log(`[语音识别] 转录成功: "${result.text.substring(0, 50)}..."`);
-      return result;
+      return {
+        text: result.text,
+      };
     } catch (error) {
-      this.logger.error('[语音识别] 转录失败:', error);
-      throw new Error(`语音识别失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      const errorMsg = axios.isAxiosError(error) 
+        ? `${error.response?.status} - ${JSON.stringify(error.response?.data)}`
+        : (error instanceof Error ? error.message : '未知错误');
+      this.logger.error(`[语音识别] 转录失败: ${errorMsg}`);
+      throw new Error(`语音识别失败: ${errorMsg}`);
     }
   }
 
-  /**
-   * 从 base64 编码的音频数据转录
-   */
   async transcribeBase64Audio(
     base64Audio: string,
     options: {
-      language?: string;
       mimeType?: string;
+      model?: ASRModel;
     } = {},
   ): Promise<TranscriptionResult> {
-    const { language = 'zh', mimeType = 'audio/webm' } = options;
+    const { mimeType = 'audio/webm', model = this.defaultModel } = options;
 
-    // 去除 data URL 前缀（如果有）
     const base64Data = base64Audio.includes(',')
       ? base64Audio.split(',')[1]
       : base64Audio;
@@ -96,9 +85,9 @@ export class SpeechRecognitionService {
     const extension = this.getExtensionFromMimeType(mimeType);
 
     return this.transcribeAudio(audioBuffer, {
-      language,
       fileName: `audio.${extension}`,
       mimeType,
+      model,
     });
   }
 

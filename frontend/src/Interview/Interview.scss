@@ -1386,6 +1386,28 @@
         color: #9ca3af;
       }
     }
+
+    .streaming-text-preview {
+      max-width: 280px;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #374151;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+      .streaming-label {
+        color: #6b7280;
+        font-size: 11px;
+        margin-right: 4px;
+      }
+
+      .streaming-content {
+        color: #1f2937;
+        word-break: break-word;
+      }
+    }
   }
 
   .voice-input-processing {

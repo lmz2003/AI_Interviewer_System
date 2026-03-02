@@ -625,10 +625,10 @@ export class InterviewController {
   @Post('speech-to-text/base64')
   async speechToTextBase64(
     @Request() req: any,
-    @Body() body: { audio: string; language?: string; mimeType?: string },
+    @Body() body: { audio: string; mimeType?: string },
   ) {
     try {
-      const { audio, language = 'zh', mimeType = 'audio/webm' } = body;
+      const { audio, mimeType = 'audio/webm' } = body;
 
       if (!audio) {
         return {
@@ -638,7 +638,6 @@ export class InterviewController {
       }
 
       const result = await this.speechRecognitionService.transcribeBase64Audio(audio, {
-        language,
         mimeType,
       });
 
@@ -724,12 +723,12 @@ export class InterviewController {
   async sendVoiceMessage(
     @Request() req: any,
     @Param('sessionId') sessionId: string,
-    @Body() body: { audio: string; mimeType?: string; language?: string; voice?: string },
+    @Body() body: { audio: string; mimeType?: string; voice?: string },
     @Res() res: Response,
   ) {
     try {
       const userId = req.user.id;
-      const { audio, mimeType = 'audio/webm', language = 'zh', voice = 'nova' } = body;
+      const { audio, mimeType = 'audio/webm', voice = 'anna' } = body;
 
       if (!audio) {
         res.status(400).json({ success: false, message: '请提供音频数据' });
@@ -740,7 +739,7 @@ export class InterviewController {
       this.logger.log(`[语音通话] 开始处理语音消息，会话: ${sessionId}`);
       const transcriptionResult = await this.speechRecognitionService.transcribeBase64Audio(
         audio,
-        { language, mimeType },
+        { mimeType },
       );
 
       const userText = transcriptionResult.text;
