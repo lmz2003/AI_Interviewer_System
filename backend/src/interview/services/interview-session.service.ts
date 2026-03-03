@@ -53,6 +53,7 @@ export class InterviewSessionService {
       difficulty: dto.difficulty || 'medium',
       resumeId: dto.resumeId,
       status: 'pending',
+      mode: dto.mode || 'text',
       title: dto.title || `${sceneConfig.name} - ${new Date().toLocaleDateString('zh-CN')}`,
     });
 
@@ -314,6 +315,61 @@ export class InterviewSessionService {
     }
 
     return savedMessage;
+  }
+
+  async saveProgress(
+    sessionId: string,
+    userId: string,
+    progress: { elapsedTime: number; currentQuestionIndex?: number },
+  ): Promise<void> {
+    const session = await this.sessionRepository.findOne({
+      where: { id: sessionId },
+      relations: ['interview'],
+    });
+
+    if (!session) {
+      throw new NotFoundException('会话不存在');
+    }
+
+    if (session.interview && session.interview.userId !== userId) {
+      throw new BadRequestException('无权限操作此会话');
+    }
+
+    session.elapsedTime = progress.elapsedTime;
+    session.lastActiveAt = new Date();
+    if (progress.currentQuestionIndex !== undefined) {
+      session.currentQuestionIndex = progress.currentQuestionIndex;
+    }
+
+    await this.sessionRepository.save(session);
+    this.logger.log(`进度已保存 - 会话ID: ${sessionId}, 已用时间: ${progress.elapsedTime}s`);
+  }
+
+  async checkAndEndInactiveSessions(): Promise<void> {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    const inactiveSessions = await this.sessionRepository
+      .createQueryBuilder('session')
+      .innerJoinAndSelect('session.interview', 'interview')
+      .where('session.status = :status', { status: 'active' })
+      .andWhere('session.lastActiveAt < :threshold', { threshold: fiveMinutesAgo })
+      .getMany();
+
+    for (const session of inactiveSessions) {
+      this.logger.log(`自动结束超时会话: ${session.id}`);
+      
+      session.status = 'ended';
+      session.endedAt = new Date();
+      await this.sessionRepository.save(session);
+
+      if (session.interview) {
+        session.interview.status = 'completed';
+        session.interview.duration = session.elapsedTime || Math.floor(
+          (session.endedAt.getTime() - session.startedAt.getTime()) / 1000,
+        );
+        await this.interviewRepository.save(session.interview);
+      }
+    }
   }
 
   async getInterviewWithSessions(interviewId: string, userId: string): Promise<{

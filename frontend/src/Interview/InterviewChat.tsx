@@ -9,6 +9,7 @@ interface InterviewChatProps {
   sessionId: string | null;
   onEnd: (reportId: string) => void;
   onBack: () => void;
+  initialElapsedTime?: number;
 }
 
 const InterviewChat: React.FC<InterviewChatProps> = ({
@@ -16,28 +17,80 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   sessionId: initialSessionId,
   onEnd,
   onBack,
+  initialElapsedTime = 0,
 }) => {
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(initialElapsedTime);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<{ abort: () => void } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sessionIdRef = useRef<string | null>(null);
   const handleEndInterviewRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const elapsedTimeRef = useRef(elapsedTime);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const progressSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   sessionIdRef.current = sessionId;
+  elapsedTimeRef.current = elapsedTime;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const saveProgress = useCallback(async () => {
+    if (!sessionIdRef.current) return;
+    try {
+      await interviewApi.saveProgress(sessionIdRef.current, {
+        elapsedTime: elapsedTimeRef.current,
+      });
+    } catch (err) {
+      console.error('保存进度失败:', err);
+    }
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+
+    progressSaveTimerRef.current = setInterval(() => {
+      saveProgress();
+    }, 30000);
+
+    const handleBeforeUnload = () => {
+      saveProgress();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (progressSaveTimerRef.current) {
+        clearInterval(progressSaveTimerRef.current);
+        progressSaveTimerRef.current = null;
+      }
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      saveProgress();
+    };
+  }, [saveProgress]);
 
   useEffect(() => {
     if (sessionId) {
@@ -116,15 +169,21 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
     try {
       setIsTyping(true);
+      await saveProgress();
       const result = await interviewApi.endInterview(sessionIdRef.current);
       onEnd(result.reportId);
     } catch (err) {
       setError(err instanceof Error ? err.message : '结束面试失败');
       setIsTyping(false);
     }
-  }, [onEnd]);
+  }, [onEnd, saveProgress]);
 
   handleEndInterviewRef.current = handleEndInterview;
+
+  const handleBack = useCallback(async () => {
+    await saveProgress();
+    onBack();
+  }, [saveProgress, onBack]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isTyping || !sessionId) return;
@@ -204,7 +263,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   return (
     <div className="interview-chat-page">
       <div className="chat-header">
-        <button className="back-btn" onClick={onBack}>
+        <button className="back-btn" onClick={handleBack}>
           ← 返回
         </button>
         <div className="header-info">
@@ -213,9 +272,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
             {interview.jobName || '通用岗位'} · {interview.difficultyName}
           </span>
         </div>
-        <button className="end-btn" onClick={handleEndInterview} disabled={isTyping}>
-          结束面试
-        </button>
+        <div className="header-right">
+          <span className="elapsed-time">{formatDuration(elapsedTime)}</span>
+          <button className="end-btn" onClick={handleEndInterview} disabled={isTyping}>
+            结束面试
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}

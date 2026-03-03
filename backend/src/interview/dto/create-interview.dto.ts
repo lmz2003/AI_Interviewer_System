@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsEnum, IsUUID, IsIn } from 'class-validator';
+import { InterviewMode } from '../entities/interview.entity';
 
 export type SceneType = 'technical' | 'behavioral' | 'hr' | 'stress' | 'group';
 export type JobType = 'frontend' | 'backend' | 'fullstack' | 'pm' | 'data' | 'design' | 'general';
@@ -28,6 +29,13 @@ export class CreateInterviewDto {
   @IsOptional()
   @IsUUID('4', { message: '简历ID必须是有效的UUID格式' })
   resumeId?: string;
+
+  @IsOptional()
+  @IsString({ message: '面试模式必须是字符串' })
+  @IsIn(['text', 'voice'], {
+    message: '面试模式必须是 text 或 voice',
+  })
+  mode?: InterviewMode;
 
   @IsOptional()
   @IsString({ message: '标题必须是字符串' })

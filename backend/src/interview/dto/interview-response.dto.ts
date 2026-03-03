@@ -1,4 +1,5 @@
 import { MessageEvaluation, MessageSource } from '../entities/interview-message.entity';
+import { InterviewMode } from '../entities/interview.entity';
 
 export class InterviewResponseDto {
   id!: string;
@@ -14,6 +15,7 @@ export class InterviewResponseDto {
   duration?: number;
   status!: string;
   statusName!: string;
+  mode!: InterviewMode;
   title?: string;
   createdAt!: Date;
   updatedAt!: Date;
@@ -27,6 +29,9 @@ export class SessionResponseDto {
   status!: string;
   questionCount!: number;
   messageCount!: number;
+  elapsedTime!: number;
+  lastActiveAt?: Date;
+  currentQuestionIndex!: number;
 }
 
 export class MessageResponseDto {

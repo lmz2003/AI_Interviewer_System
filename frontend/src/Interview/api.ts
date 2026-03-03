@@ -136,6 +136,19 @@ export const interviewApi = {
     return data.data;
   },
 
+  async saveProgress(
+    sessionId: string,
+    progress: { elapsedTime: number; currentQuestionIndex?: number },
+  ): Promise<void> {
+    const response = await fetch(`${API_BASE}/interview/session/${sessionId}/save-progress`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(progress),
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message || '保存进度失败');
+  },
+
   async getReport(reportId: string): Promise<InterviewReport> {
     const response = await fetch(`${API_BASE}/interview/report/${reportId}`, {
       headers: getAuthHeaders(),

@@ -13,6 +13,8 @@ import { Resume } from '../../resume-analysis/entities/resume.entity';
 import { InterviewSession } from './interview-session.entity';
 import { InterviewReport } from './interview-report.entity';
 
+export type InterviewMode = 'text' | 'voice';
+
 @Entity('interviews')
 export class Interview {
   @PrimaryGeneratedColumn('uuid')
@@ -41,6 +43,9 @@ export class Interview {
 
   @Column({ type: 'varchar', length: 20, default: 'pending' })
   status!: string;
+
+  @Column({ type: 'varchar', length: 20, default: 'text' })
+  mode!: InterviewMode;
 
   @Column({ type: 'text', nullable: true })
   title?: string;

@@ -7,7 +7,8 @@ interface VoiceInterviewProps {
   sessionId: string;
   onEnd: (reportId: string) => void;
   onBack: () => void;
-  voice?: string; // TTS 音色
+  voice?: string;
+  initialDuration?: number;
 }
 
 interface ConversationMessage {
@@ -16,25 +17,17 @@ interface ConversationMessage {
   timestamp: Date;
 }
 
-/**
- * M-FE-09: 语音通话面试页面
- * 实现纯语音交互的面试，支持：
- * - 按住录音 / 点击开始/停止录音
- * - 实时字幕显示
- * - AI 语音回复播放
- * - 静音控制
- * - 通话时长计时
- */
 const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   interview,
   sessionId,
   onEnd,
   onBack,
   voice = 'anna',
+  initialDuration = 0,
 }) => {
   const [callStatus, setCallStatus] = useState<VoiceCallStatus>('idle');
   const [isMuted, setIsMuted] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
+  const [callDuration, setCallDuration] = useState(initialDuration);
   const [conversations, setConversations] = useState<ConversationMessage[]>([]);
   const [currentSubtitle, setCurrentSubtitle] = useState('');
   const [isAIPlaying, setIsAIPlaying] = useState(false);
@@ -50,22 +43,65 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const subtitleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const progressSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const subtitlesEndRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef(sessionId);
+  const callDurationRef = useRef(callDuration);
 
-  // 滚动到最新字幕
+  sessionIdRef.current = sessionId;
+  callDurationRef.current = callDuration;
+
   useEffect(() => {
     subtitlesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversations]);
 
-  // 开始通话计时
+  const saveProgress = useCallback(async () => {
+    if (!sessionIdRef.current) return;
+    try {
+      await interviewApi.saveProgress(sessionIdRef.current, {
+        elapsedTime: callDurationRef.current,
+      });
+    } catch (err) {
+      console.error('保存进度失败:', err);
+    }
+  }, []);
+
   const startCallTimer = useCallback(() => {
+    if (timerRef.current) return;
     timerRef.current = setInterval(() => {
       setCallDuration((prev) => prev + 1);
     }, 1000);
   }, []);
 
-  // 清理资源
+  useEffect(() => {
+    if (initialDuration > 0) {
+      startCallTimer();
+    }
+
+    progressSaveTimerRef.current = setInterval(() => {
+      saveProgress();
+    }, 30000);
+
+    const handleBeforeUnload = () => {
+      saveProgress();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (progressSaveTimerRef.current) {
+        clearInterval(progressSaveTimerRef.current);
+        progressSaveTimerRef.current = null;
+      }
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      saveProgress();
+    };
+  }, [initialDuration, startCallTimer, saveProgress]);
+
   const cleanup = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -292,9 +328,8 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     };
 
     mediaRecorderRef.current.stop();
-  }, [callStatus, sessionId, voice, playAudioBase64, onEnd]);
+  }, [callStatus, sessionId, voice, playAudioBase64, onEnd, saveProgress]);
 
-  // 结束面试
   const handleEndInterview = useCallback(async () => {
     if (!confirm('确定要结束语音面试吗？')) return;
 
@@ -302,13 +337,19 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     setCallStatus('ended');
 
     try {
+      await saveProgress();
       const result = await interviewApi.endInterview(sessionId);
       onEnd(result.reportId);
     } catch (err) {
       setError(err instanceof Error ? err.message : '结束面试失败');
       setCallStatus('idle');
     }
-  }, [cleanup, sessionId, onEnd]);
+  }, [cleanup, sessionId, onEnd, saveProgress]);
+
+  const handleBack = useCallback(async () => {
+    await saveProgress();
+    onBack();
+  }, [saveProgress, onBack]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -332,7 +373,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     <div className="voice-interview-page">
       {/* 顶部信息栏 */}
       <div className="voice-header">
-        <button className="back-btn" onClick={onBack}>← 返回</button>
+        <button className="back-btn" onClick={handleBack}>← 返回</button>
         <div className="voice-header-info">
           <div className="voice-title">{interview.title || interview.sceneName}</div>
           <div className="voice-meta">

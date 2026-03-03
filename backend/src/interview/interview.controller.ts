@@ -113,6 +113,10 @@ export class InterviewController {
   async getInterview(@Request() req: any, @Param('id') interviewId: string) {
     try {
       const userId = req.user.id;
+      
+      // 检查并结束超时会话
+      await this.sessionService.checkAndEndInactiveSessions();
+      
       const { interview, sessions } = await this.sessionService.getInterviewWithSessions(
         interviewId,
         userId,
@@ -130,6 +134,9 @@ export class InterviewController {
             status: session.status,
             questionCount: session.questionCount,
             messageCount: session.messageCount,
+            elapsedTime: session.elapsedTime || 0,
+            lastActiveAt: session.lastActiveAt,
+            currentQuestionIndex: session.currentQuestionIndex || 0,
           })),
         },
       };
@@ -380,6 +387,35 @@ export class InterviewController {
       return {
         success: false,
         message: error.message || '结束面试失败',
+      };
+    }
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('session/:sessionId/save-progress')
+  async saveProgress(
+    @Request() req: any,
+    @Param('sessionId') sessionId: string,
+    @Body() body: { elapsedTime: number; currentQuestionIndex?: number },
+  ) {
+    try {
+      const userId = req.user.id;
+      const { elapsedTime, currentQuestionIndex } = body;
+
+      await this.sessionService.saveProgress(sessionId, userId, {
+        elapsedTime,
+        currentQuestionIndex,
+      });
+
+      return {
+        success: true,
+        message: '进度已保存',
+      };
+    } catch (error: any) {
+      this.logger.error('保存进度失败:', error);
+      return {
+        success: false,
+        message: error.message || '保存进度失败',
       };
     }
   }
@@ -843,6 +879,7 @@ export class InterviewController {
       duration: interview.duration,
       status: interview.status,
       statusName: this.sceneService.getStatusName(interview.status),
+      mode: interview.mode || 'text',
       title: interview.title,
       createdAt: interview.createdAt,
       updatedAt: interview.updatedAt,

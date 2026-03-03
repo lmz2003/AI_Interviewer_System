@@ -35,6 +35,7 @@ export interface Interview {
   duration?: number;
   status: string;
   statusName: string;
+  mode: InterviewMode;
   title?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +49,9 @@ export interface InterviewSession {
   status: string;
   questionCount: number;
   messageCount: number;
+  elapsedTime: number;
+  lastActiveAt?: Date;
+  currentQuestionIndex: number;
 }
 
 export interface MessageEvaluation {
@@ -110,6 +114,7 @@ export interface CreateInterviewDto {
   jobType?: string;
   difficulty?: string;
   resumeId?: string;
+  mode?: InterviewMode;
   title?: string;
 }
 

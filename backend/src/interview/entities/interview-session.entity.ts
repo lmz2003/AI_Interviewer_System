@@ -29,6 +29,15 @@ export class InterviewSession {
   @Column({ type: 'integer', default: 0, name: 'messageCount' })
   messageCount!: number;
 
+  @Column({ type: 'integer', default: 0, name: 'elapsedTime' })
+  elapsedTime!: number;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'lastActiveAt' })
+  lastActiveAt?: Date;
+
+  @Column({ type: 'integer', default: 0, name: 'currentQuestionIndex' })
+  currentQuestionIndex!: number;
+
   @OneToMany(() => InterviewMessage, (message) => message.session, {
     cascade: true,
   })

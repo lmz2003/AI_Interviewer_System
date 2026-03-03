@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { interviewApi } from './api';
 import type {
   Scene,
@@ -23,6 +23,7 @@ type ViewMode = 'list' | 'select' | 'chat' | 'voice' | 'report';
 interface VoiceInterviewLoaderProps {
   interview: Interview;
   initialSessionId: string | null;
+  initialElapsedTime?: number;
   onEnd: (reportId: string) => void;
   onBack: () => void;
   onSessionReady: (sessionId: string) => void;
@@ -31,6 +32,7 @@ interface VoiceInterviewLoaderProps {
 const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
   interview,
   initialSessionId,
+  initialElapsedTime = 0,
   onEnd,
   onBack,
   onSessionReady,
@@ -39,11 +41,57 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [openingText, setOpeningText] = useState('');
+  const [isPlayingOpening, setIsPlayingOpening] = useState(false);
+  const [callDuration, setCallDuration] = useState(initialElapsedTime);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const playOpeningAudio = useCallback(async (text: string) => {
+    if (!text.trim()) return;
+
+    setIsPlayingOpening(true);
+    try {
+      const audioBlob = await interviewApi.textToSpeech(text, 'anna', 1.0);
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlayingOpening(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setIsPlayingOpening(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
+    } catch (err) {
+      console.error('播放开场白失败:', err);
+      setIsPlayingOpening(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (sessionId) return; // 已有会话，直接使用
+    if (sessionId) {
+      timerRef.current = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      };
+    }
 
-    // 启动面试会话（通过 SSE 获取 sessionId 和开场白）
     setIsStarting(true);
     let tempSessionId: string | null = null;
     let tempText = '';
@@ -53,6 +101,10 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
       (event) => {
         if (event.type === 'session') {
           tempSessionId = event.data.sessionId as string;
+          // 开始计时
+          timerRef.current = setInterval(() => {
+            setCallDuration((prev) => prev + 1);
+          }, 1000);
         } else if (event.type === 'chunk') {
           tempText += event.data as string;
           setOpeningText(tempText);
@@ -62,6 +114,9 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
             onSessionReady(tempSessionId);
           }
           setIsStarting(false);
+          if (tempText.trim()) {
+            playOpeningAudio(tempText);
+          }
         } else if (event.type === 'error') {
           setStartError((event.data?.message as string) || '启动面试失败');
           setIsStarting(false);
@@ -75,21 +130,68 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
 
     return () => {
       control.abort();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sessionId]);
 
   if (startError) {
     return (
       <div className="voice-interview-page">
         <div className="voice-header">
           <button className="back-btn" onClick={onBack}>← 返回</button>
-          <h2>语音面试</h2>
+          <div className="voice-header-info">
+            <div className="voice-title">{interview.title || interview.sceneName}</div>
+            <div className="voice-meta">
+              {interview.jobName || '通用岗位'} · {interview.difficultyName}
+            </div>
+          </div>
+          <div className="voice-duration">{formatDuration(callDuration)}</div>
         </div>
-        <div className="voice-start-error">
-          <div className="error-icon">❌</div>
-          <p>启动面试失败：{startError}</p>
-          <button className="start-btn" onClick={onBack}>返回重试</button>
+        <div className="voice-main">
+          <div className="ai-avatar-section">
+            <div className="ai-avatar">
+              <span className="ai-avatar-icon">🤖</span>
+            </div>
+            <div className="ai-label">AI 面试官</div>
+          </div>
+          <div className="subtitles-area">
+            <div className="no-subtitles">
+              <div className="error-icon">❌</div>
+              <p>启动面试失败：{startError}</p>
+              <button className="start-btn" onClick={onBack}>返回重试</button>
+            </div>
+          </div>
+          <div className="voice-status-label">启动失败</div>
+        </div>
+        <div className="voice-controls">
+          <button
+            className="control-btn mute-btn"
+            disabled={true}
+          >
+            🔊
+            <span>静音</span>
+          </button>
+          <button
+            className="main-mic-btn"
+            disabled={true}
+          >
+            <span>🎙️</span>
+          </button>
+          <button
+            className="control-btn end-call-btn"
+            onClick={onBack}
+          >
+            📵
+            <span>返回</span>
+          </button>
         </div>
       </div>
     );
@@ -102,15 +204,115 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
           <button className="back-btn" onClick={onBack}>← 返回</button>
           <div className="voice-header-info">
             <div className="voice-title">{interview.title || interview.sceneName}</div>
+            <div className="voice-meta">
+              {interview.jobName || '通用岗位'} · {interview.difficultyName}
+            </div>
           </div>
+          <div className="voice-duration">{formatDuration(callDuration)}</div>
         </div>
-        <div className="voice-starting">
-          <div className="starting-avatar">🤖</div>
-          <div className="starting-spinner" />
-          <p>正在连接面试官...</p>
-          {openingText && (
-            <div className="opening-preview">{openingText}</div>
-          )}
+        <div className="voice-main">
+          <div className="ai-avatar-section">
+            <div className="ai-avatar">
+              <span className="ai-avatar-icon">🤖</span>
+            </div>
+            <div className="ai-label">AI 面试官</div>
+          </div>
+          <div className="subtitles-area">
+            <div className="no-subtitles">
+              <p>正在连接面试官...</p>
+              {openingText && (
+                <div className="opening-preview">{openingText}</div>
+              )}
+            </div>
+          </div>
+          <div className="voice-status-label">正在连接面试官...</div>
+        </div>
+        <div className="voice-controls">
+          <button
+            className="control-btn mute-btn"
+            disabled={true}
+          >
+            🔊
+            <span>静音</span>
+          </button>
+          <button
+            className="main-mic-btn processing"
+            disabled={true}
+          >
+            <span className="btn-spinner" />
+          </button>
+          <button
+            className="control-btn end-call-btn"
+            disabled={true}
+          >
+            📵
+            <span>结束面试</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPlayingOpening) {
+    return (
+      <div className="voice-interview-page">
+        <div className="voice-header">
+            <button className="back-btn" onClick={onBack}>← 返回</button>
+            <div className="voice-header-info">
+              <div className="voice-title">{interview.title || interview.sceneName}</div>
+              <div className="voice-meta">
+                {interview.jobName || '通用岗位'} · {interview.difficultyName}
+              </div>
+            </div>
+            <div className="voice-duration">{formatDuration(callDuration)}</div>
+          </div>
+        <div className="voice-main">
+          <div className={`ai-avatar-section ${isPlayingOpening ? 'speaking' : ''}`}>
+            <div className="ai-avatar">
+              <span className="ai-avatar-icon">🤖</span>
+              {isPlayingOpening && (
+                <div className="ai-speaking-ring" />
+              )}
+            </div>
+            <div className="ai-label">AI 面试官</div>
+            {isPlayingOpening && (
+              <div className="ai-waveform">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="ai-wave-bar"
+                    style={{ animationDelay: `${i * 0.1}s` }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="subtitles-area">
+            <div className="current-subtitle">{openingText}</div>
+          </div>
+          <div className="voice-status-label">面试官正在说话...</div>
+        </div>
+        <div className="voice-controls">
+          <button
+            className="control-btn mute-btn"
+            disabled={true}
+          >
+            🔊
+            <span>静音</span>
+          </button>
+          <button
+            className="main-mic-btn"
+            disabled={true}
+          >
+            <span>🎙️</span>
+          </button>
+          <button
+            className="control-btn end-call-btn"
+            disabled={true}
+          >
+            📵
+            <span>结束面试</span>
+          </button>
         </div>
       </div>
     );
@@ -122,6 +324,7 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
       sessionId={sessionId}
       onEnd={onEnd}
       onBack={onBack}
+      initialDuration={callDuration}
     />
   );
 };
@@ -144,6 +347,7 @@ const InterviewModule: React.FC = () => {
   const [selectedMode, setSelectedMode] = useState<InterviewMode>('text');
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [currentSessionElapsedTime, setCurrentSessionElapsedTime] = useState<number>(0);
   const [currentReportId, setCurrentReportId] = useState<string | null>(null);
 
   const loadInitialData = useCallback(async () => {
@@ -208,6 +412,7 @@ const InterviewModule: React.FC = () => {
         jobType: selectedJobType,
         difficulty: selectedDifficulty,
         resumeId: useResume && selectedResumeId ? selectedResumeId : undefined,
+        mode: selectedMode,
       };
 
       const interview = await interviewApi.createInterview(dto);
@@ -234,9 +439,17 @@ const InterviewModule: React.FC = () => {
       const activeSession = data.sessions.find((s) => s.status === 'active');
       if (activeSession) {
         setCurrentSessionId(activeSession.id);
+        setCurrentSessionElapsedTime(activeSession.elapsedTime || 0);
+      } else {
+        setCurrentSessionElapsedTime(0);
       }
 
-      setViewMode('chat');
+      // 根据面试模式跳转不同页面
+      if (data.interview.mode === 'voice') {
+        setViewMode('voice');
+      } else {
+        setViewMode('chat');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '恢复面试失败');
     } finally {
@@ -300,11 +513,10 @@ const InterviewModule: React.FC = () => {
     });
   };
 
-  const formatDuration = (seconds?: number) => {
-    if (!seconds) return '-';
-    const minutes = Math.floor(seconds / 60);
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${minutes}分${secs}秒`;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getStatusBadge = (status: string) => {
@@ -326,6 +538,7 @@ const InterviewModule: React.FC = () => {
         sessionId={currentSessionId}
         onEnd={handleChatEnd}
         onBack={handleBackToList}
+        initialElapsedTime={currentSessionElapsedTime}
       />
     );
   }
@@ -337,6 +550,7 @@ const InterviewModule: React.FC = () => {
       <VoiceInterviewLoader
         interview={currentInterview}
         initialSessionId={currentSessionId}
+        initialElapsedTime={currentSessionElapsedTime}
         onEnd={handleVoiceChatEnd}
         onBack={handleBackToList}
         onSessionReady={setCurrentSessionId}
