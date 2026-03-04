@@ -521,6 +521,21 @@
     }
   }
 
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .elapsed-time {
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+    font-variant-numeric: tabular-nums;
+    min-width: 48px;
+    text-align: center;
+  }
+
   .end-btn {
     padding: 8px 20px;
     background: #ef4444;

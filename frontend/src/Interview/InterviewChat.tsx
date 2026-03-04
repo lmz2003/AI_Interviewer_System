@@ -10,6 +10,8 @@ interface InterviewChatProps {
   onEnd: (reportId: string) => void;
   onBack: () => void;
   initialElapsedTime?: number;
+  /** 每次本地计时更新时通知父组件，方便退出后再进入时恢复准确时间 */
+  onElapsedTimeChange?: (seconds: number) => void;
 }
 
 const InterviewChat: React.FC<InterviewChatProps> = ({
@@ -18,6 +20,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   onEnd,
   onBack,
   initialElapsedTime = 0,
+  onElapsedTimeChange,
 }) => {
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
   const [input, setInput] = useState('');
@@ -34,9 +37,11 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const elapsedTimeRef = useRef(elapsedTime);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const progressSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const onElapsedTimeChangeRef = useRef(onElapsedTimeChange);
 
   sessionIdRef.current = sessionId;
   elapsedTimeRef.current = elapsedTime;
+  onElapsedTimeChangeRef.current = onElapsedTimeChange;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -64,21 +69,28 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   }, [messages]);
 
   useEffect(() => {
+    // 每秒计时，同时通知父组件（不调用保存接口）
     timerRef.current = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
+      setElapsedTime((prev) => {
+        const next = prev + 1;
+        onElapsedTimeChangeRef.current?.(next);
+        return next;
+      });
     }, 1000);
 
+    // 每 30 秒静默保存一次进度
     progressSaveTimerRef.current = setInterval(() => {
       saveProgress();
     }, 30000);
 
+    // 页面关闭/刷新时保存
     const handleBeforeUnload = () => {
       saveProgress();
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
+      // 组件卸载（退出面试）时立即保存当前进度
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -90,7 +102,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       saveProgress();
     };
-  }, [saveProgress]);
+  // saveProgress 使用 ref，不会重新触发
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (sessionId) {

@@ -324,14 +324,17 @@ export class InterviewSessionService {
   ): Promise<void> {
     const session = await this.sessionRepository.findOne({
       where: { id: sessionId },
-      relations: ['interview'],
     });
 
     if (!session) {
       throw new NotFoundException('会话不存在');
     }
 
-    if (session.interview && session.interview.userId !== userId) {
+    // 通过 interviewId 查询面试并验证权限
+    const interview = await this.interviewRepository.findOne({
+      where: { id: session.interviewId },
+    });
+    if (interview && interview.userId !== userId) {
       throw new BadRequestException('无权限操作此会话');
     }
 
@@ -348,26 +351,35 @@ export class InterviewSessionService {
   async checkAndEndInactiveSessions(): Promise<void> {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
-    const inactiveSessions = await this.sessionRepository
-      .createQueryBuilder('session')
-      .innerJoinAndSelect('session.interview', 'interview')
-      .where('session.status = :status', { status: 'active' })
-      .andWhere('session.lastActiveAt < :threshold', { threshold: fiveMinutesAgo })
-      .getMany();
+    const inactiveSessions = await this.sessionRepository.find({
+      where: {
+        status: 'active',
+      },
+    });
 
-    for (const session of inactiveSessions) {
+    // 过滤出超时的会话（lastActiveAt 早于 fiveMinutesAgo，或者 lastActiveAt 为空且 startedAt 超时）
+    const timedOut = inactiveSessions.filter((s) => {
+      const lastActive = s.lastActiveAt ?? s.startedAt;
+      return lastActive < fiveMinutesAgo;
+    });
+
+    for (const session of timedOut) {
       this.logger.log(`自动结束超时会话: ${session.id}`);
       
       session.status = 'ended';
       session.endedAt = new Date();
       await this.sessionRepository.save(session);
 
-      if (session.interview) {
-        session.interview.status = 'completed';
-        session.interview.duration = session.elapsedTime || Math.floor(
-          (session.endedAt.getTime() - session.startedAt.getTime()) / 1000,
+      // 通过 interviewId 查询并更新面试状态
+      const interview = await this.interviewRepository.findOne({
+        where: { id: session.interviewId },
+      });
+      if (interview) {
+        interview.status = 'completed';
+        interview.duration = session.elapsedTime || Math.floor(
+          (session.endedAt!.getTime() - session.startedAt.getTime()) / 1000,
         );
-        await this.interviewRepository.save(session.interview);
+        await this.interviewRepository.save(interview);
       }
     }
   }

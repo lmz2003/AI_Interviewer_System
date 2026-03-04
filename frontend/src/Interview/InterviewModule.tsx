@@ -384,6 +384,11 @@ const InterviewModule: React.FC = () => {
   }, [loadInitialData]);
 
   const handleStartNewInterview = () => {
+    // 清空上一场面试状态，防止残留 sessionId
+    setCurrentInterview(null);
+    setCurrentSessionId(null);
+    setCurrentSessionElapsedTime(0);
+    setCurrentReportId(null);
     setViewMode('select');
     setSelectedScene('');
     setSelectedJobType('general');
@@ -433,6 +438,19 @@ const InterviewModule: React.FC = () => {
   const handleResumeInterview = async (interview: Interview) => {
     try {
       setLoading(true);
+      setError(null);
+
+      // 如果是同一场面试（刚退出又继续），直接复用已有状态，不再重新拉取
+      if (currentInterview?.id === interview.id && currentSessionId) {
+        if (interview.mode === 'voice') {
+          setViewMode('voice');
+        } else {
+          setViewMode('chat');
+        }
+        setLoading(false);
+        return;
+      }
+
       const data = await interviewApi.getInterview(interview.id);
       setCurrentInterview(data.interview);
 
@@ -441,6 +459,7 @@ const InterviewModule: React.FC = () => {
         setCurrentSessionId(activeSession.id);
         setCurrentSessionElapsedTime(activeSession.elapsedTime || 0);
       } else {
+        setCurrentSessionId(null);
         setCurrentSessionElapsedTime(0);
       }
 
@@ -478,11 +497,11 @@ const InterviewModule: React.FC = () => {
   };
 
   const handleBackToList = () => {
+    // 只切换视图，保留面试状态，让列表页能正确显示"继续面试"
     setViewMode('list');
-    setCurrentInterview(null);
-    setCurrentSessionId(null);
     setCurrentReportId(null);
     setSelectedMode('text');
+    // 刷新列表（不重置 currentInterview / currentSessionId）
     loadInitialData();
   };
 
@@ -539,6 +558,7 @@ const InterviewModule: React.FC = () => {
         onEnd={handleChatEnd}
         onBack={handleBackToList}
         initialElapsedTime={currentSessionElapsedTime}
+        onElapsedTimeChange={setCurrentSessionElapsedTime}
       />
     );
   }
