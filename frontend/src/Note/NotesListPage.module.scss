@@ -1,97 +1,124 @@
+// ============================================================
+// NotesListPage — Design System: CareerBoost
+// Primary #6366F1 | CTA #10B981 | Text #1E1B4B
+// ============================================================
+
+$primary: #6366F1;
+$primary-hover: #4F46E5;
+$primary-soft: rgba(99, 102, 241, 0.08);
+$primary-soft-hover: rgba(99, 102, 241, 0.14);
+$cta: #10B981;
+$bg: #F7F6FF;
+$surface: #FFFFFF;
+$border: #EAE8F8;
+$text: #1E1B4B;
+$text-muted: #6B7280;
+$danger: #EF4444;
+$danger-soft: rgba(239, 68, 68, 0.08);
+$warning-soft: rgba(245, 158, 11, 0.1);
+$success-soft: rgba(16, 185, 129, 0.08);
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 14px;
+$font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+// ---- Layout ----
 .pageContainer {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background: $bg;
   overflow: hidden;
+  font-family: $font;
+  color: $text;
 }
 
+// ---- Top bar (title + actions) ----
 .header {
-  background: #ffffff;
-  padding: 20px 30px;
-  border-bottom: 1px solid #e2e8f0;
+  background: $surface;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid $border;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  gap: 1rem;
 }
 
 .title {
   margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: $text;
+  letter-spacing: -0.01em;
 }
 
 .headerActions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
+// ---- Shared button base ----
 .button {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: $radius-sm;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: $font;
   cursor: pointer;
   border: none;
-  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .buttonPrimary {
-  background: #4f46e5;
-  color: #ffffff;
+  background: $primary;
+  color: #fff;
 
-  &:hover {
-    background: #4338ca;
-  }
+  &:hover { background: $primary-hover; transform: translateY(-1px); }
+  &:active { transform: translateY(0); }
 }
 
 .buttonSecondary {
-  background: #f1f5f9;
-  color: #475569;
+  background: $primary-soft;
+  color: $primary;
 
-  &:hover {
-    background: #e2e8f0;
-  }
+  &:hover { background: $primary-soft-hover; }
 }
 
 .buttonDanger {
-  background: #dc2626;
-  color: #ffffff;
+  background: $danger-soft;
+  color: $danger;
 
-  &:hover {
-    background: #b91c1c;
-  }
+  &:hover { background: rgba(239, 68, 68, 0.14); }
 
   &:disabled {
-    background: #f87171;
+    opacity: 0.5;
     cursor: not-allowed;
-    opacity: 0.6;
+    transform: none;
   }
 }
 
+// ---- Batch mode action bar ----
 .batchActionsBar {
-  background: #fef3c7;
-  padding: 12px 30px;
-  border-bottom: 1px solid #fcd34d;
+  background: $primary-soft;
+  padding: 10px 1.5rem;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
-  animation: slideDown 0.3s ease;
+  animation: slideDown 0.15s ease;
+  gap: 1rem;
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .selectAllLabel {
@@ -104,23 +131,24 @@
 }
 
 .selectAllText {
-  font-size: 14px;
-  font-weight: 500;
-  color: #92400e;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: $primary;
 }
 
 .selectedCount {
-  font-size: 14px;
-  color: #92400e;
-  font-weight: 600;
+  font-size: 0.85rem;
+  color: $primary;
+  font-weight: 700;
 }
 
+// ---- Filters bar ----
 .filtersBar {
-  background: #ffffff;
-  padding: 15px 30px;
-  border-bottom: 1px solid #e2e8f0;
+  background: $surface;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid $border;
   display: flex;
-  gap: 15px;
+  gap: 10px;
   align-items: center;
   flex-wrap: wrap;
   flex-shrink: 0;
@@ -128,105 +156,117 @@
 
 .searchInput {
   flex: 1;
-  min-width: 200px;
-  padding: 10px 15px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 14px;
+  min-width: 160px;
+  padding: 8px 12px;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  font-size: 0.875rem;
+  font-family: $font;
+  color: $text;
+  background: $surface;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder { color: #9CA3AF; }
 
   &:focus {
     outline: none;
-    border-color: #4f46e5;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px $primary-soft;
   }
 }
 
 .select {
-  padding: 10px 15px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 14px;
-  background: #ffffff;
+  padding: 8px 12px;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  font-size: 0.875rem;
+  font-family: $font;
+  background: $surface;
+  color: $text;
   cursor: pointer;
+  transition: border-color 0.15s ease;
 
   &:focus {
     outline: none;
-    border-color: #4f46e5;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px $primary-soft;
   }
 }
 
+// ---- Content area ----
 .contentArea {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 30px;
+  padding: 1.25rem 1.5rem;
+
+  &::-webkit-scrollbar { width: 5px; }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.15);
+    border-radius: 3px;
+  }
 }
 
 .notesList {
-  display: grid;
-  gap: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
+// ---- Note card ----
 .noteCard {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding-left: 20px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  padding-left: 1.25rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   display: flex;
-  align-items: flex-start;
-  gap: 0;
+  align-items: stretch;
   position: relative;
   overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
 
   &:hover {
-    border-color: #4f46e5;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.09);
   }
 }
 
 .noteCardSelected {
-  border-color: #4f46e5;
-  background: #eef2ff;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
-}
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.04);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.1);
 
-.noteCardSelected::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: #4f46e5;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: $primary;
+    border-radius: 0 2px 2px 0;
+  }
 }
 
 .noteCardCheckbox {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
   padding-right: 10px;
-  height: 100%; /* 让元素高度撑满父级，实现垂直居中 */
-  border-radius: 20px;
+  flex-shrink: 0;
 }
 
 .checkbox {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
-  accent-color: #4f46e5;
-  transition: transform 0.15s ease;
-
-  &:hover {
-    transform: scale(1.1);
-  }
+  accent-color: $primary;
 }
 
 .noteCardContent {
   flex: 1;
-  padding: 20px 20px 20px 0;
+  padding: 1rem 1.25rem 1rem 0;
   min-width: 0;
 }
 
@@ -234,35 +274,44 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .noteTitle {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: $text;
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+// ---- Action buttons ----
 .noteActions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .actionButton {
-  padding: 6px 12px;
+  padding: 5px 10px;
   border: none;
-  background: #f1f5f9;
-  color: #475569;
-  border-radius: 6px;
-  font-size: 13px;
+  background: $primary-soft;
+  color: $primary;
+  border-radius: $radius-sm;
+  font-size: 0.78rem;
+  font-family: $font;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
 
-  &:hover:not(:disabled) {
-    background: #e2e8f0;
-  }
+  &:hover:not(:disabled) { background: $primary-soft-hover; }
 
   &:disabled {
     opacity: 0.5;
@@ -270,26 +319,33 @@
   }
 }
 
-.actionDelete:hover:not(:disabled) {
-  background: #ffeeee;
-  color: #dc2626;
+.actionDelete {
+  background: $danger-soft;
+  color: $danger;
+
+  &:hover:not(:disabled) { background: rgba(239, 68, 68, 0.14); }
 }
 
-.actionUpload:hover:not(:disabled) {
-  background: #dbeafe;
-  color: #2563eb;
+.actionUpload {
+  background: rgba(59, 130, 246, 0.08);
+  color: #3B82F6;
+
+  &:hover:not(:disabled) { background: rgba(59, 130, 246, 0.14); }
 }
 
-.actionSync:hover:not(:disabled) {
-  background: #fef3c7;
-  color: #d97706;
+.actionSync {
+  background: $warning-soft;
+  color: #D97706;
+
+  &:hover:not(:disabled) { background: rgba(245, 158, 11, 0.15); }
 }
 
+// ---- Note content preview ----
 .noteContent {
-  margin: 0 0 12px 0;
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1.6;
+  margin: 0 0 0.7rem;
+  color: $text-muted;
+  font-size: 0.855rem;
+  line-height: 1.65;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -297,94 +353,105 @@
   -webkit-box-orient: vertical;
 }
 
+// ---- Meta row ----
 .noteMeta {
   display: flex;
-  gap: 15px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .tag {
-  padding: 4px 10px;
-  background: #ede9fe;
-  color: #7c3aed;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 2px 10px;
+  background: rgba(99, 102, 241, 0.08);
+  color: $primary;
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .statusBadge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .statusPublished {
-  background: #d1fae5;
-  color: #065f46;
+  background: $success-soft;
+  color: #065F46;
 }
 
 .statusDraft {
-  background: #fef3c7;
-  color: #92400e;
+  background: $warning-soft;
+  color: #92400E;
 }
 
 .timeText {
-  font-size: 13px;
-  color: #94a3b8;
+  font-size: 0.75rem;
+  color: #9CA3AF;
 }
 
+// ---- Pagination ----
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 10px;
-  padding: 20px 0;
-  margin-top: 20px;
+  padding: 1.5rem 0 0.5rem;
+  font-size: 0.875rem;
+  color: $text-muted;
+  font-weight: 500;
 }
 
 .pageButton {
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #475569;
-  border-radius: 6px;
+  padding: 7px 14px;
+  border: 1px solid $border;
+  background: $surface;
+  color: $text-muted;
+  border-radius: $radius-sm;
   cursor: pointer;
-  font-size: 14px;
-  transition: background 0.2s;
+  font-size: 0.85rem;
+  font-family: $font;
+  font-weight: 600;
+  transition: all 0.15s ease;
 
-  &:hover {
-    background: #f1f5f9;
+  &:hover:not(:disabled) {
+    background: $primary-soft;
+    border-color: rgba(99, 102, 241, 0.3);
+    color: $primary;
   }
 
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 }
 
 .pageButtonActive {
-  background: #4f46e5;
-  color: #ffffff;
+  background: $primary;
+  color: #fff;
+  border-color: $primary;
 
-  &:hover {
-    background: #4338ca;
-  }
+  &:hover { background: $primary-hover; }
 }
 
+// ---- Empty state ----
 .emptyState {
   text-align: center;
-  padding: 60px 20px;
-  color: #94a3b8;
+  padding: 4rem 2rem;
+  color: $text-muted;
 }
 
 .emptyIcon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: rgba(99, 102, 241, 0.35);
 }
 
 .emptyText {
-  font-size: 16px;
+  font-size: 0.95rem;
   margin: 0;
+  line-height: 1.7;
 }

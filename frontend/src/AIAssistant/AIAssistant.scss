@@ -1,597 +1,491 @@
-// 变量定义
-$primary-color: #4f46e5;
-$secondary-color: #7c3aed;
-$accent-color: #10b981;
-$background-color: #f8fafc;
-$card-background: #ffffff;
-$text-color: #1e293b;
-$text-secondary: #94a3b8;
-$border-color: #e2e8f0;
-$error-color: #dc2626;
-$success-color: #10b981;
+// ==============================
+// CareerBoost Design System — AIAssistant
+// Primary: #6366F1 | CTA: #10B981
+// Font: Plus Jakarta Sans
+// Style: Flat Design (no gradients, minimal shadows)
+// ==============================
 
-$border-radius: 16px;
-$border-radius-sm: 8px;
-$border-radius-full: 50%;
+// ---- Variables ----
+$primary:        #6366F1;
+$primary-hover:  #4F46E5;
+$primary-soft:   rgba(99, 102, 241, 0.08);
+$cta:            #10B981;
+$cta-soft:       rgba(16, 185, 129, 0.08);
+$bg:             #F7F6FF;
+$surface:        #FFFFFF;
+$border:         #EAE8F8;
+$text:           #1E1B4B;
+$text-muted:     #6B7280;
+$danger:         #EF4444;
+$danger-soft:    rgba(239, 68, 68, 0.08);
+$radius:         12px;
+$radius-sm:      8px;
+$radius-full:    50%;
+$transition:     all 0.15s ease;
+$font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 6px 20px rgba(0, 0, 0, 0.15);
-
-$transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-// 混合器
+// ---- Mixins ----
 @mixin flex-center {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-@mixin user-message {
-  flex-direction: row-reverse;
-}
-
-@mixin button-primary {
-  background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: $transition;
-  box-shadow: 0 4px 12px rgba($primary-color, 0.3);
-}
-
-@mixin button-disabled {
-  background: $border-color;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-// 动画
+// ---- Animations ----
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 1;
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-// 主容器
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+  40%           { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// ==============================
+// Layout
+// ==============================
 .assistant-container {
   width: 100%;
   height: 100%;
-  background-color: $background-color;
+  background: $bg;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
   z-index: 5;
   min-height: 0;
+  font-family: $font;
 }
 
-// 头部
+// ==============================
+// Header
+// ==============================
 .assistant-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba($primary-color, 0.2);
-  animation: slideUp 0.5s ease-out;
-  
+  padding: 14px 20px;
+  background: $surface;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+
   .header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
-    
+    gap: 10px;
+
     h3 {
       margin: 0;
-      font-size: 18px;
-      font-weight: 700;
+      font-size: 1rem;
+      font-weight: 800;
+      color: $text;
+      letter-spacing: -0.01em;
       display: flex;
       align-items: center;
       gap: 8px;
+
+      .header-bot-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        background: $primary-soft;
+        border-radius: $radius-sm;
+        color: $primary;
+        flex-shrink: 0;
+
+        svg { width: 16px; height: 16px; }
+      }
     }
-    
+
     p {
       margin: 0;
-      font-size: 13px;
-      opacity: 0.95;
-      line-height: 1.6;
+      font-size: 0.78rem;
+      color: $text-muted;
       font-weight: 500;
     }
   }
-  
+
   .header-right {
     display: flex;
-    gap: 8px;
-    
+    gap: 6px;
+
     .header-button {
       @include flex-center;
-      width: 40px;
-      height: 40px;
-      border-radius: $border-radius-full;
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
-      color: white;
+      width: 34px;
+      height: 34px;
+      border-radius: $radius-sm;
+      background: $bg;
+      border: 1px solid $border;
+      color: $text-muted;
       cursor: pointer;
       transition: $transition;
-      position: relative;
-      gap: 4px;
-      
+
       &:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: scale(1.05);
+        background: $primary-soft;
+        border-color: $primary;
+        color: $primary;
       }
-      
-      &.active {
-        background: rgba(255, 255, 255, 0.25);
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      
+
       svg {
-        width: 20px;
-        height: 20px;
-      }
-      
-      .mode-label {
-        font-size: 11px;
-        font-weight: 600;
-        white-space: nowrap;
+        width: 16px;
+        height: 16px;
       }
     }
   }
 }
 
-// 历史会话下拉菜单
+// ==============================
+// History Dropdown
+// ==============================
 .history-dropdown {
   position: absolute;
-  top: 70px;
+  top: 62px;
   right: 20px;
-  background: $card-background;
-  border-radius: $border-radius-sm;
-  box-shadow: $shadow-lg;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius;
   width: 300px;
   max-height: 400px;
   overflow-y: auto;
   z-index: 100;
-  animation: fadeIn 0.3s ease-out;
-  
+  animation: fadeIn 0.2s ease-out;
+
   .dropdown-header {
-    padding: 16px;
-    border-bottom: 1px solid $border-color;
-    
+    padding: 14px 16px;
+    border-bottom: 1px solid $border;
+
     h4 {
       margin: 0;
-      font-size: 14px;
-      font-weight: 600;
-      color: $text-color;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: $text;
     }
   }
-  
+
   .dropdown-content {
     .session-item {
-      padding: 12px 16px;
-      border-bottom: 1px solid $border-color;
+      padding: 11px 16px;
+      border-bottom: 1px solid $border;
       cursor: pointer;
       transition: $transition;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      
-      &:hover {
-        background: $background-color;
-      }
-      
+
+      &:hover { background: $bg; }
+      &:last-child { border-bottom: none; }
+
       .session-info {
         flex: 1;
         min-width: 0;
-        
+
         .session-title {
-          font-size: 14px;
+          font-size: 0.875rem;
           font-weight: 600;
-          color: $text-color;
-          margin: 0 0 4px 0;
+          color: $text;
+          margin: 0 0 3px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        
+
         .session-meta {
-          font-size: 12px;
-          color: $text-secondary;
-          margin: 0;
+          font-size: 0.75rem;
+          color: $text-muted;
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          
-          .session-time {
-            white-space: nowrap;
-          }
-          
-          .session-count {
-            white-space: nowrap;
-          }
+          gap: 10px;
         }
       }
-      
+
       .session-actions {
         display: flex;
-        gap: 8px;
-        
+        gap: 6px;
+        flex-shrink: 0;
+
         .action-button {
           @include flex-center;
-          width: 24px;
-          height: 24px;
-          border-radius: $border-radius-full;
+          width: 26px;
+          height: 26px;
+          border-radius: $radius-sm;
           border: none;
           background: transparent;
+          color: $text-muted;
           cursor: pointer;
           transition: $transition;
-          opacity: 0.6;
-          
+
           &:hover {
-            background: $border-color;
-            opacity: 1;
+            background: $danger-soft;
+            color: $danger;
           }
-          
-          svg {
-            width: 14px;
-            height: 14px;
-            color: $text-secondary;
-          }
+
+          svg { width: 13px; height: 13px; }
         }
       }
     }
-    
+
     .empty-sessions {
-      padding: 32px 16px;
+      padding: 28px 16px;
       text-align: center;
-      color: $text-secondary;
-      font-size: 14px;
+      color: $text-muted;
+      font-size: 0.875rem;
     }
   }
 }
 
-// 消息列表
+// ==============================
+// Message List
+// ==============================
 .message-list {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  background-color: $background-color;
+  gap: 18px;
+  background: $bg;
   scroll-behavior: smooth;
-  
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
+
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.15);
-    border-radius: 4px;
-    
-    &:hover {
-      background-color: rgba(0, 0, 0, 0.25);
-    }
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 3px;
+    &:hover { background: rgba(0, 0, 0, 0.2); }
   }
 }
 
-// 初始状态
+// ==============================
+// Initial State (empty welcome)
+// ==============================
 .initial-state {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  
+
   .initial-content {
     display: flex;
     gap: 12px;
     align-items: flex-start;
-    max-width: 600px;
-    animation: fadeIn 0.5s ease-out;
-    
+    max-width: 560px;
+    animation: fadeIn 0.4s ease-out;
+
     .initial-bubble {
-      border-radius: 16px;
-      border: 2px solid rgba($accent-color, 0.2);
-      background: linear-gradient(135deg, rgba($accent-color, 0.05) 0%, rgba($accent-color, 0.02) 100%);
-      box-shadow: 0 4px 16px rgba($accent-color, 0.1);
-      
+      border-radius: $radius;
+      border: 1px solid rgba($cta, 0.25);
+      background: rgba($cta, 0.04);
+
       p {
-        font-size: 15px;
+        font-size: 0.9rem;
         line-height: 1.8;
-        color: $text-color;
+        color: $text;
         margin: 0;
-        
+
         &:first-child {
           font-weight: 600;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
       }
     }
   }
 }
 
-// 消息包装器
+// ==============================
+// Message Wrapper
+// ==============================
 .message-wrapper {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-end;
-  animation: slideUp 0.3s ease-out;
-  transition: all 0.3s ease;
-  
+  animation: slideUp 0.25s ease-out;
+
   &.user-message {
-    @include user-message;
-    justify-content: flex-end;
+    flex-direction: row-reverse;
+    justify-content: flex-start;
     margin-left: auto;
     width: auto;
   }
-  
-  &:hover {
-    transform: translateY(-1px);
-  }
 }
 
-// 头像
+// ==============================
+// Avatar
+// ==============================
 .avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: $border-radius-full;
+  width: 34px;
+  height: 34px;
+  border-radius: $radius-sm;
   @include flex-center;
-  font-size: 20px;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba($accent-color, 0.25);
-  transition: all 0.3s ease;
-  animation: slideUp 0.3s ease-out;
-  
+
   &.user-avatar {
-    background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
-    color: white;
-    box-shadow: 0 4px 16px rgba($primary-color, 0.35);
-    
-    &:hover {
-      transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba($primary-color, 0.4);
-    }
+    background: $primary-soft;
+    color: $primary;
+    svg { width: 17px; height: 17px; }
   }
-  
+
   &.assistant-avatar {
-    background: linear-gradient(135deg, $accent-color 0%, #059669 100%);
-    color: white;
-    box-shadow: 0 4px 16px rgba($accent-color, 0.35);
-    
-    &:hover {
-      transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba($accent-color, 0.4);
-    }
+    background: $cta-soft;
+    color: $cta;
+    svg { width: 17px; height: 17px; }
   }
 }
 
-// 消息气泡
-.message-bubble {
-  max-width: 85%;
-  padding: 20px 24px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.8;
-  background: $card-background;
-  color: $text-color;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid $border-color;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: slideUp 0.3s ease-out;
-  word-break: break-word;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  min-height: 44px;
-  min-width: auto;
-  display: inline-block;
-  will-change: transform, opacity;
-  
-  &.user-message {
-    border-radius: 18px 4px 4px 18px;
-    background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
-    color: white;
-    box-shadow: 0 4px 20px rgba($primary-color, 0.35);
-    border: none;
-    
-    &:hover {
-      transform: translateX(-3px) translateY(-1px);
-      box-shadow: 0 6px 24px rgba($primary-color, 0.4);
-    }
-    
-    a {
-      color: rgba(255, 255, 255, 0.9);
-      text-decoration: none;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      
-      &:hover {
-        color: #ffffff;
-        border-bottom-color: rgba(255, 255, 255, 0.6);
-      }
-    }
-  }
-  
-  &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  }
-  
-  p {
-    margin: 0;
-    
-    &:not(:last-child) {
-      margin-bottom: 12px;
-    }
-  }
-  
-  a {
-    color: #3b82f6;
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-weight: 500;
-    
-    &:hover {
-      color: #2563eb;
-      border-bottom-color: #2563eb;
-    }
-  }
-}
-
-// 消息内容包装器
+// ==============================
+// Message Bubble
+// ==============================
 .message-content-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
-// 消息操作区域
+.message-bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: $radius;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  background: $surface;
+  color: $text;
+  border: 1px solid $border;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  min-height: 40px;
+  display: inline-block;
+
+  &.user-message {
+    border-radius: $radius 4px 4px $radius;
+    background: $primary;
+    color: white;
+    border: none;
+
+    p { color: white; }
+
+    a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+      &:hover { color: white; border-bottom-color: rgba(255,255,255,0.6); }
+    }
+  }
+
+  p {
+    margin: 0;
+    &:not(:last-child) { margin-bottom: 8px; }
+  }
+
+  a {
+    color: $primary;
+    text-decoration: none;
+    font-weight: 500;
+    border-bottom: 1px solid transparent;
+    &:hover { border-bottom-color: $primary; }
+  }
+}
+
+// ==============================
+// Message Actions
+// ==============================
 .message-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 4px 0;
-  
+  gap: 6px;
+  padding: 2px 0;
+
   .timestamp {
-    font-size: 11px;
-    color: $text-secondary;
-    display: block;
+    font-size: 0.7rem;
+    color: $text-muted;
     font-weight: 500;
+
+    &.user-timestamp {
+      color: rgba($primary, 0.7);
+    }
   }
-  
+
   .action-btn {
     @include flex-center;
-    width: 30px;
-    height: 30px;
-    border-radius: $border-radius-full;
+    width: 26px;
+    height: 26px;
+    border-radius: $radius-sm;
     border: none;
     background: transparent;
-    color: $text-secondary;
+    color: $text-muted;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: $transition;
     opacity: 0;
     pointer-events: none;
-    
-    svg {
-      width: 15px;
-      height: 15px;
-      stroke-width: 2;
+
+    svg { width: 13px; height: 13px; }
+
+    &:not(:disabled):hover {
+      background: $primary-soft;
+      color: $primary;
     }
-    
-    &:not(:disabled) {
-      &:hover {
-        background: rgba(79, 70, 229, 0.12);
-        color: $primary-color;
-        transform: scale(1.1);
-      }
-      
-      &:active {
-        transform: scale(0.95);
-      }
-    }
-    
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
   }
 }
 
-// 消息包装器悬停时显示操作按钮
 .message-wrapper:hover .message-actions .action-btn {
   opacity: 1;
   pointer-events: auto;
 }
 
-// 重新发送按钮
-.resend-btn {
-  color: $accent-color;
-  
-  &:hover:not(:disabled) {
-    background: rgba(16, 185, 129, 0.1);
-    color: $accent-color;
-  }
+.resend-btn:hover:not(:disabled) {
+  background: $cta-soft !important;
+  color: $cta !important;
 }
 
-// 删除按钮
-.delete-btn {
-  color: $error-color;
-  
-  &:hover:not(:disabled) {
-    background: rgba(220, 38, 38, 0.1);
-    color: $error-color;
-  }
+.delete-btn:hover:not(:disabled) {
+  background: $danger-soft !important;
+  color: $danger !important;
 }
 
-// 时间戳
-.timestamp {
-  font-size: 11px;
-  color: $text-secondary;
-  margin-top: 4px;
-  display: block;
-  
-  &.user-timestamp {
-    color: #a5b4fc;
-    text-align: right;
-  }
-}
-
-// 知识库来源
+// ==============================
+// Sources
+// ==============================
 .sources-container {
   margin-top: 8px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-size: 12px;
-  
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  font-size: 0.78rem;
+
   p {
-    margin: 0 0 6px 0;
-    opacity: 0.9;
-    font-weight: 600;
+    margin: 0 0 6px;
+    font-weight: 700;
+    color: $text-muted;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
-  
+
   .sources-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    
+    gap: 5px;
+
     .source-tag {
-      background: rgba(255, 255, 255, 0.2);
-      padding: 4px 8px;
-      border-radius: 4px;
+      background: $primary-soft;
+      color: $primary;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -599,344 +493,239 @@ $transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-// 输入区域
+// ==============================
+// Typing Indicator
+// ==============================
+.typing-indicator {
+  display: flex;
+  gap: 5px;
+  padding: 12px 16px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius;
+  width: fit-content;
+
+  .typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: $radius-full;
+    background: $primary;
+    animation: typingBounce 1.4s infinite ease-in-out;
+
+    &:nth-child(1) { animation-delay: 0s; }
+    &:nth-child(2) { animation-delay: 0.16s; }
+    &:nth-child(3) { animation-delay: 0.32s; }
+  }
+}
+
+// ==============================
+// Error
+// ==============================
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: $danger-soft;
+  border: 1px solid rgba($danger, 0.2);
+  border-radius: $radius-sm;
+  color: $danger;
+  font-size: 0.875rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+// ==============================
+// Input Area
+// ==============================
 .input-area {
-  padding: 12px 16px 16px 16px;
-  background: linear-gradient(to bottom, $background-color 0%, $card-background 100%);
-  border-top: 1px solid $border-color;
+  padding: 12px 16px 16px;
+  background: $surface;
+  border-top: 1px solid $border;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
-  
-  // 知识库开关
+
+  // RAG Toggle
   .rag-toggle {
     display: flex;
     align-items: center;
-    padding: 0 4px;
-    
+
     .rag-button {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border: 1px solid $border-color;
+      gap: 6px;
+      padding: 6px 12px;
+      border: 1px solid $border;
       border-radius: 20px;
-      background: $card-background;
-      color: $text-color;
-      font-size: 12px;
+      background: $surface;
+      color: $text-muted;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
       transition: $transition;
-      flex-shrink: 0;
-      
+      font-family: $font;
+
       &:hover {
-        border-color: $primary-color;
-        background: rgba($primary-color, 0.05);
+        border-color: $primary;
+        color: $primary;
+        background: $primary-soft;
       }
-      
+
       &.active {
-        border-color: $accent-color;
-        background: rgba($accent-color, 0.1);
-        color: $accent-color;
-        
-        svg {
-          color: $accent-color;
-        }
+        border-color: $cta;
+        background: $cta-soft;
+        color: $cta;
+        svg { color: $cta; }
       }
-      
+
       svg {
-        width: 16px;
-        height: 16px;
-        color: $text-secondary;
-        transition: color 0.2s ease;
+        width: 14px;
+        height: 14px;
+        color: $text-muted;
         flex-shrink: 0;
-      }
-      
-      .rag-label {
-        white-space: nowrap;
+        transition: color 0.15s;
       }
     }
   }
-  
+
+  // Input wrapper
   .input-wrapper {
-    flex: 1;
-    position: relative;
     display: flex;
     align-items: flex-end;
-    gap: 12px;
-    min-height: fit-content;
-    
-    textarea {
+    gap: 10px;
+
+    .textarea-input {
       flex: 1;
-      padding: 12px 16px;
-      border: 2px solid $border-color;
-      border-radius: 24px;
+      padding: 10px 14px;
+      border: 1px solid $border;
+      border-radius: $radius;
       outline: none;
-      font-size: 14px;
-      transition: $transition;
-      background: $background-color;
-      font-family: inherit;
+      font-size: 0.9rem;
+      font-family: $font;
+      background: $bg;
+      color: $text;
       resize: none;
-      line-height: 24px; /* 确保与行高一致 */
-      height: auto; /* 动态高度调整 */
-      max-height: 120px; /* 最大高度 (四行: 4 * 24 + 12 + 12 padding) */
-      overflow-y: hidden; /* 默认隐藏滚动条，JS 会根据内容动态显示 */
+      line-height: 22px;
+      height: auto;
+      max-height: 110px;
+      overflow-y: hidden;
       word-wrap: break-word;
       white-space: pre-wrap;
       box-sizing: border-box;
-      appearance: none;
-      -webkit-appearance: none; /* 移除浏览器默认样式 */
-      
-      /* 滚动条美化 - 圆角内部 */
-      &::-webkit-scrollbar {
-        width: 5px;
-      }
-      
-      &::-webkit-scrollbar-track {
-        background: transparent;
-        border-radius: 12px;
-      }
-      
+      transition: border-color 0.15s, box-shadow 0.15s;
+
+      &::-webkit-scrollbar { width: 4px; }
+      &::-webkit-scrollbar-track { background: transparent; }
       &::-webkit-scrollbar-thumb {
-        background: rgba($text-secondary, 0.4);
-        border-radius: 4px;
-        border: 1px solid transparent;
-        background-clip: content-box;
-        
-        &:hover {
-          background: rgba($text-secondary, 0.6);
-          background-clip: content-box;
-        }
+        background: rgba(0,0,0,0.12);
+        border-radius: 2px;
       }
-      
+
       &:focus {
-        border-color: $primary-color;
-        background: $card-background;
-        box-shadow: 0 0 0 4px rgba($primary-color, 0.1);
+        border-color: $primary;
+        box-shadow: 0 0 0 3px $primary-soft;
+        background: $surface;
       }
-      
+
       &:disabled {
-        background: $border-color;
-        color: $text-secondary;
+        background: $border;
+        color: $text-muted;
         cursor: not-allowed;
       }
-      
-      &::placeholder {
-        color: $text-secondary;
-        transition: color 0.2s ease;
-      }
-      
-      &:focus::placeholder {
-        color: #cbd5e1;
-      }
+
+      &::placeholder { color: $text-muted; }
     }
   }
-  
+
+  // Send button
   .send-button {
     @include flex-center;
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    border-radius: $border-radius-full;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: $radius-sm;
     border: none;
-    @include button-primary;
-    flex-shrink: 0;
-    align-self: flex-end;
-    margin-bottom: 2px;
-    
-    &:disabled {
-      @include button-disabled;
-    }
-    
-    &:hover:not(:disabled) {
-      transform: scale(1.08);
-      box-shadow: 0 6px 20px rgba($primary-color, 0.4);
-    }
-    
-    &:active:not(:disabled) {
-      transform: scale(0.94);
-      box-shadow: 0 2px 8px rgba($primary-color, 0.3);
-    }
-    
-    svg {
-      width: 20px;
-      height: 20px;
-      transition: transform 0.2s ease;
-    }
-    
-    &:hover:not(:disabled) svg {
-      transform: translateX(2px);
-    }
-  }
-  
-  .stop-button {
-    @include flex-center;
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    border-radius: $border-radius-full;
-    border: none;
-    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    background: $primary;
     color: white;
     cursor: pointer;
     transition: $transition;
-    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
     flex-shrink: 0;
-    animation: slideUp 0.2s ease-out;
     align-self: flex-end;
-    margin-bottom: 2px;
-    
-    &:hover {
-      transform: scale(1.08);
-      box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+
+    &:disabled {
+      background: $border;
+      color: $text-muted;
+      cursor: not-allowed;
     }
-    
-    &:active {
-      transform: scale(0.94);
-      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+
+    &:hover:not(:disabled) {
+      background: $primary-hover;
     }
-    
-    svg {
-      width: 20px;
-      height: 20px;
+
+    &:active:not(:disabled) {
+      transform: scale(0.95);
     }
+
+    svg { width: 18px; height: 18px; }
+  }
+
+  // Stop button
+  .stop-button {
+    @include flex-center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: $radius-sm;
+    border: none;
+    background: $danger;
+    color: white;
+    cursor: pointer;
+    transition: $transition;
+    flex-shrink: 0;
+    align-self: flex-end;
+    animation: fadeIn 0.15s ease-out;
+
+    &:hover { background: darken($danger, 8%); }
+    &:active { transform: scale(0.95); }
+
+    svg { width: 16px; height: 16px; }
   }
 }
 
-// 打字指示器
-.typing-indicator {
-  display: flex;
-  gap: 6px;
-  padding: 14px 18px;
-  background: $card-background;
-  border-radius: 16px 16px 16px 4px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid $border-color;
-  width: fit-content;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  }
-  
-  .typing-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: $border-radius-full;
-    background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
-    animation: typingPulse 1.4s infinite ease-in-out;
-    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
-    
-    &:nth-child(1) {
-      animation-delay: 0s;
-    }
-    
-    &:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-    
-    &:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-  }
-}
-
-@keyframes typingPulse {
-  0%, 100% {
-    transform: scale(0.6);
-    opacity: 0.4;
-  }
-  50% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-// 错误消息
-.error-message {
-  padding: 12px 16px;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: $border-radius-sm;
-  color: $error-color;
-  font-size: 13px;
-  margin: 8px 0;
-  animation: fadeIn 0.3s ease-out;
-}
-
-// 滚动到底部指示器
+// ==============================
+// Scroll anchor
+// ==============================
 .scroll-indicator {
   height: 1px;
   width: 100%;
 }
 
-// 响应式设计
+// ==============================
+// Responsive
+// ==============================
 @media (max-width: 768px) {
   .assistant-header {
-    padding: 12px 16px;
-    
-    .header-left {
-      h3 {
-        font-size: 16px;
-      }
-      
-      p {
-        display: none;
-      }
-    }
+    padding: 10px 14px;
+    .header-left p { display: none; }
   }
-  
+
   .history-dropdown {
-    width: calc(100% - 40px);
-    right: 20px;
-    left: 20px;
+    width: calc(100% - 32px);
+    right: 16px;
+    left: 16px;
   }
-  
-  .message-bubble {
-    max-width: 90%;
-  }
-  
+
+  .message-bubble { max-width: 92%; }
+
   .input-area {
-    padding: 12px 12px 12px 12px;
-    
-    .rag-toggle {
-      padding: 0 2px;
-      
-      .rag-button {
-        padding: 6px 10px;
-        font-size: 11px;
-        gap: 6px;
-        
-        svg {
-          width: 14px;
-          height: 14px;
-        }
-      }
+    padding: 10px 12px 14px;
+    .input-wrapper .textarea-input {
+      font-size: 0.875rem;
+      padding: 8px 12px;
     }
-    
-    .input-wrapper {
-      textarea {
-        padding: 8px 12px;
-        font-size: 13px;
-        line-height: 20px;
-        max-height: 100px; /* 移动设备上的最大高度 */
-        
-        &::-webkit-scrollbar {
-          width: 4px;
-        }
-        
-        &::-webkit-scrollbar-thumb {
-          border-radius: 3px;
-        }
-      }
-    }
-    
-    .send-button,
-    .stop-button {
-      width: 40px;
-      height: 40px;
+    .send-button, .stop-button {
+      width: 36px; height: 36px; min-width: 36px;
     }
   }
 }

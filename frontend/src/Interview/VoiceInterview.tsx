@@ -2,6 +2,44 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { interviewApi } from './api';
 import type { Interview, VoiceCallStatus } from './types';
 
+// SVG 图标
+const MicIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
+const StopSquareIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26">
+    <rect x="5" y="5" width="14" height="14" rx="2" />
+  </svg>
+);
+
+const PhoneOffIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+    <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.26 9.91 19.79 19.79 0 0 1 1.2 1.28 2 2 0 0 1 3.22.0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.2 7.91" />
+    <line x1="23" y1="1" x2="1" y2="23" />
+  </svg>
+);
+
+const VolumeOffIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <line x1="23" y1="9" x2="17" y2="15" />
+    <line x1="17" y1="9" x2="23" y2="15" />
+  </svg>
+);
+
+const VolumeOnIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+  </svg>
+);
+
 interface VoiceInterviewProps {
   interview: Interview;
   sessionId: string;
@@ -40,10 +78,10 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const subtitleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const progressSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const subtitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const subtitlesEndRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef(sessionId);
@@ -373,7 +411,12 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     <div className="voice-interview-page">
       {/* 顶部信息栏 */}
       <div className="voice-header">
-        <button className="back-btn" onClick={handleBack}>← 返回</button>
+        <button className="back-btn" onClick={handleBack}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          返回
+        </button>
         <div className="voice-header-info">
           <div className="voice-title">{interview.title || interview.sceneName}</div>
           <div className="voice-meta">
@@ -386,7 +429,12 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
       {/* 错误提示 */}
       {error && (
         <div className="error-message" onClick={() => setError(null)}>
-          ⚠️ {error}（点击关闭）
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          {error}（点击关闭）
         </div>
       )}
 
@@ -395,7 +443,13 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         {/* AI 面试官显示区 */}
         <div className={`ai-avatar-section ${isAIPlaying ? 'speaking' : ''}`}>
           <div className="ai-avatar">
-            <span className="ai-avatar-icon">🤖</span>
+            <svg className="ai-avatar-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="12" cy="5" r="2" />
+              <path d="M12 7v4" />
+              <line x1="8" y1="16" x2="8" y2="16" strokeWidth="3" />
+              <line x1="16" y1="16" x2="16" y2="16" strokeWidth="3" />
+            </svg>
             {isAIPlaying && (
               <div className="ai-speaking-ring" />
             )}
@@ -464,7 +518,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
           onClick={() => setIsMuted((prev) => !prev)}
           title={isMuted ? '取消静音' : '静音'}
         >
-          {isMuted ? '🔇' : '🔊'}
+          {isMuted ? <VolumeOffIcon /> : <VolumeOnIcon />}
           <span>{isMuted ? '取消静音' : '静音'}</span>
         </button>
 
@@ -478,9 +532,9 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
           {callStatus === 'processing' ? (
             <span className="btn-spinner" />
           ) : callStatus === 'recording' ? (
-            <span>⏹</span>
+            <StopSquareIcon />
           ) : (
-            <span>🎙️</span>
+            <MicIcon />
           )}
         </button>
 
@@ -491,7 +545,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
           disabled={callStatus === 'ended'}
           title="结束面试"
         >
-          📵
+          <PhoneOffIcon />
           <span>结束面试</span>
         </button>
       </div>

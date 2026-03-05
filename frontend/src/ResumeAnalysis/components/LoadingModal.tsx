@@ -1,95 +1,14 @@
 import React from 'react';
-import styled, { keyframes } from 'styled-components';
 
-const fadeInOut = keyframes`
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-`;
-
-const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1001;
-  animation: ${fadeInOut} 0.3s ease-in;
-  backdrop-filter: blur(2px);
-`;
-
-const ModalContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  background: white;
-  border-radius: 16px;
-  padding: 40px 50px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-  animation: ${fadeInOut} 0.4s ease-out;
-  min-width: 300px;
-`;
-
-const spin = keyframes`
-  to {
-    transform: rotate(360deg);
-  }
-`;
-
-const Spinner = styled.div`
-  width: 50px;
-  height: 50px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #4f46e5;
-  border-radius: 50%;
-  animation: ${spin} 1s linear infinite;
-`;
-
-const TextContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-`;
-
-const Title = styled.h3`
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #0f172a;
-`;
-
-const Description = styled.p`
-  margin: 0;
-  font-size: 14px;
-  color: #64748b;
-  text-align: center;
-`;
-
-const Progress = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #94a3b8;
-`;
-
-const Dot = styled.span<{ active?: boolean }>`
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: ${props => props.active ? '#4f46e5' : '#cbd5e1'};
-  transition: all 0.3s ease;
-`;
+// ---- Design tokens ----
+const C = {
+  primary: '#6366F1',
+  surface: '#FFFFFF',
+  border: '#EAE8F8',
+  text: '#1E1B4B',
+  textMuted: '#6B7280',
+  font: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+};
 
 interface LoadingModalProps {
   isOpen: boolean;
@@ -111,23 +30,64 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Overlay>
-      <ModalContent>
-        <Spinner />
-        <TextContainer>
-          <Title>{title}</Title>
-          <Description>{description}</Description>
-          {showProgress && (
-            <Progress>
-              {Array.from({ length: maxProgress }).map((_, i) => (
-                <Dot key={i} active={i < progress} />
-              ))}
-              <span>{progress}/{maxProgress}</span>
-            </Progress>
-          )}
-        </TextContainer>
-      </ModalContent>
-    </Overlay>
+    <>
+      <style>{`
+        @keyframes lm-spin { to { transform: rotate(360deg); } }
+        @keyframes lm-fade { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
+      <div style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(30,27,75,0.35)',
+        backdropFilter: 'blur(3px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1001,
+        animation: 'lm-fade 0.25s ease-out',
+        fontFamily: C.font,
+      }}>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px',
+          background: C.surface,
+          border: `1px solid ${C.border}`,
+          borderRadius: '16px',
+          padding: '36px 48px',
+          minWidth: '280px',
+          animation: 'lm-fade 0.3s ease-out',
+        }}>
+          {/* Spinner */}
+          <div style={{
+            width: '44px', height: '44px',
+            border: `3px solid ${C.border}`,
+            borderTopColor: C.primary,
+            borderRadius: '50%',
+            animation: 'lm-spin 0.9s linear infinite',
+          }} />
+
+          {/* Text */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', textAlign: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: C.text }}>{title}</h3>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: C.textMuted, lineHeight: 1.5 }}>{description}</p>
+
+            {showProgress && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                {Array.from({ length: maxProgress }).map((_, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      width: '7px', height: '7px', borderRadius: '50%',
+                      background: i < progress ? C.primary : C.border,
+                      transition: 'background 0.3s ease',
+                    }}
+                  />
+                ))}
+                <span style={{ fontSize: '0.78rem', color: C.textMuted, marginLeft: '4px' }}>
+                  {progress}/{maxProgress}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 

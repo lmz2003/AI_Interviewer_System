@@ -17,6 +17,70 @@ import './Interview.scss';
 
 type ViewMode = 'list' | 'select' | 'chat' | 'voice' | 'report';
 
+// SVG 图标组件
+const MicIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const ChevronLeftIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
+const BotIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+    <rect x="3" y="11" width="18" height="10" rx="2" />
+    <circle cx="12" cy="5" r="2" />
+    <path d="M12 7v4" />
+    <line x1="8" y1="16" x2="8" y2="16" strokeWidth="3" />
+    <line x1="16" y1="16" x2="16" y2="16" strokeWidth="3" />
+  </svg>
+);
+
+const PhoneOffIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24">
+    <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.26 9.91 19.79 19.79 0 0 1 1.2 1.28 2 2 0 0 1 3.22.0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.2 7.91" />
+    <line x1="23" y1="1" x2="1" y2="23" />
+  </svg>
+);
+
+const VolumeIcon = ({ muted }: { muted?: boolean }) => (
+  muted ? (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <line x1="23" y1="9" x2="17" y2="15" />
+      <line x1="17" y1="9" x2="23" y2="15" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+    </svg>
+  )
+);
+
+const MicBtnIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
 /**
  * 语音面试加载器：负责启动会话，然后渲染 VoiceInterview 组件
  */
@@ -44,7 +108,7 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
   const [isPlayingOpening, setIsPlayingOpening] = useState(false);
   const [callDuration, setCallDuration] = useState(initialElapsedTime);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -101,7 +165,6 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
       (event) => {
         if (event.type === 'session') {
           tempSessionId = event.data.sessionId as string;
-          // 开始计时
           timerRef.current = setInterval(() => {
             setCallDuration((prev) => prev + 1);
           }, 1000);
@@ -146,7 +209,9 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
     return (
       <div className="voice-interview-page">
         <div className="voice-header">
-          <button className="back-btn" onClick={onBack}>← 返回</button>
+          <button className="back-btn" onClick={onBack}>
+            <ChevronLeftIcon /> 返回
+          </button>
           <div className="voice-header-info">
             <div className="voice-title">{interview.title || interview.sceneName}</div>
             <div className="voice-meta">
@@ -158,13 +223,19 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
         <div className="voice-main">
           <div className="ai-avatar-section">
             <div className="ai-avatar">
-              <span className="ai-avatar-icon">🤖</span>
+              <BotIcon />
             </div>
             <div className="ai-label">AI 面试官</div>
           </div>
           <div className="subtitles-area">
             <div className="no-subtitles">
-              <div className="error-icon">❌</div>
+              <div className="error-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
               <p>启动面试失败：{startError}</p>
               <button className="start-btn" onClick={onBack}>返回重试</button>
             </div>
@@ -172,24 +243,15 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
           <div className="voice-status-label">启动失败</div>
         </div>
         <div className="voice-controls">
-          <button
-            className="control-btn mute-btn"
-            disabled={true}
-          >
-            🔊
+          <button className="control-btn mute-btn" disabled={true}>
+            <VolumeIcon />
             <span>静音</span>
           </button>
-          <button
-            className="main-mic-btn"
-            disabled={true}
-          >
-            <span>🎙️</span>
+          <button className="main-mic-btn" disabled={true}>
+            <MicBtnIcon />
           </button>
-          <button
-            className="control-btn end-call-btn"
-            onClick={onBack}
-          >
-            📵
+          <button className="control-btn end-call-btn" onClick={onBack}>
+            <PhoneOffIcon />
             <span>返回</span>
           </button>
         </div>
@@ -201,7 +263,9 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
     return (
       <div className="voice-interview-page">
         <div className="voice-header">
-          <button className="back-btn" onClick={onBack}>← 返回</button>
+          <button className="back-btn" onClick={onBack}>
+            <ChevronLeftIcon /> 返回
+          </button>
           <div className="voice-header-info">
             <div className="voice-title">{interview.title || interview.sceneName}</div>
             <div className="voice-meta">
@@ -213,7 +277,7 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
         <div className="voice-main">
           <div className="ai-avatar-section">
             <div className="ai-avatar">
-              <span className="ai-avatar-icon">🤖</span>
+              <BotIcon />
             </div>
             <div className="ai-label">AI 面试官</div>
           </div>
@@ -228,24 +292,15 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
           <div className="voice-status-label">正在连接面试官...</div>
         </div>
         <div className="voice-controls">
-          <button
-            className="control-btn mute-btn"
-            disabled={true}
-          >
-            🔊
+          <button className="control-btn mute-btn" disabled={true}>
+            <VolumeIcon />
             <span>静音</span>
           </button>
-          <button
-            className="main-mic-btn processing"
-            disabled={true}
-          >
+          <button className="main-mic-btn processing" disabled={true}>
             <span className="btn-spinner" />
           </button>
-          <button
-            className="control-btn end-call-btn"
-            disabled={true}
-          >
-            📵
+          <button className="control-btn end-call-btn" disabled={true}>
+            <PhoneOffIcon />
             <span>结束面试</span>
           </button>
         </div>
@@ -257,32 +312,28 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
     return (
       <div className="voice-interview-page">
         <div className="voice-header">
-            <button className="back-btn" onClick={onBack}>← 返回</button>
-            <div className="voice-header-info">
-              <div className="voice-title">{interview.title || interview.sceneName}</div>
-              <div className="voice-meta">
-                {interview.jobName || '通用岗位'} · {interview.difficultyName}
-              </div>
+          <button className="back-btn" onClick={onBack}>
+            <ChevronLeftIcon /> 返回
+          </button>
+          <div className="voice-header-info">
+            <div className="voice-title">{interview.title || interview.sceneName}</div>
+            <div className="voice-meta">
+              {interview.jobName || '通用岗位'} · {interview.difficultyName}
             </div>
-            <div className="voice-duration">{formatDuration(callDuration)}</div>
           </div>
+          <div className="voice-duration">{formatDuration(callDuration)}</div>
+        </div>
         <div className="voice-main">
           <div className={`ai-avatar-section ${isPlayingOpening ? 'speaking' : ''}`}>
             <div className="ai-avatar">
-              <span className="ai-avatar-icon">🤖</span>
-              {isPlayingOpening && (
-                <div className="ai-speaking-ring" />
-              )}
+              <BotIcon />
+              {isPlayingOpening && <div className="ai-speaking-ring" />}
             </div>
             <div className="ai-label">AI 面试官</div>
             {isPlayingOpening && (
               <div className="ai-waveform">
                 {Array.from({ length: 8 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="ai-wave-bar"
-                    style={{ animationDelay: `${i * 0.1}s` }}
-                  />
+                  <div key={i} className="ai-wave-bar" style={{ animationDelay: `${i * 0.1}s` }} />
                 ))}
               </div>
             )}
@@ -293,24 +344,15 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
           <div className="voice-status-label">面试官正在说话...</div>
         </div>
         <div className="voice-controls">
-          <button
-            className="control-btn mute-btn"
-            disabled={true}
-          >
-            🔊
+          <button className="control-btn mute-btn" disabled={true}>
+            <VolumeIcon />
             <span>静音</span>
           </button>
-          <button
-            className="main-mic-btn"
-            disabled={true}
-          >
-            <span>🎙️</span>
+          <button className="main-mic-btn" disabled={true}>
+            <MicBtnIcon />
           </button>
-          <button
-            className="control-btn end-call-btn"
-            disabled={true}
-          >
-            📵
+          <button className="control-btn end-call-btn" disabled={true}>
+            <PhoneOffIcon />
             <span>结束面试</span>
           </button>
         </div>
@@ -364,7 +406,6 @@ const InterviewModule: React.FC = () => {
       setDifficultyLevels(difficultyData);
       setInterviews(interviewsData);
       
-      // 单独加载简历列表，失败不影响其他功能
       try {
         const resumesData = await interviewApi.getResumes();
         setResumes(resumesData);
@@ -384,7 +425,6 @@ const InterviewModule: React.FC = () => {
   }, [loadInitialData]);
 
   const handleStartNewInterview = () => {
-    // 清空上一场面试状态，防止残留 sessionId
     setCurrentInterview(null);
     setCurrentSessionId(null);
     setCurrentSessionElapsedTime(0);
@@ -422,7 +462,6 @@ const InterviewModule: React.FC = () => {
 
       const interview = await interviewApi.createInterview(dto);
       setCurrentInterview(interview);
-      // 根据面试形式跳转不同页面
       if (selectedMode === 'voice') {
         setViewMode('voice');
       } else {
@@ -440,7 +479,6 @@ const InterviewModule: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // 如果是同一场面试（刚退出又继续），直接复用已有状态，不再重新拉取
       if (currentInterview?.id === interview.id && currentSessionId) {
         if (interview.mode === 'voice') {
           setViewMode('voice');
@@ -463,7 +501,6 @@ const InterviewModule: React.FC = () => {
         setCurrentSessionElapsedTime(0);
       }
 
-      // 根据面试模式跳转不同页面
       if (data.interview.mode === 'voice') {
         setViewMode('voice');
       } else {
@@ -497,11 +534,9 @@ const InterviewModule: React.FC = () => {
   };
 
   const handleBackToList = () => {
-    // 只切换视图，保留面试状态，让列表页能正确显示"继续面试"
     setViewMode('list');
     setCurrentReportId(null);
     setSelectedMode('text');
-    // 刷新列表（不重置 currentInterview / currentSessionId）
     loadInitialData();
   };
 
@@ -550,6 +585,41 @@ const InterviewModule: React.FC = () => {
     return <span className={`status-badge ${statusInfo.className}`}>{statusInfo.label}</span>;
   };
 
+  // 根据场景类型返回 SVG 图标
+  const getSceneSvgIcon = (sceneType: string) => {
+    const iconMap: Record<string, React.ReactNode> = {
+      technical: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+      ),
+      behavioral: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+      system_design: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+          <rect x="2" y="3" width="20" height="14" rx="2" />
+          <line x1="8" y1="21" x2="16" y2="21" />
+          <line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+      ),
+    };
+    return iconMap[sceneType] || (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+        <line x1="12" y1="19" x2="12" y2="23" />
+        <line x1="8" y1="23" x2="16" y2="23" />
+      </svg>
+    );
+  };
+
   if (viewMode === 'chat' && currentInterview) {
     return (
       <InterviewChat
@@ -564,8 +634,6 @@ const InterviewModule: React.FC = () => {
   }
 
   if (viewMode === 'voice' && currentInterview) {
-    // 语音面试需要先通过 SSE 启动会话获取 sessionId
-    // 使用 VoiceInterviewLoader 来处理启动流程
     return (
       <VoiceInterviewLoader
         interview={currentInterview}
@@ -593,12 +661,19 @@ const InterviewModule: React.FC = () => {
       <div className="interview-select-page">
         <div className="select-header">
           <button className="back-btn" onClick={() => setViewMode('list')}>
-            ← 返回
+            <ChevronLeftIcon /> 返回
           </button>
           <h2>选择面试场景</h2>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className="error-message">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          {error}
+        </div>}
 
         <div className="select-content">
           <div className="select-section">
@@ -726,17 +801,29 @@ const InterviewModule: React.FC = () => {
       <div className="list-header">
         <h2>模拟面试</h2>
         <button className="new-interview-btn" onClick={handleStartNewInterview}>
-          + 开始新面试
+          <PlusIcon /> 开始新面试
         </button>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="error-message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        {error}
+      </div>}
 
       {loading ? (
-        <div className="loading-state">加载中...</div>
+        <div className="loading-state">
+          <div className="spinner" />
+          加载中...
+        </div>
       ) : interviews.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🎤</div>
+          <div className="empty-icon">
+            <MicIcon />
+          </div>
           <h3>还没有面试记录</h3>
           <p>开始你的第一次模拟面试，提升面试技巧</p>
           <button className="start-btn" onClick={handleStartNewInterview}>
@@ -750,7 +837,7 @@ const InterviewModule: React.FC = () => {
               <div className="card-header">
                 <div className="card-title">
                   <span className="scene-icon">
-                    {scenes.find((s) => s.code === interview.sceneType)?.icon || '🎤'}
+                    {getSceneSvgIcon(interview.sceneType)}
                   </span>
                   <h3>{interview.title || interview.sceneName}</h3>
                 </div>

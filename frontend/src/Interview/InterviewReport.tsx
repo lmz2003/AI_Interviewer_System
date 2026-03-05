@@ -3,6 +3,72 @@ import { interviewApi } from './api';
 import type { Interview, InterviewReport } from './types';
 import './Interview.scss';
 
+// SVG 图标
+const ChevronLeftIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
+const ClipboardIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+  </svg>
+);
+
+const BarChartIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+    <line x1="2" y1="20" x2="22" y2="20" />
+  </svg>
+);
+
+const ThumbsUpIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+  </svg>
+);
+
+const TargetIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="6" />
+    <circle cx="12" cy="12" r="2" />
+  </svg>
+);
+
+const LightbulbIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <line x1="9" y1="18" x2="15" y2="18" />
+    <line x1="10" y1="22" x2="14" y2="22" />
+    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+  </svg>
+);
+
+const MessageSquareIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+const BookOpenIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
+
+const ExternalLinkIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+);
+
 interface InterviewReportProps {
   reportId: string;
   interview: Interview | null;
@@ -51,7 +117,10 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
   if (loading) {
     return (
       <div className="interview-report-page">
-        <div className="loading-state">加载报告...</div>
+        <div className="loading-state">
+          <div className="spinner" />
+          加载报告...
+        </div>
       </div>
     );
   }
@@ -71,7 +140,7 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
     <div className="interview-report-page">
       <div className="report-header">
         <button className="back-btn" onClick={onBack}>
-          ← 返回
+          <ChevronLeftIcon /> 返回
         </button>
         <h2>面试报告</h2>
         {interview && (
@@ -120,14 +189,20 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
 
           {report.summary && (
             <div className="summary-card">
-              <h4>📋 面试总结</h4>
+              <h4>
+                <ClipboardIcon />
+                面试总结
+              </h4>
               <p>{report.summary}</p>
             </div>
           )}
         </div>
 
         <div className="report-section dimensions-section">
-          <h3>📊 维度评分</h3>
+          <h3>
+            <BarChartIcon />
+            维度评分
+          </h3>
           <div className="dimensions-grid">
             {[
               { key: 'completeness', name: '内容完整性', desc: '是否完整回答了问题' },
@@ -166,17 +241,26 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
 
         <div className="report-section analysis-section">
           <div className="analysis-card strengths">
-            <h4>💪 优势</h4>
+            <h4>
+              <ThumbsUpIcon />
+              优势
+            </h4>
             <p>{report.strengths}</p>
           </div>
           <div className="analysis-card weaknesses">
-            <h4>🎯 待提升</h4>
+            <h4>
+              <TargetIcon />
+              待提升
+            </h4>
             <p>{report.weaknesses}</p>
           </div>
         </div>
 
         <div className="report-section suggestions-section">
-          <h3>💡 改进建议</h3>
+          <h3>
+            <LightbulbIcon />
+            改进建议
+          </h3>
           <div className="suggestions-content">
             {report.suggestions.split('\n').map((s, i) => (
               <p key={i}>{s}</p>
@@ -186,7 +270,10 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
 
         {report.questionAnalysis && report.questionAnalysis.length > 0 && (
           <div className="report-section questions-section">
-            <h3>📝 问题分析</h3>
+            <h3>
+              <MessageSquareIcon />
+              问题分析
+            </h3>
             <div className="questions-list">
               {report.questionAnalysis.map((qa, index) => (
                 <div key={index} className="question-item">
@@ -223,7 +310,10 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
 
         {report.learningResources && report.learningResources.length > 0 && (
           <div className="report-section resources-section">
-            <h3>📚 学习资源推荐</h3>
+            <h3>
+              <BookOpenIcon />
+              学习资源推荐
+            </h3>
             <div className="resources-list">
               {report.learningResources.map((resource, index) => (
                 <a
@@ -235,7 +325,7 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
                 >
                   <span className="resource-type">{resource.type}</span>
                   <span className="resource-title">{resource.title}</span>
-                  <span className="resource-arrow">→</span>
+                  <span className="resource-arrow"><ExternalLinkIcon /></span>
                 </a>
               ))}
             </div>

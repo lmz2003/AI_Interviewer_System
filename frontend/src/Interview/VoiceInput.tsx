@@ -1,6 +1,37 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { interviewApi } from './api';
 
+// SVG 图标
+const MicIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
+const StopIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+    <rect x="5" y="5" width="14" height="14" rx="2" />
+  </svg>
+);
+
+const AlertTriangleIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const XIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
 interface VoiceInputProps {
   onTranscription: (text: string) => void;
   disabled?: boolean;
@@ -21,7 +52,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -212,10 +243,10 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     <div className="voice-input-container">
       {error && (
         <div className="voice-input-error">
-          <span className="error-icon">⚠️</span>
+          <AlertTriangleIcon />
           <span>{error}</span>
           <button className="error-dismiss" onClick={() => setError(null)}>
-            ×
+            <XIcon />
           </button>
         </div>
       )}
@@ -256,9 +287,9 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
         {isProcessing ? (
           <span className="btn-spinner" />
         ) : isRecording ? (
-          <span className="btn-icon stop-icon">⏹</span>
+          <StopIcon />
         ) : (
-          <span className="btn-icon mic-icon">🎙️</span>
+          <MicIcon />
         )}
       </button>
     </div>

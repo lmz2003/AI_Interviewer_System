@@ -4,6 +4,46 @@ import type { Interview, InterviewMessage, SSEEvent } from './types';
 import VoiceInput from './VoiceInput';
 import './Interview.scss';
 
+// SVG 图标
+const UserIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const BotIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+    <rect x="3" y="11" width="18" height="10" rx="2" />
+    <circle cx="12" cy="5" r="2" />
+    <path d="M12 7v4" />
+    <line x1="8" y1="16" x2="8" y2="16" strokeWidth="3" />
+    <line x1="16" y1="16" x2="16" y2="16" strokeWidth="3" />
+  </svg>
+);
+
+const MicReadyIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
+const ChevronLeftIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+);
+
 interface InterviewChatProps {
   interview: Interview;
   sessionId: string | null;
@@ -35,8 +75,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const sessionIdRef = useRef<string | null>(null);
   const handleEndInterviewRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const elapsedTimeRef = useRef(elapsedTime);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const progressSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const progressSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onElapsedTimeChangeRef = useRef(onElapsedTimeChange);
 
   sessionIdRef.current = sessionId;
@@ -278,7 +318,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     <div className="interview-chat-page">
       <div className="chat-header">
         <button className="back-btn" onClick={handleBack}>
-          ← 返回
+          <ChevronLeftIcon /> 返回
         </button>
         <div className="header-info">
           <h2>{interview.title || interview.sceneName}</h2>
@@ -294,12 +334,23 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         </div>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="error-message">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          {error}
+        </div>
+      )}
 
       <div className="chat-messages">
         {messages.length === 0 && !isTyping && (
           <div className="empty-chat">
-            <div className="empty-icon">🎤</div>
+            <div className="empty-icon">
+              <MicReadyIcon />
+            </div>
             <p>面试即将开始，请准备好回答问题...</p>
           </div>
         )}
@@ -307,7 +358,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         {messages.map((msg) => (
           <div key={msg.id} className={`message ${msg.role}`}>
             <div className="message-avatar">
-              {msg.role === 'user' ? '👤' : '🤖'}
+              {msg.role === 'user' ? <UserIcon /> : <BotIcon />}
             </div>
             <div className="message-content">
               <div className="message-bubble">
@@ -324,10 +375,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
         {isTyping && messages[messages.length - 1]?.role === 'user' && (
           <div className="message assistant">
-            <div className="message-avatar">🤖</div>
+            <div className="message-avatar"><BotIcon /></div>
             <div className="message-content">
               <div className="message-bubble typing">
-                <span className="typing-indicator">正在思考...</span>
+                <span className="typing-indicator">
+                  <span className="dot" />
+                  <span className="dot" />
+                  <span className="dot" />
+                </span>
               </div>
             </div>
           </div>
@@ -342,7 +397,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="输入你的回答，或点击🎙️语音输入..."
+          placeholder="输入你的回答，或点击语音输入..."
           disabled={isTyping}
           rows={3}
         />
@@ -359,6 +414,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
             onClick={handleSend}
             disabled={!input.trim() || isTyping}
           >
+            <SendIcon />
             发送
           </button>
         </div>
