@@ -1,95 +1,121 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { marked, Renderer } from 'marked';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 import './MarkdownRenderer.scss';
 
-/**
- * MarkdownRenderer 组件
- * 用于渲染AI助手消息中的Markdown内容
- * 支持语法高亮、代码块优化、行号显示和响应式设计
- */
 interface MarkdownRendererProps {
-  /** Markdown内容 */
   content: string;
-  /** 是否为流式加载状态 */
   isStreaming?: boolean;
 }
 
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreaming = false }) => {
-  /** 容器引用，用于操作DOM元素 */
-  const containerRef = useRef<HTMLDivElement>(null);
-  /** 复制状态，用于显示复制成功提示 */
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  /** 加载状态，用于显示加载动画 */
-  const [isLoading, setIsLoading] = useState(false);
+// ---- 创建配置好的 marked 实例（模块级，避免重复创建）----
+function createMarkedRenderer() {
+  const renderer = new Renderer();
 
-  useEffect(() => {
-    const renderer = new Renderer();
-    renderer.code = ({ text, lang }: { text: string; lang?: string; escaped?: boolean }) => {
-      const language = lang || 'plaintext';
-      const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
-      const highlighted = hljs.highlight(text, { language: validLanguage }).value;
-      return `<pre><code class="hljs language-${validLanguage}">${highlighted}</code></pre>`;
-    };
-
-    marked.setOptions({
-      renderer,
-      breaks: true,
-      gfm: true,
-    });
-  }, []);
-
-  /**
-   * 处理代码复制功能
-   * @param code 要复制的代码内容
-   * @param index 代码块索引，用于更新复制状态
-   */
-  const handleCopyCode = async (code: string, index: number) => {
-    try {
-      // 复制代码到剪贴板
-      await navigator.clipboard.writeText(code);
-      // 更新复制状态，显示复制成功提示
-      setCopiedCode(`${index}`);
-      // 2秒后重置复制状态
-      setTimeout(() => setCopiedCode(null), 2000);
-    } catch (err) {
-      console.error('复制失败:', err);
-    }
+  // 代码块：使用 highlight.js 做语法高亮
+  renderer.code = (token) => {
+    const lang = (token as any).lang || '';
+    const text = (token as any).text || (typeof token === 'string' ? token : '');
+    const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+    const highlighted = hljs.highlight(text, { language }).value;
+    const escapedLang = language.replace(/"/g, '&quot;');
+    // 用 data-language 传递语言，由 JS 在 DOM 操作时读取
+    return `<div class="md-code-wrapper" data-language="${escapedLang}"><pre class="md-pre"><code class="hljs language-${escapedLang}">${highlighted}</code></pre></div>`;
   };
 
-  /**
-   * 加载状态管理
-   * 当流式加载时显示加载动画
-   */
-  useEffect(() => {
-    if (isStreaming && content) {
-      setIsLoading(true);
-      // 300ms后自动隐藏加载状态，确保内容渲染完成
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    } else {
-      setIsLoading(false);
-    }
-  }, [content, isStreaming]);
+  // 内联代码
+  renderer.codespan = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).text || '';
+    return `<code class="md-inline-code">${text}</code>`;
+  };
 
-  /**
-   * 渲染Markdown内容
-   * 将Markdown文本转换为HTML，并进行安全过滤
-   * @returns 安全的HTML字符串
-   */
-  const renderMarkdown = () => {
+  // 标题
+  renderer.heading = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).text || '';
+    const depth = typeof token === 'string' ? 1 : (token as any).depth || 1;
+    return `<h${depth} class="md-h${depth}">${text}</h${depth}>`;
+  };
+
+  // 段落
+  renderer.paragraph = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).text || '';
+    return `<p class="md-p">${text}</p>`;
+  };
+
+  // 无序列表
+  renderer.list = (token) => {
+    const body = typeof token === 'string' ? token : (token as any).body || '';
+    const ordered = typeof token === 'string' ? false : (token as any).ordered || false;
+    const tag = ordered ? 'ol' : 'ul';
+    return `<${tag} class="md-${tag}">${body}</${tag}>`;
+  };
+
+  // 列表项
+  renderer.listitem = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).text || '';
+    return `<li class="md-li">${text}</li>`;
+  };
+
+  // 引用
+  renderer.blockquote = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).body || '';
+    return `<blockquote class="md-blockquote">${text}</blockquote>`;
+  };
+
+  // 强调
+  renderer.strong = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).text || '';
+    return `<strong class="md-strong">${text}</strong>`;
+  };
+
+  // 斜体
+  renderer.em = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).text || '';
+    return `<em class="md-em">${text}</em>`;
+  };
+
+  // 分割线
+  renderer.hr = () => `<hr class="md-hr" />`;
+
+  // 表格
+  renderer.table = (token) => {
+    const header = typeof token === 'string' ? '' : (token as any).header || '';
+    const rows = typeof token === 'string' ? '' : (token as any).rows || '';
+    return `<div class="md-table-wrapper"><table class="md-table"><thead class="md-thead">${header}</thead><tbody class="md-tbody">${rows}</tbody></table></div>`;
+  };
+
+  renderer.tablerow = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).text || '';
+    return `<tr class="md-tr">${text}</tr>`;
+  };
+
+  renderer.tablecell = (token) => {
+    const text = typeof token === 'string' ? token : (token as any).text || '';
+    const flags = typeof token === 'string' ? {} : (token as any).flags || {};
+    const tag = flags.header ? 'th' : 'td';
+    const align = flags.align ? ` style="text-align:${flags.align}"` : '';
+    return `<${tag} class="md-td"${align}>${text}</${tag}>`;
+  };
+
+  return renderer;
+}
+
+// 模块级 renderer（单例）
+const markedRenderer = createMarkedRenderer();
+marked.use({ renderer: markedRenderer, breaks: true, gfm: true });
+
+const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreaming = false }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  // 将 markdown 转换为安全 HTML
+  const rawHtml = useMemo(() => {
     if (!content) return '';
-
     try {
-      // 使用marked库解析Markdown为HTML
-      const rawHtml = marked.parse(content) as string;
-      
-      // 使用DOMPurify过滤HTML，防止XSS攻击
-      const cleanHtml = DOMPurify.sanitize(rawHtml, {
+      const html = marked.parse(content) as string;
+      return DOMPurify.sanitize(html, {
         ALLOWED_TAGS: [
           'p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre',
           'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -97,150 +123,78 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreamin
           'blockquote',
           'a', 'img',
           'table', 'thead', 'tbody', 'tr', 'th', 'td',
-          'hr',
-          'div', 'span',
+          'hr', 'div', 'span',
         ],
-        ALLOWED_ATTR: [
-          'href', 'target', 'rel', 'src', 'alt', 'title',
-          'class', 'id', 'style',
-          'data-*',
-        ],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'class', 'id', 'style', 'data-language'],
         ALLOW_DATA_ATTR: true,
         FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
         FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover'],
       });
-      
-      return cleanHtml;
-    } catch (error) {
-      // 处理Markdown解析错误，返回纯文本
-      console.error('Markdown parsing error:', error);
-      return `<p>${DOMPurify.sanitize(content)}</p>`;
+    } catch (e) {
+      console.error('Markdown parse error:', e);
+      return `<p class="md-p">${DOMPurify.sanitize(content)}</p>`;
     }
-  };
+  }, [content]);
 
-  /**
-   * 为代码块添加复制按钮和行号显示
-   * @param html 原始HTML字符串
-   * @returns 增强后的HTML字符串
-   */
-  const addCopyButtons = (html: string) => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const codeBlocks = doc.querySelectorAll('pre code');
-
-    // 遍历所有代码块，为每个代码块添加复制按钮和行号
-    codeBlocks.forEach((codeBlock, index) => {
-      const pre = codeBlock.parentElement;
-      if (!pre) return;
-
-      // 创建代码块包装器
-      const wrapper = doc.createElement('div');
-      wrapper.className = 'code-block-wrapper';
-
-      // 创建代码块头部（包含语言标签和复制按钮）
-      const header = doc.createElement('div');
-      header.className = 'code-block-header';
-
-      // 添加语言标签
-      const languageSpan = doc.createElement('span');
-      languageSpan.className = 'code-language';
-      const languageMatch = codeBlock.className.match(/language-(\w+)/);
-      languageSpan.textContent = languageMatch ? languageMatch[1] : 'code';
-
-      // 添加复制按钮
-      const copyButton = doc.createElement('button');
-      copyButton.className = 'copy-button';
-      copyButton.type = 'button';
-      copyButton.innerHTML = copiedCode === `${index}` 
-        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 已复制'
-        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> 复制';
-
-      header.appendChild(languageSpan);
-      header.appendChild(copyButton);
-
-      // 添加行号显示
-      const codeContent = codeBlock.textContent || '';
-      const lines = codeContent.split('\n');
-      
-      const codeWithLines = doc.createElement('div');
-      codeWithLines.className = 'code-with-lines';
-      
-      // 创建行号容器
-      const lineNumbers = doc.createElement('div');
-      lineNumbers.className = 'line-numbers';
-      lines.forEach((_, lineIndex) => {
-        const lineNumber = doc.createElement('span');
-        lineNumber.className = 'line-number';
-        lineNumber.textContent = (lineIndex + 1).toString();
-        lineNumbers.appendChild(lineNumber);
-      });
-      
-      // 创建代码内容容器
-      const codeContainer = doc.createElement('div');
-      codeContainer.className = 'code-content';
-      codeContainer.appendChild(codeBlock);
-      
-      codeWithLines.appendChild(lineNumbers);
-      codeWithLines.appendChild(codeContainer);
-      
-      pre.innerHTML = '';
-      pre.appendChild(codeWithLines);
-
-      // 重新组织DOM结构
-      pre.parentNode?.insertBefore(wrapper, pre);
-      wrapper.appendChild(header);
-      wrapper.appendChild(pre);
-    });
-
-    return doc.body.innerHTML;
-  };
-
-  const processedHtml = addCopyButtons(renderMarkdown());
-
+  // 为代码块注入 header（语言 + 复制按钮）
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const copyButtons = container.querySelectorAll('.copy-button');
-    copyButtons.forEach((button, index) => {
-      const handleClick = () => {
-        const codeBlock = container.querySelectorAll('pre code')[index];
-        if (codeBlock) {
-          handleCopyCode(codeBlock.textContent || '', index);
+    // 移除旧的 header（避免重复注入）
+    container.querySelectorAll('.md-code-header').forEach(el => el.remove());
+
+    const wrappers = container.querySelectorAll<HTMLElement>('.md-code-wrapper');
+    wrappers.forEach((wrapper, idx) => {
+      const lang = wrapper.dataset.language || 'plaintext';
+
+      // 创建 header
+      const header = document.createElement('div');
+      header.className = 'md-code-header';
+
+      // 语言标签
+      const langEl = document.createElement('span');
+      langEl.className = 'md-code-lang';
+      langEl.textContent = lang.toLowerCase();
+      header.appendChild(langEl);
+
+      // 复制按钮
+      const copyBtn = document.createElement('button');
+      copyBtn.className = `md-copy-btn${copiedIndex === idx ? ' copied' : ''}`;
+      copyBtn.type = 'button';
+      copyBtn.innerHTML = copiedIndex === idx
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>已复制</span>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>复制</span>`;
+      copyBtn.addEventListener('click', async () => {
+        const code = wrapper.querySelector('code');
+        const text = code?.textContent || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopiedIndex(idx);
+          setTimeout(() => setCopiedIndex(null), 2000);
+        } catch (err) {
+          console.error('复制失败:', err);
         }
-      };
-      button.addEventListener('click', handleClick);
-      return () => {
-        button.removeEventListener('click', handleClick);
-      };
+      });
+      header.appendChild(copyBtn);
+
+      // 在 wrapper 最前插入 header
+      wrapper.insertBefore(header, wrapper.firstChild);
     });
-  }, [processedHtml, copiedCode]);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const links = container.querySelectorAll('a');
-    links.forEach(link => {
+    // 设置链接在新标签打开
+    container.querySelectorAll('a').forEach(link => {
       link.setAttribute('target', '_blank');
       link.setAttribute('rel', 'noopener noreferrer');
     });
-  }, [processedHtml]);
+  }, [rawHtml, copiedIndex]);
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className={`markdown-renderer ${isStreaming ? 'streaming' : ''} ${isLoading ? 'loading' : ''}`}
-    >
-      <div dangerouslySetInnerHTML={{ __html: processedHtml }} />
-      {isStreaming && isLoading && (
-        <div className="loading-indicator">
-          <span className="loading-dot"></span>
-          <span className="loading-dot"></span>
-          <span className="loading-dot"></span>
-        </div>
-      )}
-    </div>
+      className={`markdown-renderer${isStreaming ? ' streaming' : ''}`}
+      dangerouslySetInnerHTML={{ __html: rawHtml }}
+    />
   );
 };
 

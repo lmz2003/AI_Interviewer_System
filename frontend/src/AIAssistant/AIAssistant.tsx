@@ -424,7 +424,7 @@ const AIAssistant: React.FC = () => {
             <div className="message-content-wrapper">
               <div className={`message-bubble ${msg.role === 'user' ? 'user-message' : ''}`}>
                 {msg.role === 'user' ? (
-                  msg.content.split('\n').map((line, i) => <p key={i}>{line}</p>)
+                  <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</span>
                 ) : (
                   <MarkdownRenderer content={msg.content} isStreaming={streamingMessageId === msg.id} />
                 )}

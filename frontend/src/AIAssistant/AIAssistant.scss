@@ -451,15 +451,28 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
 .message-wrapper {
   display: flex;
   gap: 10px;
-  align-items: flex-end;
+  align-items: flex-start;
   animation: slideUp 0.25s ease-out;
+
+  // AI 消息：message-content-wrapper 撑满剩余宽度
+  .message-content-wrapper {
+    flex: 1;
+    min-width: 0; // 防止 flex 子项溢出
+  }
 
   &.user-message {
     flex-direction: row-reverse;
     justify-content: flex-start;
     margin-left: auto;
     width: auto;
-    align-items: flex-start; // 用户消息头像顶对齐更自然
+
+    // 用户消息：message-content-wrapper 不撑满，由内容决定宽度
+    .message-content-wrapper {
+      flex: 0 1 auto;
+      align-items: flex-end;
+      display: flex;
+      flex-direction: column;
+    }
   }
 }
 
@@ -510,7 +523,9 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
 }
 
 .message-bubble {
-  max-width: 85%;
+  // AI 消息：撑满 message-content-wrapper 宽度，内部超宽内容（代码块）横向滚动
+  width: 100%;
+  max-width: 100%;
   padding: 12px 16px;
   border-radius: $radius;
   font-size: 0.9rem;
@@ -520,8 +535,11 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   border: 1px solid $border;
   word-break: break-word;
   overflow-wrap: break-word;
+  // 气泡本身不横向溢出，代码块在其内部处理横向滚动
+  overflow-x: hidden;
   min-height: 40px;
-  display: inline-block;
+  display: block;
+  box-sizing: border-box;
   transition: background-color 200ms ease-in-out, color 200ms ease-in-out, border-color 200ms ease-in-out;
 
   // Dark mode support
@@ -531,7 +549,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
     border-color: $dark-border;
   }
 
+  // 用户消息气泡：保持紧凑宽度
   &.user-message {
+    width: auto;
+    max-width: 85%;
+    display: inline-block;
+    overflow-x: visible;
     background: linear-gradient(135deg, #6366F1 0%, #818CF8 100%);
     color: white;
     border: none;
