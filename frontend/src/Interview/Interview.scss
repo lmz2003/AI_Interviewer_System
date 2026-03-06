@@ -3,6 +3,7 @@
 // 主色: #6366F1, CTA: #10B981, 字体: Plus Jakarta Sans
 // ==========================================
 
+// Light Mode Variables
 $primary: #6366F1;
 $primary-light: #EEF2FF;
 $primary-dark: #4F46E5;
@@ -21,6 +22,25 @@ $error-light: #FEF2F2;
 $warning: #F59E0B;
 $warning-light: #FEF3C7;
 
+// Dark Mode Variables
+$dark-primary: #818CF8;
+$dark-primary-light: #C4B5FD;
+$dark-primary-dark: #6366F1;
+$dark-secondary: #A5B4FC;
+$dark-cta: #10B981;
+$dark-cta-dark: #059669;
+$dark-cta-light: #86EFAC;
+$dark-bg: #0F0F1A;
+$dark-bg-white: #16162A;
+$dark-text-primary: #F1F0FF;
+$dark-text-secondary: #A8A5C7;
+$dark-text-muted: #6B67A0;
+$dark-border: #2D2D52;
+$dark-error: #FF6B6B;
+$dark-error-light: #5A1515;
+$dark-warning: #FDB022;
+$dark-warning-light: #3F2F0F;
+
 .interview-list-page,
 .interview-select-page,
 .interview-chat-page,
@@ -30,6 +50,12 @@ $warning-light: #FEF3C7;
   flex-direction: column;
   background: $bg;
   font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: background-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-bg;
+  }
 }
 
 // ==========================================
@@ -45,9 +71,23 @@ $warning-light: #FEF3C7;
   background: $bg-white;
   border-bottom: 1px solid $border;
   gap: 16px;
+  transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-bg-white;
+    border-bottom-color: $dark-border;
+  }
 
   h2 {
     margin: 0;
+    color: $text-primary;
+    transition: color 200ms ease-in-out;
+
+    // Dark mode support
+    .dark & {
+      color: $dark-text-primary;
+    }
     font-size: 18px;
     font-weight: 600;
     color: $text-primary;
@@ -2139,4 +2179,540 @@ $warning-light: #FEF3C7;
 @keyframes typing-bounce {
   0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
   40% { transform: scale(1); opacity: 1; }
+}
+
+// ==========================================
+// 全局暗黑模式支持
+// ==========================================
+.dark {
+  .interview-list-page,
+  .interview-select-page,
+  .interview-chat-page,
+  .interview-report-page {
+    background: $dark-bg;
+    color: $dark-text-primary;
+
+    // Headers
+    .list-header,
+    .select-header,
+    .chat-header,
+    .report-header {
+      background: $dark-bg-white;
+      border-bottom-color: $dark-border;
+
+      h2 { color: $dark-text-primary; }
+      p { color: $dark-text-secondary; }
+
+      .back-btn {
+        background: $dark-bg;
+        border-color: $dark-border;
+        color: $dark-text-secondary;
+
+        &:hover {
+          background: $dark-primary-light;
+          border-color: $dark-primary;
+          color: $dark-primary;
+        }
+      }
+
+      .elapsed-time {
+        background: $dark-bg;
+        border-color: $dark-border;
+        color: $dark-text-primary;
+      }
+    }
+
+    // Interview list
+    .interview-list {
+      .interview-card {
+        background: $dark-bg-white;
+        border-color: $dark-border;
+        color: $dark-text-primary;
+
+        &:hover {
+          border-color: $dark-primary;
+          box-shadow: 0 4px 12px rgba($dark-primary, 0.15);
+        }
+
+        .card-header {
+          border-bottom-color: $dark-border;
+
+          .card-title {
+            .scene-icon {
+              background: rgba($dark-primary, 0.1);
+              color: $dark-primary;
+            }
+            h3 { color: $dark-text-primary; }
+          }
+        }
+
+        .card-body {
+          .card-info .info-item {
+            color: $dark-text-secondary;
+            label { color: $dark-text-muted; }
+          }
+
+          .card-stats {
+            .score strong { color: $dark-primary; }
+            .duration { color: $dark-text-secondary; }
+          }
+        }
+
+        .card-footer {
+          background: $dark-bg;
+          border-top: 1px solid $dark-border;
+
+          .create-time { color: $dark-text-muted; }
+
+          .card-actions {
+            .action-btn {
+              &.restart {
+                background: $dark-bg;
+                color: $dark-text-secondary;
+                border-color: $dark-border;
+
+                &:hover {
+                  background: rgba($dark-primary, 0.1);
+                  color: $dark-primary;
+                  border-color: $dark-primary;
+                }
+              }
+
+              &.delete {
+                color: $dark-error;
+
+                &:hover {
+                  background: $dark-error-light;
+                  border-color: rgba($dark-error, 0.4);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Status badge
+    .status-badge {
+      &.status-pending {
+        background: $dark-warning-light;
+        color: $dark-warning;
+      }
+      &.status-active {
+        background: rgba(59, 130, 246, 0.15);
+        color: #93C5FD;
+      }
+      &.status-completed {
+        background: $dark-cta-light;
+        color: $dark-cta;
+      }
+      &.status-interrupted {
+        background: $dark-error-light;
+        color: $dark-error;
+      }
+      &.status-abandoned {
+        background: rgba(107, 114, 128, 0.15);
+        color: $dark-text-secondary;
+      }
+    }
+
+    // Empty state
+    .empty-state {
+      .empty-icon {
+        background: rgba($dark-primary, 0.1);
+        color: $dark-primary;
+      }
+      h3 { color: $dark-text-primary; }
+      p { color: $dark-text-secondary; }
+    }
+
+    // Select page
+    .select-content {
+      .select-section {
+        h3 { color: $dark-text-primary; }
+      }
+
+      .scene-card {
+        background: $dark-bg-white;
+        border-color: $dark-border;
+
+        &:hover, &.selected {
+          border-color: $dark-primary;
+          background: rgba($dark-primary, 0.08);
+        }
+
+        .scene-info {
+          h4 { color: $dark-text-primary; }
+          p { color: $dark-text-secondary; }
+          .question-count { color: $dark-primary; }
+        }
+      }
+
+      .job-type-select select {
+        background: $dark-bg-white;
+        color: $dark-text-primary;
+        border-color: $dark-border;
+
+        &:focus {
+          border-color: $dark-primary;
+          box-shadow: 0 0 0 3px rgba($dark-primary, 0.1);
+        }
+      }
+
+      .difficulty-option {
+        background: $dark-bg-white;
+        border-color: $dark-border;
+
+        &:hover, &.selected {
+          border-color: $dark-primary;
+          background: rgba($dark-primary, 0.08);
+        }
+
+        .difficulty-name { color: $dark-text-primary; }
+        .difficulty-desc { color: $dark-text-secondary; }
+      }
+
+      .resume-options {
+        .resume-toggle {
+          background: $dark-bg;
+          border-color: $dark-border;
+
+          span { color: $dark-text-primary; }
+
+          &:hover {
+            background: rgba($dark-primary, 0.08);
+            border-color: $dark-primary;
+          }
+        }
+
+        .resume-select-wrapper {
+          background: $dark-bg-white;
+          border-color: $dark-border;
+        }
+
+        .no-resume-hint { color: $dark-text-muted; }
+
+        .resume-select {
+          background: $dark-bg-white;
+          color: $dark-text-primary;
+          border-color: $dark-border;
+        }
+      }
+    }
+
+    // Chat messages
+    .chat-messages {
+      background: $dark-bg;
+    }
+
+    .message {
+      &.assistant .message-bubble {
+        background: $dark-bg-white;
+        border-color: $dark-border;
+        color: $dark-text-primary;
+      }
+
+      .message-meta {
+        .timestamp { color: $dark-text-muted; }
+
+        .view-evaluation-btn {
+          border-color: $dark-border;
+          color: $dark-text-secondary;
+
+          &:hover {
+            background: rgba($dark-primary, 0.1);
+            border-color: $dark-primary;
+            color: $dark-primary;
+          }
+        }
+      }
+    }
+
+    .empty-chat {
+      .empty-icon {
+        background: rgba($dark-primary, 0.1);
+        color: $dark-primary;
+      }
+      p { color: $dark-text-secondary; }
+    }
+
+    // Evaluation panel
+    .evaluation-panel {
+      background: $dark-bg-white;
+      border-color: $dark-border;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+
+      .evaluation-header {
+        border-bottom-color: $dark-border;
+        h4 { color: $dark-text-primary; }
+
+        .close-btn {
+          background: $dark-bg;
+          color: $dark-text-secondary;
+
+          &:hover {
+            background: rgba($dark-primary, 0.1);
+            color: $dark-primary;
+          }
+        }
+      }
+
+      .evaluation-body {
+        .overall-score {
+          background: rgba($dark-primary, 0.1);
+          .score-label { color: $dark-text-secondary; }
+          .score-value { color: $dark-primary; }
+        }
+
+        .dimension-scores .dimension-item {
+          .dimension-name { color: $dark-text-secondary; }
+          .dimension-bar { background: rgba(255, 255, 255, 0.1); }
+        }
+
+        .suggestions {
+          border-top-color: $dark-border;
+          h5 { color: $dark-text-primary; }
+          ul li { color: $dark-text-secondary; }
+        }
+      }
+    }
+
+    // Chat input
+    .chat-input {
+      background: $dark-bg-white;
+      border-top-color: $dark-border;
+
+      textarea {
+        background: $dark-bg;
+        color: $dark-text-primary;
+        border-color: $dark-border;
+
+        &:focus {
+          border-color: $dark-primary;
+          box-shadow: 0 0 0 3px rgba($dark-primary, 0.1);
+        }
+
+        &:disabled {
+          background: $dark-bg;
+        }
+
+        &::placeholder { color: $dark-text-muted; }
+      }
+    }
+
+    // Report header
+    .report-header {
+      .report-meta span {
+        color: $dark-text-secondary;
+        background: $dark-bg;
+        border-color: $dark-border;
+      }
+    }
+
+    // Report content
+    .report-section {
+      h3 {
+        color: $dark-text-primary;
+        svg { color: $dark-primary; }
+      }
+    }
+
+    .overall-section {
+      .overall-score-card {
+        background: $dark-bg-white;
+        border-color: $dark-border;
+
+        .score-text {
+          .score-value { color: $dark-text-primary; }
+          .score-max { color: $dark-text-muted; }
+        }
+
+        .score-info {
+          h3 { color: $dark-text-primary; }
+          p { color: $dark-text-secondary; }
+        }
+      }
+
+      .summary-card {
+        background: $dark-bg-white;
+        border-color: $dark-border;
+
+        h4 { color: $dark-text-primary; }
+        p { color: $dark-text-secondary; }
+      }
+    }
+
+    .dimensions-section .dimension-card {
+      background: $dark-bg-white;
+      border-color: $dark-border;
+
+      .dimension-header .dimension-name { color: $dark-text-primary; }
+      .dimension-bar { background: rgba(255, 255, 255, 0.1); }
+      .dimension-desc { color: $dark-text-muted; }
+    }
+
+    .analysis-section .analysis-card {
+      background: $dark-bg-white;
+      border-color: $dark-border;
+
+      h4 { color: $dark-text-primary; }
+      p { color: $dark-text-secondary; }
+    }
+
+    .suggestions-section .suggestions-content {
+      background: $dark-bg-white;
+      border-color: $dark-border;
+
+      p { color: $dark-text-secondary; }
+    }
+
+    .questions-section .question-item {
+      background: $dark-bg-white;
+      border-color: $dark-border;
+
+      .question-header {
+        background: $dark-bg;
+        border-bottom-color: $dark-border;
+
+        .question-number { color: $dark-text-primary; }
+      }
+
+      .question-content .qa-item {
+        label { color: $dark-text-muted; }
+        p { color: $dark-text-primary; }
+
+        &.feedback {
+          background: $dark-warning-light;
+          border-left-color: $dark-warning;
+          p { color: $dark-warning; }
+        }
+      }
+    }
+
+    .resources-section .resource-item {
+      background: $dark-bg-white;
+      border-color: $dark-border;
+
+      &:hover {
+        border-color: $dark-primary;
+        background: rgba($dark-primary, 0.08);
+      }
+
+      .resource-type {
+        background: rgba($dark-primary, 0.1);
+        color: $dark-primary;
+      }
+
+      .resource-title { color: $dark-text-primary; }
+      .resource-arrow { color: $dark-text-muted; }
+    }
+
+    // Error message
+    .error-message {
+      background: $dark-error-light;
+      border-color: rgba($dark-error, 0.3);
+      color: $dark-error;
+    }
+
+    // Loading state
+    .loading-state {
+      color: $dark-text-secondary;
+      .spinner {
+        border-color: $dark-border;
+        border-top-color: $dark-primary;
+      }
+    }
+
+    // Interview mode selector
+    .interview-mode-selector .mode-card {
+      background: $dark-bg-white;
+      border-color: $dark-border;
+
+      &:hover:not(.disabled), &.selected {
+        border-color: $dark-primary;
+        background: rgba($dark-primary, 0.08);
+      }
+
+      .mode-info {
+        .mode-name { color: $dark-text-primary; }
+        .mode-desc { color: $dark-text-secondary; }
+
+        .requirement-tag {
+          &.available {
+            background: rgba($dark-cta, 0.15);
+            color: $dark-cta;
+          }
+          &.unavailable {
+            background: $dark-error-light;
+            color: $dark-error;
+          }
+        }
+      }
+    }
+
+    // Voice input
+    .voice-input-container {
+      .voice-input-btn {
+        background: $dark-bg;
+        border-color: $dark-border;
+        color: $dark-text-primary;
+
+        &:hover:not(:disabled) {
+          background: rgba($dark-primary, 0.1);
+          border-color: $dark-primary;
+          color: $dark-primary;
+        }
+      }
+
+      .voice-input-processing {
+        background: rgba(37, 99, 235, 0.12);
+        border-color: rgba(37, 99, 235, 0.25);
+        color: #93C5FD;
+      }
+    }
+
+    // Buttons
+    button {
+      &:not(.btn-primary):not(.btn-success):not(.btn-danger) {
+        background: $dark-bg-white;
+        color: $dark-text-primary;
+        border-color: $dark-border;
+
+        &:hover {
+          background: #0D0D1A;
+          border-color: $dark-primary;
+          color: $dark-primary;
+        }
+      }
+    }
+
+    // Text elements
+    p, span, label, h3, h4, h5, h6 {
+      color: $dark-text-primary;
+    }
+
+    small, .text-secondary { color: $dark-text-secondary; }
+
+    // Inputs, forms
+    input,
+    textarea,
+    select {
+      background: $dark-bg;
+      color: $dark-text-primary;
+      border-color: $dark-border;
+
+      &:focus {
+        border-color: $dark-primary;
+        box-shadow: 0 0 0 3px rgba($dark-primary, 0.1);
+      }
+
+      &::placeholder { color: $dark-text-muted; }
+    }
+
+    // Scrollbars
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      &:hover { background: rgba(255, 255, 255, 0.25); }
+    }
+  }
 }

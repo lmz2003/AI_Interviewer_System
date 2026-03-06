@@ -1,11 +1,37 @@
+// Design Variables
+$bg-light: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+$bg-dark: linear-gradient(135deg, #0F0F1A 0%, #1A1A2E 100%);
+$text-light: #1E1B4B;
+$text-dark: #F1F0FF;
+$surface-light: #FFFFFF;
+$surface-dark: #16162A;
+$border-light: #E2E8F0;
+$border-dark: #2D2D52;
+
+// Extended dark mode tokens
+$dark-bg: #0F0F1A;
+$dark-surface: #16162A;
+$dark-surface-elevated: #1E1E38;
+$dark-border: #2D2D52;
+$dark-text-primary: #F1F0FF;
+$dark-text-secondary: #A8A5C7;
+$dark-text-muted: #6B67A0;
+$dark-primary: #818CF8;
+
 .pageContainer {
   width: 100%;
   height: 100vh;
   display: flex;
   flex-direction: row;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: $bg-light;
   overflow: hidden;
   position: relative;
+  transition: background-color 200ms ease-in-out;
+
+  // Dark mode support
+  :global(.dark) & {
+    background: $bg-dark;
+  }
 
   &.dragging {
     -webkit-user-select: none;
@@ -27,6 +53,10 @@
   overflow: hidden;
   min-width: 0;
   height: 100%;
+
+  :global(.dark) & {
+    background: $dark-bg;
+  }
 }
 
 .header {
@@ -43,6 +73,13 @@
   z-index: 10;
   gap: 20px;
   flex-wrap: wrap;
+  transition: background 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  :global(.dark) & {
+    background: $dark-surface;
+    border-bottom-color: $dark-border;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .headerLeft {
@@ -79,6 +116,17 @@
   &:hover {
     background: #e2e8f0;
   }
+
+  :global(.dark) & {
+    background: $dark-surface-elevated;
+    color: $dark-text-secondary;
+    border: 1px solid $dark-border;
+
+    &:hover {
+      background: #16162A;
+      color: $dark-text-primary;
+    }
+  }
 }
 
 .titleInput {
@@ -109,6 +157,21 @@
     background: white;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
+
+  :global(.dark) & {
+    color: $dark-text-primary;
+
+    &:hover {
+      border-color: $dark-border;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    &:focus {
+      border-color: $dark-primary;
+      background: $dark-surface-elevated;
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+    }
+  }
 }
 
 .statusSelect {
@@ -131,6 +194,22 @@
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  :global(.dark) & {
+    background: $dark-surface-elevated;
+    color: $dark-text-primary;
+    border-color: $dark-border;
+
+    &:hover {
+      border-color: $dark-primary;
+      background: $dark-surface;
+    }
+
+    &:focus {
+      border-color: $dark-primary;
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+    }
   }
 }
 
@@ -167,6 +246,15 @@
     &:active:not(:disabled) {
       transform: translateY(0);
       box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+
+    :global(.dark) & {
+      background: linear-gradient(135deg, $dark-primary 0%, #6366F1 100%);
+      box-shadow: 0 4px 12px rgba(129, 140, 248, 0.3);
+
+      &:hover:not(:disabled) {
+        box-shadow: 0 6px 16px rgba(129, 140, 248, 0.4);
+      }
     }
   }
 
@@ -216,6 +304,24 @@
         transform: translateY(-2px);
       }
     }
+
+    :global(.dark) & {
+      background: $dark-surface-elevated;
+      color: $dark-text-secondary;
+      border-color: $dark-border;
+
+      &:hover:not(:disabled) {
+        background: #16162A;
+        border-color: $dark-primary;
+        color: $dark-primary;
+      }
+
+      &.active {
+        background: linear-gradient(135deg, #818CF8 0%, #6366F1 100%);
+        color: white;
+        border: none;
+      }
+    }
   }
 
   &.syncButton {
@@ -239,6 +345,13 @@
       cursor: not-allowed;
       box-shadow: none;
     }
+
+    :global(.dark) & {
+      &:disabled {
+        background: $dark-border;
+        color: $dark-text-muted;
+      }
+    }
   }
 }
 
@@ -253,12 +366,24 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   position: relative;
   z-index: 9;
+  transition: background 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  :global(.dark) & {
+    background: $dark-surface;
+    border-bottom-color: $dark-border;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .metaLabel {
   font-size: 14px;
   color: #64748b;
   font-weight: 500;
+  transition: color 200ms ease-in-out;
+
+  :global(.dark) & {
+    color: $dark-text-muted;
+  }
 }
 
 .tagsInput {
@@ -267,10 +392,29 @@
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 14px;
+  background: white;
+  color: #0f172a;
+  transition: all 200ms ease-in-out;
 
   &:focus {
     outline: none;
     border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  :global(.dark) & {
+    background: $dark-surface-elevated;
+    color: $dark-text-primary;
+    border-color: $dark-border;
+
+    &::placeholder {
+      color: $dark-text-muted;
+    }
+
+    &:focus {
+      border-color: $dark-primary;
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+    }
   }
 }
 
@@ -292,6 +436,14 @@
   gap: 6px;
   border: 1px solid rgba(30, 64, 175, 0.2);
   box-shadow: 0 2px 4px rgba(30, 64, 175, 0.1);
+  transition: all 200ms ease-in-out;
+
+  :global(.dark) & {
+    background: rgba(129, 140, 248, 0.15);
+    color: $dark-primary;
+    border-color: rgba(129, 140, 248, 0.3);
+    box-shadow: none;
+  }
 }
 
 .tagRemove {
@@ -301,9 +453,18 @@
   cursor: pointer;
   padding: 0;
   font-size: 14px;
+  transition: color 200ms ease-in-out;
 
   &:hover {
     color: #6d28d9;
+  }
+
+  :global(.dark) & {
+    color: $dark-text-secondary;
+
+    &:hover {
+      color: $dark-primary;
+    }
   }
 }
 
@@ -313,6 +474,10 @@
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+
+  :global(.dark) & {
+    background: $dark-bg;
+  }
 }
 
 .editorContainer {
@@ -323,6 +488,12 @@
   flex-direction: column;
   min-height: 0;
   position: relative;
+  transition: background-color 200ms ease-in-out;
+
+  :global(.dark) & {
+    background: $dark-bg;
+    color: $dark-text-primary;
+  }
 }
 
 .resizer {
@@ -359,6 +530,21 @@
     background: rgba(79, 70, 229, 0.15);
     border-color: #4f46e5;
   }
+
+  :global(.dark) & {
+    background: transparent;
+    border-color: $dark-border;
+
+    &:hover {
+      background: rgba(129, 140, 248, 0.1);
+      border-color: $dark-primary;
+    }
+
+    &.resizing {
+      background: rgba(129, 140, 248, 0.15);
+      border-color: $dark-primary;
+    }
+  }
 }
 
 .aiContainer {
@@ -374,7 +560,13 @@
   height: 100%;
   max-height: 100%;
   overflow: hidden;
-  transition: flex-basis 0.0s ease;
+  transition: flex-basis 0.0s ease, background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  :global(.dark) & {
+    background: $dark-surface;
+    border-left-color: $dark-border;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  }
 }
 
 
@@ -382,6 +574,11 @@
   font-size: 1rem;
   font-weight: 600;
   color: #0f172a;
+  transition: color 200ms ease-in-out;
+
+  :global(.dark) & {
+    color: $dark-text-primary;
+  }
 }
 
 .aiContent {
@@ -407,11 +604,21 @@
     color: #d97706;
     background: rgba(217, 119, 6, 0.1);
     animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+    :global(.dark) & {
+      color: #FDB022;
+      background: rgba(253, 176, 34, 0.15);
+    }
   }
 
   &:not(.saving) {
     color: #059669;
     background: rgba(5, 150, 105, 0.1);
+
+    :global(.dark) & {
+      color: #10B981;
+      background: rgba(16, 185, 129, 0.15);
+    }
   }
 }
 
@@ -421,5 +628,61 @@
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+// ============================================================
+// Dark Mode Support
+// ============================================================
+:global(.dark) {
+  .mainContent,
+  .sidebar,
+  .sidebarContent,
+  .notesList {
+    background: $surface-dark;
+    color: $text-dark;
+    border-color: $border-dark;
+  }
+
+  .editorContainer {
+    background: $dark-bg;
+    color: $text-dark;
+  }
+
+  .header {
+    background: $surface-dark;
+    border-bottom-color: $border-dark;
+    color: $text-dark;
+  }
+
+  button:not([class*="btn-primary"]):not([class*="btn-success"]):not(.primary):not(.danger):not(.syncButton) {
+    background: $surface-dark;
+    color: $text-dark;
+    border-color: $border-dark;
+
+    &:hover { 
+      background: #2A2A4A;
+      border-color: #818CF8;
+      color: #818CF8;
+    }
+  }
+
+  input,
+  textarea,
+  select {
+    background: #1F1F36;
+    color: $text-dark;
+    border-color: $border-dark;
+
+    &:focus {
+      border-color: #818CF8;
+    }
+
+    &::placeholder { color: #A8A5C7; }
+  }
+
+  // Ensure text is visible
+  p, span, label, h2, h3, h4, h5, h6 {
+    color: $text-dark;
   }
 }

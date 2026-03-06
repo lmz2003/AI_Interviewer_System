@@ -147,12 +147,35 @@ const featureColors = [
 ];
 
 const HomePage: React.FC = () => {
-  const [theme, setTheme] = useState<ThemeType>('light');
+  const [theme, setTheme] = useState<ThemeType>(() => {
+    // Check if localStorage has saved theme mode
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme-mode');
+      if (saved === 'dark') return 'dark';
+      if (saved === 'light') return 'light';
+      // Check system preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    }
+    return 'light';
+  });
+  
   const [language, setLanguage] = useState<LanguageType>('zh');
   const [showLogin, setShowLogin] = useState(false);
 
   const t = i18n[language];
   const isDark = theme === 'dark';
+
+  // Apply theme to document and handle theme changes
+  React.useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    // Save theme to localStorage to sync with global ThemeProvider
+    localStorage.setItem('theme-mode', theme);
+  }, [theme, isDark]);
 
   const colors = {
     bg: isDark ? '#0F0F1A' : '#FAFAFA',

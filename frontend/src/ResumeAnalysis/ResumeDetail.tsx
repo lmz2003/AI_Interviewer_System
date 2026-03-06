@@ -5,18 +5,18 @@ import PDFViewer from './components/PDFViewer';
 import AnalysisPanel from './components/AnalysisPanel';
 import LoadingModal from './components/LoadingModal';
 
-// ---- Design tokens ----
-const C = {
-  primary: '#6366F1',
-  primarySoft: 'rgba(99,102,241,0.08)',
-  bg: '#F7F6FF',
-  surface: '#FFFFFF',
-  border: '#EAE8F8',
-  text: '#1E1B4B',
-  textMuted: '#6B7280',
-  divider: '#e2e8f0',
+// ---- Design tokens (theme-aware) ----
+const getThemeColors = (isDark: boolean) => ({
+  primary: isDark ? '#818CF8' : '#6366F1',
+  primarySoft: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(99,102,241,0.08)',
+  bg: isDark ? '#0F0F1A' : '#F7F6FF',
+  surface: isDark ? '#16162A' : '#FFFFFF',
+  border: isDark ? '#2D2D52' : '#EAE8F8',
+  text: isDark ? '#F1F0FF' : '#1E1B4B',
+  textMuted: isDark ? '#A8A5C7' : '#6B7280',
+  divider: isDark ? '#2D2D52' : '#e2e8f0',
   font: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
+});
 
 // ---- SVG Icons ----
 const ArrowLeftIcon = () => (
@@ -44,6 +44,22 @@ const ResumeDetail: React.FC = () => {
   const [analysisStage, setAnalysisStage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+
+  // Theme support - detect dark mode and respond to changes
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Get current theme colors
+  const C = getThemeColors(isDarkMode);
 
   useEffect(() => {
     if (!id) return;

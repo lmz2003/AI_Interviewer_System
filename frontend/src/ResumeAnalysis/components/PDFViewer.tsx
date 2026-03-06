@@ -9,6 +9,11 @@ const Container = styled.div`
   align-items: center;
   justify-content: center;
   background: #f5f5f5;
+  transition: background-color 200ms ease-in-out;
+
+  .dark & {
+    background: #0F0F1A;
+  }
 `;
 
 const ErrorMessage = styled.div`
@@ -16,11 +21,21 @@ const ErrorMessage = styled.div`
   text-align: center;
   padding: 20px;
   max-width: 400px;
+  transition: color 200ms ease-in-out;
+
+  .dark & {
+    color: #FF6B6B;
+  }
 `;
 
 const LoadingMessage = styled.div`
   color: #64748b;
   text-align: center;
+  transition: color 200ms ease-in-out;
+
+  .dark & {
+    color: #A8A5C7;
+  }
 `;
 
 const Spinner = styled.div`
@@ -31,6 +46,12 @@ const Spinner = styled.div`
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 12px;
+  transition: border-color 200ms ease-in-out;
+
+  .dark & {
+    border-color: #2D2D52;
+    border-top-color: #818CF8;
+  }
 
   @keyframes spin {
     to {
@@ -59,6 +80,11 @@ const FallbackText = styled.p`
   text-align: center;
   margin: 0;
   max-width: 300px;
+  transition: color 200ms ease-in-out;
+
+  .dark & {
+    color: #A8A5C7;
+  }
 `;
 
 const DownloadLink = styled.a`
@@ -73,6 +99,15 @@ const DownloadLink = styled.a`
   &:hover {
     background: #4338ca;
   }
+
+  .dark & {
+    background: #818CF8;
+    color: white;
+
+    &:hover {
+      background: #6366F1;
+    }
+  }
 `;
 
 interface PDFViewerProps {
@@ -83,6 +118,17 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ resumeId }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     // 从数据库获取 PDF 二进制数据
@@ -130,7 +176,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ resumeId }) => {
       <Container>
         <ErrorMessage>
           <p>📄 PDF 文件预览不可用</p>
-          <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+          <p style={{ fontSize: '0.9rem', color: isDarkMode ? '#6B7FAA' : '#94a3b8' }}>
             {error}
           </p>
         </ErrorMessage>

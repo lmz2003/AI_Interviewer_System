@@ -5,7 +5,7 @@
 // Style: Flat Design (no gradients, minimal shadows)
 // ==============================
 
-// ---- Variables ----
+// ---- Variables (Light Mode) ----
 $primary:        #6366F1;
 $primary-hover:  #4F46E5;
 $primary-soft:   rgba(99, 102, 241, 0.08);
@@ -18,6 +18,21 @@ $text:           #1E1B4B;
 $text-muted:     #6B7280;
 $danger:         #EF4444;
 $danger-soft:    rgba(239, 68, 68, 0.08);
+
+// ---- Variables (Dark Mode) ----
+$dark-primary:        #818CF8;
+$dark-primary-hover:  #6366F1;
+$dark-primary-soft:   rgba(129, 140, 248, 0.1);
+$dark-cta:            #10B981;
+$dark-cta-soft:       rgba(16, 185, 129, 0.12);
+$dark-bg:             #0F0F1A;
+$dark-surface:        #16162A;
+$dark-border:         #2D2D52;
+$dark-text:           #F1F0FF;
+$dark-text-muted:     #A8A5C7;
+$dark-danger:         #FF6B6B;
+$dark-danger-soft:    rgba(255, 107, 107, 0.15);
+
 $radius:         12px;
 $radius-sm:      8px;
 $radius-full:    50%;
@@ -65,6 +80,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   z-index: 5;
   min-height: 0;
   font-family: $font;
+  transition: background-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-bg;
+  }
 }
 
 // ==============================
@@ -78,6 +99,13 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   background: $surface;
   border-bottom: 1px solid $border;
   flex-shrink: 0;
+  transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-surface;
+    border-bottom-color: $dark-border;
+  }
 
   .header-left {
     display: flex;
@@ -93,6 +121,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       display: flex;
       align-items: center;
       gap: 8px;
+      transition: color 200ms ease-in-out;
+
+      // Dark mode support
+      .dark & {
+        color: $dark-text;
+      }
 
       .header-bot-icon {
         display: inline-flex;
@@ -104,6 +138,13 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
         border-radius: $radius-sm;
         color: $primary;
         flex-shrink: 0;
+        transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+
+        // Dark mode support
+        .dark & {
+          background: $dark-primary-soft;
+          color: $dark-primary;
+        }
 
         svg { width: 16px; height: 16px; }
       }
@@ -114,6 +155,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       font-size: 0.78rem;
       color: $text-muted;
       font-weight: 500;
+      transition: color 200ms ease-in-out;
+
+      // Dark mode support
+      .dark & {
+        color: $dark-text-muted;
+      }
     }
   }
 
@@ -136,6 +183,19 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
         background: $primary-soft;
         border-color: $primary;
         color: $primary;
+      }
+
+      // Dark mode support
+      .dark & {
+        background: $dark-bg;
+        border-color: $dark-border;
+        color: $dark-text-muted;
+
+        &:hover {
+          background: $dark-primary-soft;
+          border-color: $dark-primary;
+          color: $dark-primary;
+        }
       }
 
       svg {
@@ -161,16 +221,35 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   overflow-y: auto;
   z-index: 100;
   animation: fadeIn 0.2s ease-out;
+  transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-surface;
+    border-color: $dark-border;
+  }
 
   .dropdown-header {
     padding: 14px 16px;
     border-bottom: 1px solid $border;
+    transition: border-color 200ms ease-in-out;
+
+    // Dark mode support
+    .dark & {
+      border-bottom-color: $dark-border;
+    }
 
     h4 {
       margin: 0;
       font-size: 0.875rem;
       font-weight: 700;
       color: $text;
+      transition: color 200ms ease-in-out;
+
+      // Dark mode support
+      .dark & {
+        color: $dark-text;
+      }
     }
   }
 
@@ -187,6 +266,14 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       &:hover { background: $bg; }
       &:last-child { border-bottom: none; }
 
+      // Dark mode support
+      .dark & {
+        border-bottom-color: $dark-border;
+
+        &:hover { background: rgba(255, 255, 255, 0.04); }
+        &:last-child { border-bottom: none; }
+      }
+
       .session-info {
         flex: 1;
         min-width: 0;
@@ -199,6 +286,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          transition: color 200ms ease-in-out;
+
+          // Dark mode support
+          .dark & {
+            color: $dark-text;
+          }
         }
 
         .session-meta {
@@ -206,6 +299,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
           color: $text-muted;
           display: flex;
           gap: 10px;
+          transition: color 200ms ease-in-out;
+
+          // Dark mode support
+          .dark & {
+            color: $dark-text-muted;
+          }
         }
       }
 
@@ -230,6 +329,16 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
             color: $danger;
           }
 
+          // Dark mode support
+          .dark & {
+            color: $dark-text-muted;
+
+            &:hover {
+              background: $dark-danger-soft;
+              color: $dark-danger;
+            }
+          }
+
           svg { width: 13px; height: 13px; }
         }
       }
@@ -240,6 +349,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       text-align: center;
       color: $text-muted;
       font-size: 0.875rem;
+      transition: color 200ms ease-in-out;
+
+      // Dark mode support
+      .dark & {
+        color: $dark-text-muted;
+      }
     }
   }
 }
@@ -256,6 +371,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   gap: 18px;
   background: $bg;
   scroll-behavior: smooth;
+  transition: background-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-bg;
+  }
 
   &::-webkit-scrollbar { width: 6px; }
   &::-webkit-scrollbar-track { background: transparent; }
@@ -263,6 +384,14 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
     background: rgba(0, 0, 0, 0.12);
     border-radius: 3px;
     &:hover { background: rgba(0, 0, 0, 0.2); }
+  }
+
+  // Dark mode scrollbar
+  .dark & {
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      &:hover { background: rgba(255, 255, 255, 0.25); }
+    }
   }
 }
 
@@ -287,12 +416,25 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       border-radius: $radius;
       border: 1px solid rgba($cta, 0.25);
       background: rgba($cta, 0.04);
+      transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+      // Dark mode support
+      .dark & {
+        border-color: rgba($dark-cta, 0.3);
+        background: rgba($dark-cta, 0.06);
+      }
 
       p {
         font-size: 0.9rem;
         line-height: 1.8;
         color: $text;
         margin: 0;
+        transition: color 200ms ease-in-out;
+
+        // Dark mode support
+        .dark & {
+          color: $dark-text;
+        }
 
         &:first-child {
           font-weight: 600;
@@ -329,17 +471,30 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   border-radius: $radius-sm;
   @include flex-center;
   flex-shrink: 0;
+  transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
 
   &.user-avatar {
     background: $primary-soft;
     color: $primary;
     svg { width: 17px; height: 17px; }
+
+    // Dark mode support
+    .dark & {
+      background: $dark-primary-soft;
+      color: $dark-primary;
+    }
   }
 
   &.assistant-avatar {
     background: $cta-soft;
     color: $cta;
     svg { width: 17px; height: 17px; }
+
+    // Dark mode support
+    .dark & {
+      background: $dark-cta-soft;
+      color: $dark-cta;
+    }
   }
 }
 
@@ -365,12 +520,25 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   overflow-wrap: break-word;
   min-height: 40px;
   display: inline-block;
+  transition: background-color 200ms ease-in-out, color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-surface;
+    color: $dark-text;
+    border-color: $dark-border;
+  }
 
   &.user-message {
     border-radius: $radius 4px 4px $radius;
     background: $primary;
     color: white;
     border: none;
+
+    // Dark mode support
+    .dark & {
+      background: $dark-primary;
+    }
 
     p { color: white; }
 
@@ -392,7 +560,14 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
     text-decoration: none;
     font-weight: 500;
     border-bottom: 1px solid transparent;
+    transition: color 200ms ease-in-out, border-color 200ms ease-in-out;
     &:hover { border-bottom-color: $primary; }
+
+    // Dark mode support
+    .dark & {
+      color: $dark-primary;
+      &:hover { border-bottom-color: $dark-primary; }
+    }
   }
 }
 
@@ -409,9 +584,20 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
     font-size: 0.7rem;
     color: $text-muted;
     font-weight: 500;
+    transition: color 200ms ease-in-out;
+
+    // Dark mode support
+    .dark & {
+      color: $dark-text-muted;
+    }
 
     &.user-timestamp {
       color: rgba($primary, 0.7);
+
+      // Dark mode support
+      .dark & {
+        color: rgba($dark-primary, 0.7);
+      }
     }
   }
 
@@ -436,6 +622,16 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
     }
 
     &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    // Dark mode support
+    .dark & {
+      color: $dark-text-muted;
+
+      &:not(:disabled):hover {
+        background: $dark-primary-soft;
+        color: $dark-primary;
+      }
+    }
   }
 }
 
@@ -447,11 +643,21 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
 .resend-btn:hover:not(:disabled) {
   background: $cta-soft !important;
   color: $cta !important;
+
+  .dark & {
+    background: $dark-cta-soft !important;
+    color: $dark-cta !important;
+  }
 }
 
 .delete-btn:hover:not(:disabled) {
   background: $danger-soft !important;
   color: $danger !important;
+
+  .dark & {
+    background: $dark-danger-soft !important;
+    color: $dark-danger !important;
+  }
 }
 
 // ==============================
@@ -464,6 +670,13 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   border: 1px solid $border;
   border-radius: $radius-sm;
   font-size: 0.78rem;
+  transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: $dark-border;
+  }
 
   p {
     margin: 0 0 6px;
@@ -472,6 +685,12 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    transition: color 200ms ease-in-out;
+
+    // Dark mode support
+    .dark & {
+      color: $dark-text-muted;
+    }
   }
 
   .sources-list {
@@ -489,6 +708,13 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+
+      // Dark mode support
+      .dark & {
+        background: $dark-primary-soft;
+        color: $dark-primary;
+      }
     }
   }
 }
@@ -504,6 +730,13 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   border: 1px solid $border;
   border-radius: $radius;
   width: fit-content;
+  transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-surface;
+    border-color: $dark-border;
+  }
 
   .typing-dot {
     width: 8px;
@@ -511,10 +744,16 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
     border-radius: $radius-full;
     background: $primary;
     animation: typingBounce 1.4s infinite ease-in-out;
+    transition: background-color 200ms ease-in-out;
 
     &:nth-child(1) { animation-delay: 0s; }
     &:nth-child(2) { animation-delay: 0.16s; }
     &:nth-child(3) { animation-delay: 0.32s; }
+
+    // Dark mode support
+    .dark & {
+      background: $dark-primary;
+    }
   }
 }
 
@@ -532,6 +771,14 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   color: $danger;
   font-size: 0.875rem;
   animation: fadeIn 0.2s ease-out;
+  transition: background-color 200ms ease-in-out, color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-danger-soft;
+    border-color: rgba($dark-danger, 0.25);
+    color: $dark-danger;
+  }
 }
 
 // ==============================
@@ -545,6 +792,13 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
   flex-direction: column;
   gap: 10px;
   flex-shrink: 0;
+  transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  // Dark mode support
+  .dark & {
+    background: $dark-surface;
+    border-top-color: $dark-border;
+  }
 
   // RAG Toggle
   .rag-toggle {
@@ -586,6 +840,29 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
         flex-shrink: 0;
         transition: color 0.15s;
       }
+
+      // Dark mode support
+      .dark & {
+        border-color: $dark-border;
+        background: $dark-surface;
+        color: $dark-text-muted;
+
+        svg { color: $dark-text-muted; }
+
+        &:hover {
+          border-color: $dark-primary;
+          color: $dark-primary;
+          background: $dark-primary-soft;
+          svg { color: $dark-primary; }
+        }
+
+        &.active {
+          border-color: $dark-cta;
+          background: $dark-cta-soft;
+          color: $dark-cta;
+          svg { color: $dark-cta; }
+        }
+      }
     }
   }
 
@@ -613,7 +890,7 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       word-wrap: break-word;
       white-space: pre-wrap;
       box-sizing: border-box;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s, background-color 200ms ease-in-out, color 200ms ease-in-out;
 
       &::-webkit-scrollbar { width: 4px; }
       &::-webkit-scrollbar-track { background: transparent; }
@@ -635,6 +912,30 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       }
 
       &::placeholder { color: $text-muted; }
+
+      // Dark mode support
+      .dark & {
+        background: $dark-bg;
+        color: $dark-text;
+        border-color: $dark-border;
+        
+        &::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.15);
+        }
+
+        &:focus {
+          border-color: $dark-primary;
+          box-shadow: 0 0 0 3px $dark-primary-soft;
+          background: $dark-surface;
+        }
+
+        &:disabled {
+          background: $dark-border;
+          color: $dark-text-muted;
+        }
+
+        &::placeholder { color: $dark-text-muted; }
+      }
     }
   }
 
@@ -667,6 +968,20 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
       transform: scale(0.95);
     }
 
+    // Dark mode support
+    .dark & {
+      background: $dark-primary;
+
+      &:disabled {
+        background: $dark-border;
+        color: $dark-text-muted;
+      }
+
+      &:hover:not(:disabled) {
+        background: $dark-primary-hover;
+      }
+    }
+
     svg { width: 18px; height: 18px; }
   }
 
@@ -686,8 +1001,14 @@ $font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe 
     align-self: flex-end;
     animation: fadeIn 0.15s ease-out;
 
-    &:hover { background: darken($danger, 8%); }
+    &:hover { background: #D63030; }
     &:active { transform: scale(0.95); }
+
+    // Dark mode support
+    .dark & {
+      background: $dark-danger;
+      &:hover { background: #FF8C8C; }
+    }
 
     svg { width: 16px; height: 16px; }
   }

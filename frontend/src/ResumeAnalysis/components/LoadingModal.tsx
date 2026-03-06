@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-// ---- Design tokens ----
-const C = {
-  primary: '#6366F1',
-  surface: '#FFFFFF',
-  border: '#EAE8F8',
-  text: '#1E1B4B',
-  textMuted: '#6B7280',
+// ---- Design tokens (theme-aware) ----
+const getColors = (isDark: boolean) => ({
+  primary: isDark ? '#818CF8' : '#6366F1',
+  surface: isDark ? '#16162A' : '#FFFFFF',
+  border: isDark ? '#2D2D52' : '#EAE8F8',
+  text: isDark ? '#F1F0FF' : '#1E1B4B',
+  textMuted: isDark ? '#A8A5C7' : '#6B7280',
+  overlayBg: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(30,27,75,0.35)',
   font: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
+});
 
 interface LoadingModalProps {
   isOpen: boolean;
@@ -27,7 +28,21 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
   progress = 0,
   maxProgress = 5,
 }) => {
+  const [isDark, setIsDark] = useState(() =>
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   if (!isOpen) return null;
+
+  const C = getColors(isDark);
 
   return (
     <>
@@ -37,7 +52,7 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
       `}</style>
       <div style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(30,27,75,0.35)',
+        background: C.overlayBg,
         backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 1001,
@@ -52,6 +67,9 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
           padding: '36px 48px',
           minWidth: '280px',
           animation: 'lm-fade 0.3s ease-out',
+          boxShadow: isDark
+            ? '0 20px 60px rgba(0,0,0,0.5)'
+            : '0 20px 60px rgba(30,27,75,0.12)',
         }}>
           {/* Spinner */}
           <div style={{

@@ -5,6 +5,11 @@ export const Container = styled.div`
   flex-direction: column;
   height: 100%;
   background: #f8fafc;
+  transition: background-color 200ms ease-in-out;
+
+  .dark & {
+    background: #0F0F1A;
+  }
 `;
 
 export const Header = styled.div`
@@ -15,6 +20,12 @@ export const Header = styled.div`
   background: white;
   border-bottom: 1px solid #e2e8f0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out;
+
+  .dark & {
+    background: #16162A;
+    border-bottom-color: #2D2D52;
+  }
 `;
 
 export const Title = styled.h1`
@@ -22,12 +33,23 @@ export const Title = styled.h1`
   font-weight: 600;
   color: #0f172a;
   margin: 0;
+  transition: color 200ms ease-in-out;
+
+  .dark & {
+    color: #F1F0FF;
+  }
 `;
 
 export const Content = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  color: #0f172a;
+  transition: color 200ms ease-in-out;
+
+  .dark & {
+    color: #F1F0FF;
+  }
 `;
 
 export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'danger' }>`
@@ -48,6 +70,14 @@ export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'dang
           &:hover {
             background: #cbd5e1;
           }
+          
+          .dark & {
+            background: #2D2D52;
+            color: #F1F0FF;
+            &:hover {
+              background: #3D3D62;
+            }
+          }
         `;
       case 'danger':
         return `
@@ -56,6 +86,14 @@ export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'dang
           &:hover {
             background: #fecaca;
           }
+
+          .dark & {
+            background: rgba(255, 107, 107, 0.15);
+            color: #FF6B6B;
+            &:hover {
+              background: rgba(255, 107, 107, 0.25);
+            }
+          }
         `;
       default:
         return `
@@ -63,6 +101,13 @@ export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'dang
           color: white;
           &:hover {
             background: #4338ca;
+          }
+
+          .dark & {
+            background: #818CF8;
+            &:hover {
+              background: #6366F1;
+            }
           }
         `;
     }
@@ -85,6 +130,16 @@ export const Card = styled.div`
     border-color: #cbd5e1;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
+
+  .dark & {
+    background: #16162A;
+    border-color: #2D2D52;
+
+    &:hover {
+      border-color: #818CF8;
+      box-shadow: 0 4px 12px rgba(129, 140, 248, 0.15);
+    }
+  }
 `;
 
 export const Section = styled.div`
@@ -103,12 +158,19 @@ export const SectionTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: color 200ms ease-in-out;
+
+  .dark & {
+    color: #F1F0FF;
+  }
 `;
 
 export const Alert = styled.div<{ $type?: 'info' | 'warning' | 'error' | 'success' }>`
   padding: 12px 16px;
   border-radius: 6px;
   margin-bottom: 16px;
+  transition: background-color 200ms ease-in-out, color 200ms ease-in-out, border-color 200ms ease-in-out;
+  
   background-color: ${props => {
     switch (props.$type) {
       case 'error':
@@ -145,6 +207,45 @@ export const Alert = styled.div<{ $type?: 'info' | 'warning' | 'error' | 'succes
         return '#4f46e5';
     }
   }};
+
+  .dark & {
+    background-color: ${props => {
+      switch (props.$type) {
+        case 'error':
+          return 'rgba(255, 107, 107, 0.15)';
+        case 'warning':
+          return 'rgba(253, 176, 34, 0.15)';
+        case 'success':
+          return 'rgba(16, 185, 129, 0.15)';
+        default:
+          return 'rgba(129, 140, 248, 0.15)';
+      }
+    }};
+    color: ${props => {
+      switch (props.$type) {
+        case 'error':
+          return '#FF6B6B';
+        case 'warning':
+          return '#FDB022';
+        case 'success':
+          return '#10B981';
+        default:
+          return '#818CF8';
+      }
+    }};
+    border-left-color: ${props => {
+      switch (props.$type) {
+        case 'error':
+          return '#FF6B6B';
+        case 'warning':
+          return '#FDB022';
+        case 'success':
+          return '#10B981';
+        default:
+          return '#818CF8';
+      }
+    }};
+  }
 `;
 
 export const Loading = styled.div`
@@ -154,6 +255,11 @@ export const Loading = styled.div`
   justify-content: center;
   min-height: 300px;
   color: #64748b;
+  transition: color 200ms ease-in-out;
+
+  .dark & {
+    color: #A8A5C7;
+  }
 `;
 
 export const Spinner = styled.div`
@@ -164,6 +270,12 @@ export const Spinner = styled.div`
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 12px;
+  transition: border-color 200ms ease-in-out;
+
+  .dark & {
+    border-color: #2D2D52;
+    border-top-color: #818CF8;
+  }
 
   @keyframes spin {
     to {

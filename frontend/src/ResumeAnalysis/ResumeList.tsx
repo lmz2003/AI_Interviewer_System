@@ -3,30 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { useToastModal } from '../components/ui/toast-modal';
 import LoadingModal from './components/LoadingModal';
 
-// ---- Design tokens ----
-const C = {
-  primary: '#6366F1',
-  primaryHover: '#4F46E5',
-  primarySoft: 'rgba(99,102,241,0.08)',
+// ---- Design tokens (theme-aware) ----
+const getThemeColors = (isDark: boolean) => ({
+  primary: isDark ? '#818CF8' : '#6366F1',
+  primaryHover: isDark ? '#6366F1' : '#4F46E5',
+  primarySoft: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(99,102,241,0.08)',
   cta: '#10B981',
-  bg: '#F7F6FF',
-  surface: '#FFFFFF',
-  border: '#EAE8F8',
-  text: '#1E1B4B',
-  textMuted: '#6B7280',
-  danger: '#EF4444',
-  dangerSoft: 'rgba(239,68,68,0.08)',
-  warning: '#F59E0B',
+  bg: isDark ? '#0F0F1A' : '#F7F6FF',
+  surface: isDark ? '#16162A' : '#FFFFFF',
+  border: isDark ? '#2D2D52' : '#EAE8F8',
+  text: isDark ? '#F1F0FF' : '#1E1B4B',
+  textMuted: isDark ? '#A8A5C7' : '#6B7280',
+  danger: isDark ? '#FF6B6B' : '#EF4444',
+  dangerSoft: isDark ? 'rgba(255,107,107,0.15)' : 'rgba(239,68,68,0.08)',
+  warning: '#FDB022',
   success: '#10B981',
-  successSoft: 'rgba(16,185,129,0.08)',
+  successSoft: isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)',
   radius: '10px',
   radiusSm: '6px',
   font: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
+});
 
 // ---- SVG Icons ----
-const FileIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={C.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+const FileIcon = ({ color = 'currentColor' }: { color?: string }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
     <polyline points="14 2 14 8 20 8"/>
     <line x1="16" y1="13" x2="8" y2="13"/>
@@ -77,18 +77,34 @@ interface Resume {
   overallScore?: number;
 }
 
-const getScoreColor = (score: number) => {
-  if (score >= 75) return C.success;
-  if (score >= 60) return C.warning;
-  return C.danger;
-};
-
 const ResumeList: React.FC = () => {
   const navigate = useNavigate();
   const { error, success } = useToastModal();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Theme support - detect dark mode and respond to changes
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Get current theme colors
+  const C = getThemeColors(isDarkMode);
+
+  const getScoreColor = (score: number) => {
+    if (score >= 75) return C.success;
+    if (score >= 60) return C.warning;
+    return C.danger;
+  };
 
   useEffect(() => { fetchResumes(); }, []);
 

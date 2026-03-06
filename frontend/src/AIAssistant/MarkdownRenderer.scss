@@ -4,11 +4,13 @@
   font-size: 14px;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  line-height: 1.8;
   min-height: 20px;
-  color: #1e293b;
-  font-size: 14px;
   padding: 8px 0;
+
+  // Dark mode text
+  .dark & {
+    color: #F1F0FF;
+  }
 
   /* 链接样式 - 统一处理 */
   a {
@@ -350,6 +352,8 @@
     border-bottom: 2px solid #e5e7eb;
     color: #1e293b;
     scroll-margin-top: 60px;
+
+    .dark & { color: #F1F0FF; border-bottom-color: #2D2D52; }
   }
 
   .markdown-h2 {
@@ -358,6 +362,8 @@
     margin: 18px 0 12px;
     color: #1e293b;
     scroll-margin-top: 60px;
+
+    .dark & { color: #F1F0FF; }
   }
 
   .markdown-h3 {
@@ -366,6 +372,8 @@
     margin: 14px 0 10px;
     color: #1e293b;
     scroll-margin-top: 60px;
+
+    .dark & { color: #F1F0FF; }
   }
 
   .markdown-h4 {
@@ -374,6 +382,8 @@
     margin: 12px 0 8px;
     color: #1e293b;
     scroll-margin-top: 60px;
+
+    .dark & { color: #F1F0FF; }
   }
 
   .markdown-h5 {
@@ -381,6 +391,8 @@
     font-weight: 600;
     margin: 10px 0 6px;
     color: #1e293b;
+
+    .dark & { color: #F1F0FF; }
   }
 
   .markdown-h6 {
@@ -388,6 +400,8 @@
     font-weight: 600;
     margin: 8px 0 4px;
     color: #6b7280;
+
+    .dark & { color: #A8A5C7; }
   }
 
   // 段落样式
@@ -396,6 +410,8 @@
     font-size: 14px;
     color: #1e293b;
     line-height: 1.8;
+
+    .dark & { color: #D1D0F0; }
   }
 
   // 代码块样式 - 增强版本，优化对话UI
@@ -694,6 +710,18 @@
       background: linear-gradient(135deg, #e5e7eb 0%, #f3f4f6 100%);
       border-color: #d1d5db;
     }
+
+    // Dark mode
+    .dark & {
+      background: rgba(129, 140, 248, 0.1);
+      color: #FF8080;
+      border-color: #2D2D52;
+
+      &:hover {
+        background: rgba(129, 140, 248, 0.18);
+        border-color: #818CF8;
+      }
+    }
   }
 
   .markdown-pre {
@@ -711,6 +739,8 @@
     font-size: 14px;
     color: #1e293b;
     list-style: none;
+
+    .dark & { color: #D1D0F0; }
   }
 
   .markdown-ul {
@@ -727,6 +757,8 @@
         font-size: 16px;
         font-weight: bold;
         line-height: 1.8;
+
+        .dark & { color: #818CF8; }
       }
     }
   }
@@ -749,6 +781,8 @@
         line-height: 1.8;
         width: 24px;
         text-align: left;
+
+        .dark & { color: #818CF8; }
       }
     }
   }
@@ -757,6 +791,8 @@
     margin: 8px 0;
     line-height: 1.8;
     color: #1e293b;
+
+    .dark & { color: #D1D0F0; }
 
     &.task-list {
       list-style: none;
@@ -803,6 +839,22 @@
     transition: all 0.3s ease;
     box-shadow: 0 1px 3px rgba(79, 70, 229, 0.1);
 
+    // Dark mode
+    .dark & {
+      border-left-color: #818CF8;
+      background: rgba(129, 140, 248, 0.08);
+      color: #A8A5C7;
+      box-shadow: 0 1px 3px rgba(129, 140, 248, 0.1);
+
+      &:hover {
+        border-left-color: #6366F1;
+        background: rgba(129, 140, 248, 0.14);
+        box-shadow: 0 2px 8px rgba(129, 140, 248, 0.2);
+      }
+
+      p { color: #C8C6E8; }
+    }
+
     &:hover {
       border-left-color: #7c3aed;
       background: linear-gradient(135deg, #f3efff 0%, #e9e5ff 100%);
@@ -834,20 +886,31 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     border: 1px solid #e5e7eb;
 
+    .dark & {
+      border-color: #2D2D52;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
     &::-webkit-scrollbar {
       height: 8px;
     }
 
     &::-webkit-scrollbar-track {
       background: #f9fafb;
+
+      .dark & { background: #16162A; }
     }
 
     &::-webkit-scrollbar-thumb {
       background: #d1d5db;
       border-radius: 4px;
 
+      .dark & { background: #3D3D60; }
+
       &:hover {
         background: #9ca3af;
+
+        .dark & { background: #5D5D80; }
       }
     }
   }
@@ -857,10 +920,14 @@
     width: 100%;
     font-size: 13px;
     background: #ffffff;
+
+    .dark & { background: #16162A; }
   }
 
   .markdown-thead {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+
+    .dark & { background: #1E1E38; }
   }
 
   .markdown-th,
@@ -868,12 +935,19 @@
     border: 1px solid #e5e7eb;
     padding: 14px 16px;
     text-align: left;
+
+    .dark & { border-color: #2D2D52; }
   }
 
   .markdown-th {
     font-weight: 600;
     color: #1e293b;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+
+    .dark & {
+      color: #C8C6E8;
+      background: #1E1E38;
+    }
   }
 
   .markdown-tbody .markdown-tr {
@@ -881,14 +955,20 @@
 
     &:nth-child(even) {
       background: #fafbfc;
+
+      .dark & { background: rgba(255, 255, 255, 0.02); }
     }
 
     &:hover {
       background: #f1f5f9;
+
+      .dark & { background: rgba(129, 140, 248, 0.06); }
     }
 
     .markdown-td {
       color: #374151;
+
+      .dark & { color: #C8C6E8; }
     }
   }
 
@@ -924,6 +1004,20 @@
     &:hover .markdown-external-icon {
       opacity: 1;
     }
+
+    // Dark mode
+    .dark & {
+      color: #818CF8;
+
+      &:hover {
+        color: #A5B4FC;
+        border-bottom-color: #A5B4FC;
+      }
+
+      &:active {
+        color: #6366F1;
+      }
+    }
   }
 
   // 图片样式 - 增强版本，优化对话
@@ -946,6 +1040,16 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
       transform: translateY(-2px);
     }
+
+    // Dark mode
+    .dark & {
+      border-color: #2D2D52;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+      &:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      }
+    }
   }
 
   .markdown-image-caption {
@@ -954,6 +1058,11 @@
     color: #6b7280;
     font-style: italic;
     text-align: center;
+
+    // Dark mode
+    .dark & {
+      color: #A8A5C7;
+    }
   }
 
   // 分割线样式
@@ -962,23 +1071,43 @@
     border: none;
     border-top: 1px solid #e5e7eb;
     height: 0;
+
+    // Dark mode
+    .dark & {
+      border-top-color: #2D2D52;
+    }
   }
 
   // 强调样式
   .markdown-strong {
     font-weight: 700;
     color: #1f2937;
+
+    // Dark mode
+    .dark & {
+      color: #E8E6FF;
+    }
   }
 
   .markdown-em {
     font-style: italic;
     color: #6b7280;
+
+    // Dark mode
+    .dark & {
+      color: #A8A5C7;
+    }
   }
 
   .markdown-del {
     text-decoration: line-through;
     color: #d1d5db;
     opacity: 0.8;
+
+    // Dark mode
+    .dark & {
+      color: #4D4D70;
+    }
   }
 
   // 标题样式微调
@@ -989,15 +1118,27 @@
   .markdown-h5,
   .markdown-h6 {
     color: #1f2937;
+
+    .dark & {
+      color: #F1F0FF;
+    }
   }
 
   .markdown-h1 {
     border-bottom-color: #e5e7eb;
+
+    .dark & {
+      border-bottom-color: #2D2D52;
+    }
   }
 
   // 段落样式
   .markdown-paragraph {
     color: #374151;
+
+    .dark & {
+      color: #D1D0F0;
+    }
   }
 }
 

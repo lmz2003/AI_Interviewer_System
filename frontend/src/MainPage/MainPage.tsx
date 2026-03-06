@@ -7,6 +7,7 @@ import AIIInterviewModule from '../components/AIIInterviewModule';
 import KnowledgeBase from '../KnowledgeBase/KnowledgeBase';
 import AIAssistant from '../AIAssistant/AIAssistant';
 import { AIAssistantProvider, useAIAssistant } from '../context/AIAssistantContext';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 // ---- SVG Icons (no emojis per design system) ----
 const NotesIcon = () => (
@@ -108,6 +109,7 @@ const Header: React.FC<{
         <div className={styles.headerUser}>
           欢迎回来，{userData.name}
         </div>
+        <ThemeToggle />
         <button
           className={`${styles.aiToggleBtn} ${isOpen ? styles.active : ''}`}
           onClick={toggleOpen}

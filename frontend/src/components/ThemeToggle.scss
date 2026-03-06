@@ -1,0 +1,68 @@
+/* Theme Toggle Button Styles */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background-color: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 150ms ease-in-out;
+  position: relative;
+
+  /* Ensure the button is interactive */
+  &:hover {
+    background-color: var(--muted);
+    border-color: var(--foreground);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:focus {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+.theme-toggle-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke-width: 1.5px;
+  flex-shrink: 0;
+}
+
+.theme-toggle-label {
+  white-space: nowrap;
+  font-size: 0.85rem;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+}
+
+/* Dark mode specific adjustments */
+.dark .theme-toggle {
+  background-color: var(--background);
+  border-color: var(--border);
+  
+  &:hover {
+    background-color: var(--muted);
+    border-color: var(--foreground);
+  }
+}

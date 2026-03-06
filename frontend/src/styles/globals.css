@@ -135,3 +135,127 @@
 [data-slot="dropdown-menu-sub-content"] {
   transform-origin: var(--radix-dropdown-menu-content-transform-origin);
 }
+
+/* Dark mode specific enhancements */
+.dark {
+  color-scheme: dark;
+}
+
+.light {
+  color-scheme: light;
+}
+
+/* Smooth transition for theme changes */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Code blocks styling for both modes */
+.dark pre,
+.dark code {
+  background-color: oklch(0.188 0 0);
+  color: oklch(0.95 0 0);
+}
+
+pre,
+code {
+  background-color: oklch(0.965 0 0);
+  color: oklch(0.145 0 0);
+}
+
+/* Ensure links are visible in both modes */
+a {
+  color: var(--primary);
+  
+  &:visited {
+    opacity: 0.8;
+  }
+  
+  &:hover {
+    opacity: 0.7;
+  }
+}
+
+/* Input fields styling */
+input,
+textarea,
+select {
+  background-color: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
+  
+  &:focus {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+}
+
+/* Placeholder styling */
+::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* Scrollbar styling for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 4px;
+  
+  &:hover {
+    background: var(--muted-foreground);
+  }
+}
+
+/* Firefox scrollbar */
+.dark {
+  scrollbar-color: var(--muted) var(--background);
+}
+
+/* Ensure proper contrast in dark mode for specific elements */
+.dark button,
+.dark [role="button"] {
+  transition: all 150ms ease-in-out;
+}
+
+/* Table styling for dark mode */
+.dark table {
+  border-color: var(--border);
+  
+  th,
+  td {
+    border-color: var(--border);
+  }
+  
+  thead {
+    background-color: var(--muted);
+  }
+  
+  tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+}
+
+table {
+  border-color: var(--border);
+  
+  th,
+  td {
+    border-color: var(--border);
+  }
+  
+  thead {
+    background-color: var(--muted);
+  }
+  
+  tbody tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+}

@@ -1,26 +1,26 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
-// ---- Design tokens ----
-const C = {
-  primary: '#6366F1',
-  primarySoft: 'rgba(99,102,241,0.08)',
-  primaryHover: '#4F46E5',
+// ---- Design tokens (theme-aware) ----
+const getThemeColors = (isDark: boolean) => ({
+  primary: isDark ? '#818CF8' : '#6366F1',
+  primarySoft: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(99,102,241,0.08)',
+  primaryHover: isDark ? '#6366F1' : '#4F46E5',
   cta: '#10B981',
-  bg: '#F7F6FF',
-  surface: '#FFFFFF',
-  border: '#EAE8F8',
-  text: '#1E1B4B',
-  textMuted: '#6B7280',
-  danger: '#EF4444',
-  dangerSoft: 'rgba(239,68,68,0.08)',
-  warning: '#F59E0B',
-  warningSoft: 'rgba(245,158,11,0.08)',
+  bg: isDark ? '#0F0F1A' : '#F7F6FF',
+  surface: isDark ? '#16162A' : '#FFFFFF',
+  border: isDark ? '#2D2D52' : '#EAE8F8',
+  text: isDark ? '#F1F0FF' : '#1E1B4B',
+  textMuted: isDark ? '#A8A5C7' : '#6B7280',
+  danger: isDark ? '#FF6B6B' : '#EF4444',
+  dangerSoft: isDark ? 'rgba(255,107,107,0.15)' : 'rgba(239,68,68,0.08)',
+  warning: '#FDB022',
+  warningSoft: isDark ? 'rgba(253,176,34,0.15)' : 'rgba(245,158,11,0.08)',
   success: '#10B981',
-  successSoft: 'rgba(16,185,129,0.08)',
+  successSoft: isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)',
   radius: '10px',
   radiusSm: '6px',
   font: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
+});
 
 // ---- SVG Icons ----
 const BarChartIcon = () => (
@@ -82,18 +82,19 @@ const LightbulbIcon = () => (
   </svg>
 );
 
-// ---- Helpers ----
-const getScoreColor = (score: number) => {
-  if (score >= 75) return C.success;
-  if (score >= 60) return C.warning;
-  return C.danger;
-};
-
-const getScoreBg = (score: number) => {
-  if (score >= 75) return C.successSoft;
-  if (score >= 60) return C.warningSoft;
-  return C.dangerSoft;
-};
+// ---- Helpers (moved inside component to use reactive C) ----
+const buildScoreHelpers = (C: ReturnType<typeof getThemeColors>) => ({
+  getScoreColor: (score: number) => {
+    if (score >= 75) return C.success;
+    if (score >= 60) return C.warning;
+    return C.danger;
+  },
+  getScoreBg: (score: number) => {
+    if (score >= 75) return C.successSoft;
+    if (score >= 60) return C.warningSoft;
+    return C.dangerSoft;
+  },
+});
 
 const safeJsonParse = (jsonStr: string | null | undefined, fallback: any = {}): any => {
   if (!jsonStr) return fallback;
@@ -144,6 +145,23 @@ const scoreItems = [
 
 const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, parsedData }) => {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+
+  // Theme support - detect dark mode and respond to changes
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Get current theme colors and helpers
+  const C = getThemeColors(isDarkMode);
+  const { getScoreColor, getScoreBg } = buildScoreHelpers(C);
 
   const keywordData   = useMemo(() => safeJsonParse(analysis.keywordAnalysis,   { keywords: [] }), [analysis.keywordAnalysis]);
   const contentData   = useMemo(() => safeJsonParse(analysis.contentAnalysis,   { totalWords: 0, sections: {} }), [analysis.contentAnalysis]);

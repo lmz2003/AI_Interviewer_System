@@ -8,6 +8,11 @@ const Container = styled.div`
   align-items: center;
   height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: background 200ms ease-in-out;
+
+  .dark & {
+    background: linear-gradient(135deg, #1a1a3e 0%, #2d1b4e 100%);
+  }
 `;
 
 const Content = styled.div`
@@ -24,6 +29,11 @@ const Spinner = styled.div`
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
 
+  .dark & {
+    border-color: rgba(129, 140, 248, 0.3);
+    border-top-color: #818CF8;
+  }
+
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -33,6 +43,11 @@ const Spinner = styled.div`
 const Message = styled.p`
   font-size: 18px;
   margin: 20px 0;
+  color: white;
+
+  .dark & {
+    color: #E8E6FF;
+  }
 `;
 
 const ErrorMessage = styled.div`
@@ -42,6 +57,13 @@ const ErrorMessage = styled.div`
   background: rgba(255, 107, 107, 0.2);
   border-radius: 8px;
   max-width: 400px;
+  transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+
+  .dark & {
+    color: #FF8080;
+    background: rgba(255, 107, 107, 0.15);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+  }
 `;
 
 const LoginCallback: React.FC = () => {

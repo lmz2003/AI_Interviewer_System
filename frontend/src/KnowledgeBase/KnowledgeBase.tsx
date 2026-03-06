@@ -2,33 +2,36 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useToastModal } from '../components/ui/toast-modal';
 
 // ---- Design tokens ----
-const C = {
-  primary: '#6366F1',
-  primaryHover: '#4F46E5',
-  primarySoft: 'rgba(99,102,241,0.08)',
-  primarySoftHover: 'rgba(99,102,241,0.14)',
-  cta: '#10B981',
-  bg: '#F7F6FF',
-  surface: '#FFFFFF',
-  border: '#EAE8F8',
-  text: '#1E1B4B',
-  textMuted: '#6B7280',
-  danger: '#EF4444',
-  dangerSoft: 'rgba(239,68,68,0.08)',
-  warning: '#F59E0B',
-  warningSoft: 'rgba(245,158,11,0.1)',
-  success: '#10B981',
-  successSoft: 'rgba(16,185,129,0.08)',
-  radius: '10px',
-  radiusSm: '6px',
-  shadow: '0 1px 4px rgba(30,27,75,0.07)',
+// Helper function to get theme colors based on dark mode
+const getThemeColors = (isDark: boolean) => {
+  return {
+    primary: isDark ? '#818CF8' : '#6366F1',
+    primaryHover: isDark ? '#6366F1' : '#4F46E5',
+    primarySoft: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(99,102,241,0.08)',
+    primarySoftHover: isDark ? 'rgba(129,140,248,0.16)' : 'rgba(99,102,241,0.14)',
+    cta: '#10B981',
+    bg: isDark ? '#0F0F1A' : '#F7F6FF',
+    surface: isDark ? '#16162A' : '#FFFFFF',
+    border: isDark ? '#2D2D52' : '#EAE8F8',
+    text: isDark ? '#F1F0FF' : '#1E1B4B',
+    textMuted: isDark ? '#A8A5C7' : '#6B7280',
+    danger: isDark ? '#FF6B6B' : '#EF4444',
+    dangerSoft: isDark ? 'rgba(255,107,107,0.15)' : 'rgba(239,68,68,0.08)',
+    warning: '#FDB022',
+    warningSoft: isDark ? 'rgba(253,176,34,0.15)' : 'rgba(245,158,11,0.1)',
+    success: '#10B981',
+    successSoft: isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)',
+    radius: '10px',
+    radiusSm: '6px',
+    shadow: isDark ? '0 1px 4px rgba(0,0,0,0.2)' : '0 1px 4px rgba(30,27,75,0.07)',
+  };
 };
 
 const font = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-// ---- SVG Icons ----
-const ChartIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+// ---- SVG Icons (use currentColor or props to stay theme-aware) ----
+const ChartIcon = ({ color = 'currentColor' }: { color?: string }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
     <line x1="2" y1="20" x2="22" y2="20"/>
   </svg>
@@ -39,8 +42,8 @@ const PlusIcon = () => (
 const SearchIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 );
-const BookIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.primary} strokeWidth="2" strokeLinecap="round">
+const BookIcon = ({ color = 'currentColor' }: { color?: string }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
     <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
   </svg>
 );
@@ -54,8 +57,8 @@ const RefreshIcon = () => (
     <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
   </svg>
 );
-const UploadIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+const UploadIcon = ({ color = 'currentColor' }: { color?: string }) => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
     <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
   </svg>
@@ -84,8 +87,11 @@ const ClockIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
 );
 
+// ---- Theme colors type ----
+type ThemeColors = ReturnType<typeof getThemeColors>;
+
 // ---- Shared button styles ----
-const btnBase: React.CSSProperties = {
+const getBtnBase = (C: ThemeColors): React.CSSProperties => ({
   border: 'none',
   borderRadius: C.radiusSm,
   fontFamily: font,
@@ -96,31 +102,31 @@ const btnBase: React.CSSProperties = {
   gap: '6px',
   transition: 'all 0.15s ease',
   whiteSpace: 'nowrap',
-};
+});
 
-const BtnPrimary: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, style, ...props }) => (
-  <button style={{ ...btnBase, background: C.primary, color: 'white', padding: '8px 16px', fontSize: '0.875rem', ...style }} {...props}
+const BtnPrimary: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { colors: ThemeColors }> = ({ children, style, colors: C, ...props }) => (
+  <button style={{ ...getBtnBase(C), background: C.primary, color: 'white', padding: '8px 16px', fontSize: '0.875rem', ...style }} {...props}
     onMouseEnter={e => { if (!props.disabled) (e.currentTarget as HTMLElement).style.background = C.primaryHover; }}
     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = props.disabled ? C.primarySoft : C.primary; }}
   >{children}</button>
 );
 
-const BtnSecondary: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, style, ...props }) => (
-  <button style={{ ...btnBase, background: C.primarySoft, color: C.primary, padding: '8px 14px', fontSize: '0.875rem', ...style }} {...props}
+const BtnSecondary: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { colors: ThemeColors }> = ({ children, style, colors: C, ...props }) => (
+  <button style={{ ...getBtnBase(C), background: C.primarySoft, color: C.primary, padding: '8px 14px', fontSize: '0.875rem', ...style }} {...props}
     onMouseEnter={e => { if (!props.disabled) (e.currentTarget as HTMLElement).style.background = C.primarySoftHover; }}
     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = C.primarySoft; }}
   >{children}</button>
 );
 
-const BtnDanger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, style, ...props }) => (
-  <button style={{ ...btnBase, background: C.dangerSoft, color: C.danger, padding: '8px 14px', fontSize: '0.875rem', ...style }} {...props}
+const BtnDanger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { colors: ThemeColors }> = ({ children, style, colors: C, ...props }) => (
+  <button style={{ ...getBtnBase(C), background: C.dangerSoft, color: C.danger, padding: '8px 14px', fontSize: '0.875rem', ...style }} {...props}
     onMouseEnter={e => { if (!props.disabled) (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.14)'; }}
     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = C.dangerSoft; }}
   >{children}</button>
 );
 
 // ---- Status badge ----
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+const StatusBadge: React.FC<{ status: string; colors: ThemeColors }> = ({ status, colors: C }) => {
   const cfg: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
     processed:  { label: '已处理', color: C.success, bg: C.successSoft,  icon: <CheckIcon /> },
     processing: { label: '处理中', color: C.warning, bg: C.warningSoft,  icon: <SpinIcon /> },
@@ -180,6 +186,22 @@ const KnowledgeBase: React.FC = () => {
   const [loadingBatchDelete, setLoadingBatchDelete] = useState(false);
   const [isBatchDeleteMode, setIsBatchDeleteMode] = useState(false);
   const [query, setQuery] = useState('');
+
+  // Theme support - detect dark mode and respond to changes
+  const [isDarkMode, setIsDarkMode] = useState(() => 
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Get current theme colors (computed from current dark mode state)
+  const C = getThemeColors(isDarkMode);
 
   const token = localStorage.getItem('token');
   const API_BASE = import.meta.env.VITE_API_BASE_URL + '/knowledge-base';
@@ -405,7 +427,7 @@ const KnowledgeBase: React.FC = () => {
       {/* Stats */}
       <div style={sectionStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
-          <ChartIcon />
+          <ChartIcon color={C.primary} />
           <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: C.text }}>知识库统计</h3>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
@@ -486,7 +508,7 @@ const KnowledgeBase: React.FC = () => {
                 onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = 'none'; }}
               />
             </div>
-            <BtnPrimary onClick={handleAddDocument} disabled={loadingAdd} style={{ alignSelf: 'flex-start', opacity: loadingAdd ? 0.7 : 1, cursor: loadingAdd ? 'not-allowed' : 'pointer' }}>
+            <BtnPrimary colors={C} onClick={handleAddDocument} disabled={loadingAdd} style={{ alignSelf: 'flex-start', opacity: loadingAdd ? 0.7 : 1, cursor: loadingAdd ? 'not-allowed' : 'pointer' }}>
               {loadingAdd ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-flex' }}><SpinIcon /></span> 处理中...</> : '添加文档'}
             </BtnPrimary>
           </div>
@@ -510,7 +532,7 @@ const KnowledgeBase: React.FC = () => {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-                <UploadIcon />
+                <UploadIcon color={C.primary} />
               </div>
               <p style={{ margin: '0 0 4px', color: C.text, fontSize: '0.9rem', fontWeight: 600 }}>拖拽文件到此处，或点击选择</p>
               <p style={{ margin: 0, color: C.textMuted, fontSize: '0.8rem' }}>支持 PDF、Word、Excel、Markdown、JSON、CSV、TXT</p>
@@ -528,7 +550,7 @@ const KnowledgeBase: React.FC = () => {
                         <div style={{ fontSize: '0.875rem', fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
                         <div style={{ fontSize: '0.75rem', color: C.textMuted }}>{formatFileSize(file.size)}</div>
                       </div>
-                      <button onClick={() => handleRemoveFile(index)} style={{ ...btnBase, background: C.dangerSoft, color: C.danger, padding: '4px 8px', fontSize: '0.75rem' }}>
+                      <button onClick={() => handleRemoveFile(index)} style={{ ...getBtnBase(C), background: C.dangerSoft, color: C.danger, padding: '4px 8px', fontSize: '0.75rem' }}>
                         <XIcon /> 移除
                       </button>
                     </div>
@@ -548,10 +570,10 @@ const KnowledgeBase: React.FC = () => {
                 )}
 
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <BtnPrimary onClick={handleUploadFiles} disabled={loadingUpload} style={{ opacity: loadingUpload ? 0.7 : 1, cursor: loadingUpload ? 'not-allowed' : 'pointer' }}>
-                    {loadingUpload ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-flex' }}><SpinIcon /></span> 上传中...</> : <><UploadIcon />上传文件</>}
+                  <BtnPrimary colors={C} onClick={handleUploadFiles} disabled={loadingUpload} style={{ opacity: loadingUpload ? 0.7 : 1, cursor: loadingUpload ? 'not-allowed' : 'pointer' }}>
+                    {loadingUpload ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-flex' }}><SpinIcon /></span> 上传中...</> : <><UploadIcon color="white" />上传文件</>}
                   </BtnPrimary>
-                  <BtnSecondary onClick={() => setSelectedFiles([])} disabled={loadingUpload}>
+                  <BtnSecondary colors={C} onClick={() => setSelectedFiles([])} disabled={loadingUpload}>
                     清空列表
                   </BtnSecondary>
                 </div>
@@ -580,7 +602,7 @@ const KnowledgeBase: React.FC = () => {
             onFocus={e => { e.target.style.borderColor = C.primary; e.target.style.boxShadow = `0 0 0 3px ${C.primarySoft}`; }}
             onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = 'none'; }}
           />
-          <BtnPrimary onClick={handleQuery} disabled={loadingQuery} style={{ alignSelf: 'flex-start', opacity: loadingQuery ? 0.7 : 1, cursor: loadingQuery ? 'not-allowed' : 'pointer' }}>
+          <BtnPrimary colors={C} onClick={handleQuery} disabled={loadingQuery} style={{ alignSelf: 'flex-start', opacity: loadingQuery ? 0.7 : 1, cursor: loadingQuery ? 'not-allowed' : 'pointer' }}>
             {loadingQuery ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-flex' }}><SpinIcon /></span> 查询中...</> : <><SearchIcon /> 搜索</>}
           </BtnPrimary>
 
@@ -613,11 +635,11 @@ const KnowledgeBase: React.FC = () => {
       <div style={sectionStyle}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BookIcon />
+            <BookIcon color={C.primary} />
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: C.text }}>我的文档</h3>
           </div>
           {documents.length > 0 && (
-            <BtnSecondary onClick={() => { setIsBatchDeleteMode(!isBatchDeleteMode); if (isBatchDeleteMode) setSelectedDocuments(new Set()); }}
+            <BtnSecondary colors={C} onClick={() => { setIsBatchDeleteMode(!isBatchDeleteMode); if (isBatchDeleteMode) setSelectedDocuments(new Set()); }}
               style={{ background: isBatchDeleteMode ? C.primarySoftHover : C.primarySoft }}>
               {isBatchDeleteMode ? '退出选择' : '批量删除'}
             </BtnSecondary>
@@ -634,10 +656,10 @@ const KnowledgeBase: React.FC = () => {
         {isBatchDeleteMode && selectedDocuments.size > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: C.primarySoft, border: `1px solid rgba(99,102,241,0.2)`, borderRadius: C.radiusSm, marginBottom: '12px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.85rem', color: C.textMuted, fontWeight: 600 }}>已选择 {selectedDocuments.size} 个文档</span>
-            <BtnSecondary onClick={handleSelectAll} style={{ fontSize: '0.8rem', padding: '5px 12px' }}>
+            <BtnSecondary colors={C} onClick={handleSelectAll} style={{ fontSize: '0.8rem', padding: '5px 12px' }}>
               {selectedDocuments.size === documents.length ? '取消全选' : '全选'}
             </BtnSecondary>
-            <BtnDanger onClick={handleBatchDelete} disabled={loadingBatchDelete} style={{ opacity: loadingBatchDelete ? 0.7 : 1, cursor: loadingBatchDelete ? 'not-allowed' : 'pointer' }}>
+            <BtnDanger colors={C} onClick={handleBatchDelete} disabled={loadingBatchDelete} style={{ opacity: loadingBatchDelete ? 0.7 : 1, cursor: loadingBatchDelete ? 'not-allowed' : 'pointer' }}>
               {loadingBatchDelete ? '删除中...' : <><TrashIcon /> 删除 {selectedDocuments.size} 个</>}
             </BtnDanger>
           </div>
@@ -670,7 +692,7 @@ const KnowledgeBase: React.FC = () => {
                     {doc.title}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <StatusBadge status={doc.status} />
+                    <StatusBadge status={doc.status} colors={C} />
                     <span style={{ fontSize: '0.75rem', color: C.textMuted }}>
                       {new Date(doc.createdAt).toLocaleDateString('zh-CN')}
                     </span>
@@ -685,6 +707,7 @@ const KnowledgeBase: React.FC = () => {
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                     {(doc.status === 'uploaded' || doc.status === 'failed') && (
                       <BtnSecondary
+                        colors={C}
                         onClick={() => handleReprocessDocument(doc.id)}
                         disabled={loadingReprocess === doc.id}
                         style={{ fontSize: '0.8rem', padding: '5px 10px', opacity: loadingReprocess === doc.id ? 0.7 : 1 }}
@@ -695,6 +718,7 @@ const KnowledgeBase: React.FC = () => {
                       </BtnSecondary>
                     )}
                     <BtnDanger
+                      colors={C}
                       onClick={() => handleDeleteDocument(doc.id)}
                       style={{ fontSize: '0.8rem', padding: '5px 10px' }}
                     >

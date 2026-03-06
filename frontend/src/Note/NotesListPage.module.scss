@@ -3,6 +3,7 @@
 // Primary #6366F1 | CTA #10B981 | Text #1E1B4B
 // ============================================================
 
+// Light Mode
 $primary: #6366F1;
 $primary-hover: #4F46E5;
 $primary-soft: rgba(99, 102, 241, 0.08);
@@ -17,6 +18,22 @@ $danger: #EF4444;
 $danger-soft: rgba(239, 68, 68, 0.08);
 $warning-soft: rgba(245, 158, 11, 0.1);
 $success-soft: rgba(16, 185, 129, 0.08);
+
+// Dark Mode
+$dark-primary: #818CF8;
+$dark-primary-hover: #6366F1;
+$dark-primary-soft: rgba(129, 140, 248, 0.1);
+$dark-primary-soft-hover: rgba(129, 140, 248, 0.16);
+$dark-cta: #10B981;
+$dark-bg: #0F0F1A;
+$dark-surface: #16162A;
+$dark-border: #2D2D52;
+$dark-text: #F1F0FF;
+$dark-text-muted: #A8A5C7;
+$dark-danger: #FF6B6B;
+$dark-danger-soft: rgba(255, 107, 107, 0.15);
+$dark-warning: #FDB022;
+
 $radius-sm: 6px;
 $radius-md: 10px;
 $radius-lg: 14px;
@@ -454,4 +471,223 @@ $font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-
   font-size: 0.95rem;
   margin: 0;
   line-height: 1.7;
+}
+
+// ============================================================
+// Dark Mode Support
+// ============================================================
+:global(.dark) {
+  .pageContainer {
+    background: $dark-bg;
+    color: $dark-text;
+  }
+
+  .header {
+    background: $dark-surface;
+    border-bottom-color: $dark-border;
+    color: $dark-text;
+  }
+
+  .title {
+    color: $dark-text;
+  }
+
+  .contentWrapper {
+    background: $dark-bg;
+  }
+
+  // Batch actions bar
+  .batchActionsBar {
+    background: $dark-primary-soft;
+    border-bottom-color: rgba($dark-primary, 0.2);
+
+    .selectAllText { color: $dark-primary; }
+    .selectedCount { color: $dark-primary; }
+  }
+
+  // Filters bar
+  .filtersBar {
+    background: $dark-surface;
+    border-bottom-color: $dark-border;
+  }
+
+  // Buttons
+  .buttonPrimary {
+    background: $dark-primary;
+    color: #fff;
+
+    &:hover { background: $dark-primary-hover; }
+  }
+
+  .buttonSecondary {
+    background: $dark-primary-soft;
+    color: $dark-primary;
+
+    &:hover { background: $dark-primary-soft-hover; }
+  }
+
+  .buttonDanger {
+    background: $dark-danger-soft;
+    color: $dark-danger;
+
+    &:hover { background: rgba($dark-danger, 0.2); }
+  }
+
+  .notesList {
+    background: transparent;
+  }
+
+  .noteCard {
+    background: $dark-surface;
+    color: $dark-text;
+    border-color: $dark-border;
+
+    &:hover {
+      border-color: rgba($dark-primary, 0.4);
+      box-shadow: 0 4px 14px rgba($dark-primary, 0.12);
+    }
+  }
+
+  .noteCardSelected {
+    border-color: rgba($dark-primary, 0.5);
+    background: $dark-primary-soft;
+  }
+
+  .noteTitle {
+    color: $dark-text;
+  }
+
+  .noteContent {
+    color: $dark-text-muted;
+  }
+
+  .noteMeta {
+    .tag {
+      background: $dark-primary-soft;
+      color: $dark-primary;
+    }
+
+    .statusPublished {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+    }
+
+    .statusDraft {
+      background: rgba(253, 176, 34, 0.15);
+      color: $dark-warning;
+    }
+
+    .timeText { color: rgba($dark-text-muted, 0.8); }
+  }
+
+  .noteActions {
+    color: $dark-text;
+  }
+
+  .actionButton {
+    background: $dark-primary-soft;
+    color: $dark-primary;
+
+    &:hover:not(:disabled) { background: $dark-primary-soft-hover; }
+  }
+
+  .actionDelete {
+    background: $dark-danger-soft;
+    color: $dark-danger;
+
+    &:hover:not(:disabled) { background: rgba($dark-danger, 0.2); }
+  }
+
+  .actionUpload {
+    background: rgba(59, 130, 246, 0.1);
+    color: #93C5FD;
+
+    &:hover:not(:disabled) { background: rgba(59, 130, 246, 0.18); }
+  }
+
+  .actionSync {
+    background: rgba(253, 176, 34, 0.1);
+    color: $dark-warning;
+
+    &:hover:not(:disabled) { background: rgba(253, 176, 34, 0.18); }
+  }
+
+  // Content area scrollbar
+  .contentArea {
+    &::-webkit-scrollbar-thumb {
+      background: rgba($dark-primary, 0.25);
+    }
+  }
+
+  // Pagination
+  .pagination {
+    color: $dark-text-muted;
+  }
+
+  .pageButton {
+    background: $dark-surface;
+    color: $dark-text-muted;
+    border-color: $dark-border;
+
+    &:hover:not(:disabled) {
+      background: $dark-primary-soft;
+      border-color: rgba($dark-primary, 0.3);
+      color: $dark-primary;
+    }
+  }
+
+  .pageButtonActive {
+    background: $dark-primary;
+    border-color: $dark-primary;
+    color: #fff;
+
+    &:hover { background: $dark-primary-hover; }
+  }
+
+  // Empty state
+  .emptyState {
+    color: $dark-text-muted;
+  }
+
+  .emptyIcon {
+    color: rgba($dark-primary, 0.4);
+  }
+
+  input,
+  textarea,
+  select {
+    background: $dark-bg;
+    color: $dark-text;
+    border-color: $dark-border;
+
+    &:focus {
+      border-color: $dark-primary;
+      box-shadow: 0 0 0 3px $dark-primary-soft;
+    }
+
+    &::placeholder { color: $dark-text-muted; }
+  }
+
+  .searchInput {
+    background: $dark-bg;
+    color: $dark-text;
+    border-color: $dark-border;
+
+    &::placeholder { color: $dark-text-muted; }
+    &:focus {
+      border-color: $dark-primary;
+      box-shadow: 0 0 0 3px $dark-primary-soft;
+    }
+  }
+
+  .select {
+    background: $dark-bg;
+    color: $dark-text;
+    border-color: $dark-border;
+
+    &:focus {
+      border-color: $dark-primary;
+      box-shadow: 0 0 0 3px $dark-primary-soft;
+    }
+  }
 }

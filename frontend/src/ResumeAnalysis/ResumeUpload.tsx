@@ -1,28 +1,28 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToastModal } from '../components/ui/toast-modal';
 
-// ---- Design tokens ----
-const C = {
-  primary: '#6366F1',
-  primaryHover: '#4F46E5',
-  primarySoft: 'rgba(99,102,241,0.08)',
-  primarySoftHover: 'rgba(99,102,241,0.14)',
-  bg: '#F7F6FF',
-  surface: '#FFFFFF',
-  border: '#EAE8F8',
-  text: '#1E1B4B',
-  textMuted: '#6B7280',
-  danger: '#EF4444',
-  dangerSoft: 'rgba(239,68,68,0.08)',
+// ---- Design tokens (theme-aware) ----
+const getThemeColors = (isDark: boolean) => ({
+  primary: isDark ? '#818CF8' : '#6366F1',
+  primaryHover: isDark ? '#6366F1' : '#4F46E5',
+  primarySoft: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(99,102,241,0.08)',
+  primarySoftHover: isDark ? 'rgba(129,140,248,0.16)' : 'rgba(99,102,241,0.14)',
+  bg: isDark ? '#0F0F1A' : '#F7F6FF',
+  surface: isDark ? '#16162A' : '#FFFFFF',
+  border: isDark ? '#2D2D52' : '#EAE8F8',
+  text: isDark ? '#F1F0FF' : '#1E1B4B',
+  textMuted: isDark ? '#A8A5C7' : '#6B7280',
+  danger: isDark ? '#FF6B6B' : '#EF4444',
+  dangerSoft: isDark ? 'rgba(255,107,107,0.15)' : 'rgba(239,68,68,0.08)',
   radius: '10px',
   radiusSm: '6px',
   font: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
+});
 
 // ---- SVG Icons ----
-const UploadSvg = () => (
-  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={C.primary} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+const UploadSvg = ({ color = 'currentColor' }: { color?: string }) => (
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
     <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
   </svg>
@@ -56,6 +56,22 @@ const ResumeUpload: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Theme support - detect dark mode and respond to changes
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Get current theme colors
+  const C = getThemeColors(isDarkMode);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragActive(true); };
   const handleDragLeave = () => setIsDragActive(false);
@@ -204,7 +220,7 @@ const ResumeUpload: React.FC = () => {
                 transition: 'all 0.15s',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><UploadSvg /></div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><UploadSvg color={C.primary} /></div>
               <p style={{ margin: '0 0 4px', fontSize: '0.9rem', fontWeight: 600, color: C.text }}>拖拽简历文件到此处</p>
               <p style={{ margin: 0, fontSize: '0.8rem', color: C.textMuted }}>或点击选择 · 支持 PDF、DOCX、DOC、TXT</p>
             </div>
