@@ -168,7 +168,11 @@ const AIAssistant: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         setSessionId(sessionIdToSwitch);
-        setMessages(data.data.messages || []);
+        const messages = (data.data.messages || []).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(messages);
         setShowHistory(false);
       }
     } catch (e) { console.error('加载会话失败:', e); }

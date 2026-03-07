@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { marked, Renderer } from 'marked';
+import type { Tokens } from 'marked';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
@@ -10,107 +11,110 @@ interface MarkdownRendererProps {
   isStreaming?: boolean;
 }
 
-// ---- 创建配置好的 marked 实例（模块级，避免重复创建）----
-function createMarkedRenderer() {
-  const renderer = new Renderer();
-
-  // 代码块：使用 highlight.js 做语法高亮
-  renderer.code = (token) => {
-    const lang = (token as any).lang || '';
-    const text = (token as any).text || (typeof token === 'string' ? token : '');
+class CustomRenderer extends Renderer {
+  override code(token: Tokens.Code): string {
+    const lang = token.lang || '';
+    const text = token.text || '';
     const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
     const highlighted = hljs.highlight(text, { language }).value;
     const escapedLang = language.replace(/"/g, '&quot;');
-    // 用 data-language 传递语言，由 JS 在 DOM 操作时读取
     return `<div class="md-code-wrapper" data-language="${escapedLang}"><pre class="md-pre"><code class="hljs language-${escapedLang}">${highlighted}</code></pre></div>`;
-  };
+  }
 
-  // 内联代码
-  renderer.codespan = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).text || '';
-    return `<code class="md-inline-code">${text}</code>`;
-  };
+  override codespan(token: Tokens.Codespan): string {
+    return `<code class="md-inline-code">${token.text}</code>`;
+  }
 
-  // 标题
-  renderer.heading = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).text || '';
-    const depth = typeof token === 'string' ? 1 : (token as any).depth || 1;
-    return `<h${depth} class="md-h${depth}">${text}</h${depth}>`;
-  };
+  override heading(token: Tokens.Heading): string {
+    const text = this.parser.parseInline(token.tokens);
+    return `<h${token.depth} class="md-h${token.depth}">${text}</h${token.depth}>`;
+  }
 
-  // 段落
-  renderer.paragraph = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).text || '';
+  override paragraph(token: Tokens.Paragraph): string {
+    const text = this.parser.parseInline(token.tokens);
     return `<p class="md-p">${text}</p>`;
-  };
+  }
 
-  // 无序列表
-  renderer.list = (token) => {
-    const body = typeof token === 'string' ? token : (token as any).body || '';
-    const ordered = typeof token === 'string' ? false : (token as any).ordered || false;
-    const tag = ordered ? 'ol' : 'ul';
+  override list(token: Tokens.List): string {
+    const body = this.parser.parse(token.items);
+    const tag = token.ordered ? 'ol' : 'ul';
     return `<${tag} class="md-${tag}">${body}</${tag}>`;
-  };
+  }
 
-  // 列表项
-  renderer.listitem = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).text || '';
-    return `<li class="md-li">${text}</li>`;
-  };
+  override listitem(token: Tokens.ListItem): string {
+    let itemBody = '';
+    if (token.tokens) {
+      itemBody = this.parser.parse(token.tokens);
+    }
+    return `<li class="md-li">${itemBody}</li>`;
+  }
 
-  // 引用
-  renderer.blockquote = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).body || '';
-    return `<blockquote class="md-blockquote">${text}</blockquote>`;
-  };
+  override blockquote(token: Tokens.Blockquote): string {
+    const body = this.parser.parse(token.tokens);
+    return `<blockquote class="md-blockquote">${body}</blockquote>`;
+  }
 
-  // 强调
-  renderer.strong = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).text || '';
+  override strong(token: Tokens.Strong): string {
+    const text = this.parser.parseInline(token.tokens);
     return `<strong class="md-strong">${text}</strong>`;
-  };
+  }
 
-  // 斜体
-  renderer.em = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).text || '';
+  override em(token: Tokens.Em): string {
+    const text = this.parser.parseInline(token.tokens);
     return `<em class="md-em">${text}</em>`;
-  };
+  }
 
-  // 分割线
-  renderer.hr = () => `<hr class="md-hr" />`;
+  override hr(_token: Tokens.Hr): string {
+    return `<hr class="md-hr" />`;
+  }
 
-  // 表格
-  renderer.table = (token) => {
-    const header = typeof token === 'string' ? '' : (token as any).header || '';
-    const rows = typeof token === 'string' ? '' : (token as any).rows || '';
-    return `<div class="md-table-wrapper"><table class="md-table"><thead class="md-thead">${header}</thead><tbody class="md-tbody">${rows}</tbody></table></div>`;
-  };
+  override table(token: Tokens.Table): string {
+    let header = '<tr class="md-tr">';
+    for (const cell of token.header) {
+      const cellText = this.parser.parseInline(cell.tokens);
+      const align = cell.align ? ` style="text-align:${cell.align}"` : '';
+      header += `<th class="md-td"${align}>${cellText}</th>`;
+    }
+    header += '</tr>';
 
-  renderer.tablerow = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).text || '';
-    return `<tr class="md-tr">${text}</tr>`;
-  };
+    let body = '';
+    for (const row of token.rows) {
+      body += '<tr class="md-tr">';
+      for (const cell of row) {
+        const cellText = this.parser.parseInline(cell.tokens);
+        const align = cell.align ? ` style="text-align:${cell.align}"` : '';
+        body += `<td class="md-td"${align}>${cellText}</td>`;
+      }
+      body += '</tr>';
+    }
 
-  renderer.tablecell = (token) => {
-    const text = typeof token === 'string' ? token : (token as any).text || '';
-    const flags = typeof token === 'string' ? {} : (token as any).flags || {};
-    const tag = flags.header ? 'th' : 'td';
-    const align = flags.align ? ` style="text-align:${flags.align}"` : '';
-    return `<${tag} class="md-td"${align}>${text}</${tag}>`;
-  };
+    return `<div class="md-table-wrapper"><table class="md-table"><thead class="md-thead">${header}</thead><tbody class="md-tbody">${body}</tbody></table></div>`;
+  }
 
-  return renderer;
+  override link(token: Tokens.Link): string {
+    const text = this.parser.parseInline(token.tokens);
+    const title = token.title ? ` title="${token.title}"` : '';
+    return `<a href="${token.href}"${title} class="md-link">${text}</a>`;
+  }
+
+  override image(token: Tokens.Image): string {
+    const title = token.title ? ` title="${token.title}"` : '';
+    return `<img src="${token.href}" alt="${token.text}"${title} class="md-image" />`;
+  }
+
+  override text(token: Tokens.Text | Tokens.Escape | Tokens.Tag): string {
+    return 'tokens' in token && token.tokens
+      ? this.parser.parseInline(token.tokens)
+      : ('text' in token ? token.text : '');
+  }
 }
 
-// 模块级 renderer（单例）
-const markedRenderer = createMarkedRenderer();
-marked.use({ renderer: markedRenderer, breaks: true, gfm: true });
+marked.use({ renderer: new CustomRenderer(), breaks: true, gfm: true });
 
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreaming = false }) => {
+const MarkdownRenderer = ({ content, isStreaming = false }: MarkdownRendererProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  // 将 markdown 转换为安全 HTML
   const rawHtml = useMemo(() => {
     if (!content) return '';
     try {
@@ -136,29 +140,24 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreamin
     }
   }, [content]);
 
-  // 为代码块注入 header（语言 + 复制按钮）
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // 移除旧的 header（避免重复注入）
     container.querySelectorAll('.md-code-header').forEach(el => el.remove());
 
     const wrappers = container.querySelectorAll<HTMLElement>('.md-code-wrapper');
     wrappers.forEach((wrapper, idx) => {
       const lang = wrapper.dataset.language || 'plaintext';
 
-      // 创建 header
       const header = document.createElement('div');
       header.className = 'md-code-header';
 
-      // 语言标签
       const langEl = document.createElement('span');
       langEl.className = 'md-code-lang';
       langEl.textContent = lang.toLowerCase();
       header.appendChild(langEl);
 
-      // 复制按钮
       const copyBtn = document.createElement('button');
       copyBtn.className = `md-copy-btn${copiedIndex === idx ? ' copied' : ''}`;
       copyBtn.type = 'button';
@@ -178,11 +177,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreamin
       });
       header.appendChild(copyBtn);
 
-      // 在 wrapper 最前插入 header
       wrapper.insertBefore(header, wrapper.firstChild);
     });
 
-    // 设置链接在新标签打开
     container.querySelectorAll('a').forEach(link => {
       link.setAttribute('target', '_blank');
       link.setAttribute('rel', 'noopener noreferrer');
