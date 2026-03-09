@@ -1387,6 +1387,169 @@ $dark-warning-light: #3F2F0F;
   }
 }
 
+// ─── 视频行为分析板块 ──────────────────────────────────────────────────────────
+.video-behavior-section {
+  // 整体卡片容器
+  .video-overall-card {
+    background: $bg-white;
+    border-radius: 12px;
+    border: 1px solid $border;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  // 综合评分环
+  .video-overall-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+
+    .video-score-circle {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 8px;
+        background: $bg-white;
+        border-radius: 50%;
+      }
+
+      .video-score-inner {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+
+        .video-score-value {
+          display: block;
+          font-size: 22px;
+          font-weight: 700;
+          color: $text-primary;
+          line-height: 1;
+        }
+
+        .video-score-max {
+          font-size: 11px;
+          color: $text-muted;
+        }
+      }
+    }
+
+    .video-score-label {
+      font-size: 13px;
+      color: $text-secondary;
+      font-weight: 500;
+    }
+  }
+
+  // 四项子维度网格
+  .video-dimensions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 14px;
+
+    .video-dimension-item {
+      padding: 14px 16px;
+      background: $bg;
+      border-radius: 8px;
+      border: 1px solid $border;
+
+      .video-dimension-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+
+        .video-dimension-icon {
+          font-size: 16px;
+          line-height: 1;
+        }
+
+        .video-dimension-name {
+          flex: 1;
+          font-size: 13px;
+          font-weight: 600;
+          color: $text-primary;
+        }
+
+        .video-dimension-score {
+          font-size: 15px;
+          font-weight: 700;
+        }
+      }
+
+      .video-dimension-bar {
+        height: 5px;
+        background: $border;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 6px;
+
+        .video-dimension-fill {
+          height: 100%;
+          border-radius: 3px;
+          transition: width 0.4s ease;
+        }
+      }
+
+      .video-dimension-desc {
+        margin: 0;
+        font-size: 12px;
+        color: $text-muted;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  // 文字反馈卡片
+  .video-feedback-card {
+    margin-top: 14px;
+    padding: 18px 20px;
+    background: $bg-white;
+    border-radius: 10px;
+    border: 1px solid $border;
+    border-left: 4px solid $primary;
+
+    h4 {
+      margin: 0 0 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: $text-primary;
+    }
+
+    .video-feedback-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      .video-feedback-item {
+        display: flex;
+        gap: 8px;
+        font-size: 13px;
+        color: $text-secondary;
+        line-height: 1.6;
+
+        .video-feedback-bullet {
+          color: $primary;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+      }
+    }
+  }
+}
+
+// ─── 报告暗色模式 - 视频行为 ────────────────────────────────────────────────────
+
 .resources-section {
   .resources-list {
     display: flex;
@@ -2306,7 +2469,6 @@ $dark-warning-light: #3F2F0F;
     gap: 8px;
 
     .video-preview {
-      width: 280px;
       height: 210px;
       background: rgba(0, 0, 0, 0.4);
       border-radius: 16px;
@@ -3293,6 +3455,47 @@ $dark-warning-light: #3F2F0F;
 
       .resource-title { color: $dark-text-primary; }
       .resource-arrow { color: $dark-text-muted; }
+    }
+
+    // Video behavior section dark mode
+    .video-behavior-section {
+      .video-overall-card {
+        background: $dark-bg-white;
+        border-color: $dark-border;
+      }
+
+      .video-score-circle::before {
+        background: $dark-bg-white;
+      }
+
+      .video-score-inner {
+        .video-score-value { color: $dark-text-primary; }
+        .video-score-max { color: $dark-text-muted; }
+      }
+
+      .video-score-label { color: $dark-text-secondary; }
+
+      .video-dimension-item {
+        background: $dark-bg;
+        border-color: $dark-border;
+
+        .video-dimension-name { color: $dark-text-primary; }
+        .video-dimension-bar { background: rgba(255, 255, 255, 0.1); }
+        .video-dimension-desc { color: $dark-text-muted; }
+      }
+
+      .video-feedback-card {
+        background: $dark-bg-white;
+        border-color: $dark-border;
+        border-left-color: $dark-primary;
+
+        h4 { color: $dark-text-primary; }
+
+        .video-feedback-item {
+          color: $dark-text-secondary;
+          .video-feedback-bullet { color: $dark-primary; }
+        }
+      }
     }
 
     // Error message

@@ -113,11 +113,13 @@ export class InterviewMessageService {
       .find((msg) => msg.role === 'assistant');
     const currentQuestion = lastAssistantMessage?.content || '';
 
+    // 将视频帧分析数据一并传入评估，使评分参考候选人的视频行为表现
     this.evaluateAnswerAsync(
       tempMessage.id,
       currentQuestion,
       userMessage,
       interview,
+      videoAnalysis,
     );
 
     const sceneConfig = SCENE_CONFIG[interview.sceneType as keyof typeof SCENE_CONFIG];
@@ -246,14 +248,15 @@ ${historyText.substring(0, 1000)}...
     question: string,
     answer: string,
     interview: Interview,
+    videoAnalysis?: any,
   ): Promise<void> {
-    this.evaluatorService.evaluateAnswer(question, answer, interview)
+    this.evaluatorService.evaluateAnswer(question, answer, interview, videoAnalysis)
       .then(async (evaluation) => {
         await this.messageRepository.update(
           { id: messageId },
           { evaluation, score: evaluation.overall },
         );
-        this.logger.log(`[异步评估] 消息 ${messageId} 评估完成 - 评分: ${evaluation.overall.toFixed(2)}`);
+        this.logger.log(`[异步评估] 消息 ${messageId} 评估完成 - 评分: ${evaluation.overall.toFixed(2)}${videoAnalysis ? '（含视频分析）' : ''}`);
       })
       .catch((error) => {
         this.logger.error(`[异步评估] 消息 ${messageId} 评估失败:`, error);

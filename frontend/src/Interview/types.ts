@@ -80,6 +80,19 @@ export interface InterviewMessage {
   }>;
 }
 
+export interface VideoBehaviorScores {
+  /** 眼神接触评分 0-100 */
+  eyeContactScore: number;
+  /** 情绪稳定性评分 0-100 */
+  emotionStabilityScore: number;
+  /** 视线稳定性评分 0-100 */
+  gazeStabilityScore: number;
+  /** 人脸可见度评分 0-100 */
+  faceVisibilityScore: number;
+  /** 视频行为综合评分 0-100 */
+  overallVideoScore: number;
+}
+
 export interface InterviewReport {
   id: string;
   interviewId: string;
@@ -91,9 +104,13 @@ export interface InterviewReport {
     expression: number;
     highlights: number;
   };
+  /** 视频行为评分（仅视频面试时存在） */
+  videoBehaviorScores?: VideoBehaviorScores;
   strengths: string;
   weaknesses: string;
   suggestions: string;
+  /** 视频行为综合反馈文本（仅视频面试时存在） */
+  videoBehaviorFeedback?: string;
   learningResources?: Array<{
     type: string;
     title: string;
@@ -217,6 +234,15 @@ export interface VideoAnalysisSummary {
   feedback: string[];
 }
 
+// 视频通话消息结果中的视频分析（单帧或多帧摘要均兼容）
+export interface VideoAnalysisInMessage extends Partial<VideoFrameAnalysis> {
+  /** 多帧分析时的摘要，含主导情绪等聚合数据 */
+  summary?: VideoAnalysisSummary;
+  /** 单帧分析时直接挂在顶层，多帧时可在 summary 中取 */
+  dominantEmotion?: string;
+  frames?: VideoFrameAnalysis[];
+}
+
 // 视频通话消息结果
 export interface VideoMessageResult {
   userText: string;
@@ -224,7 +250,7 @@ export interface VideoMessageResult {
   audioBase64: string;
   audioFormat: string;
   shouldEnd: boolean;
-  videoAnalysis?: VideoFrameAnalysis;
+  videoAnalysis?: VideoAnalysisInMessage;
 }
 
 // 视频通话状态

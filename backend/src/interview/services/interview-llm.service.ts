@@ -227,8 +227,45 @@ ${historyText}
     question: string,
     answer: string,
     interview: Interview,
+    videoAnalysis?: any,
   ): Promise<MessageEvaluation> {
     const sceneConfig = SCENE_CONFIG[interview.sceneType as keyof typeof SCENE_CONFIG];
+
+    // 构建视频行为分析描述段落
+    let videoAnalysisSection = '';
+    if (videoAnalysis) {
+      const summary = videoAnalysis.summary ?? videoAnalysis;
+      if (summary) {
+        const emotionMap: Record<string, string> = {
+          neutral: '平静', happy: '愉悦', sad: '低落',
+          angry: '紧张', fearful: '恐惧', disgusted: '不适', surprised: '惊讶',
+        };
+        const dominantEmotion = emotionMap[summary.dominantEmotion] || summary.dominantEmotion || '平静';
+        const eyeContactPct = summary.eyeContactRatio !== undefined
+          ? `${Math.round(summary.eyeContactRatio * 100)}%`
+          : (videoAnalysis.eyeContact ? '良好' : '较差');
+        const gazeDir = summary.gazeDistribution
+          ? Object.entries(summary.gazeDistribution as Record<string, number>)
+              .sort((a, b) => b[1] - a[1])[0]?.[0] || 'center'
+          : (videoAnalysis.gazeDirection || 'center');
+        const facePct = summary.faceDetectionRatio !== undefined
+          ? `${Math.round(summary.faceDetectionRatio * 100)}%`
+          : (videoAnalysis.faceDetected ? '100%' : '0%');
+
+        videoAnalysisSection = `
+候选人视频行为分析（回答本题期间）：
+- 主导情绪：${dominantEmotion}
+- 眼神接触比例：${eyeContactPct}
+- 主要视线方向：${gazeDir}
+- 面部可见比例：${facePct}
+${summary.overallScore !== undefined ? `- 视频行为综合评分：${summary.overallScore}/100` : ''}
+
+在评估 expression（表达能力）时，请适当参考视频行为分析结果：
+- 若眼神接触比例低（< 50%）或情绪偏负面（如恐惧/低落），expression 分数应酌情下调
+- 若眼神接触良好（> 70%）且情绪积极（平静/愉悦），expression 分数可适当提高
+`;
+      }
+    }
 
     const evaluationPrompt = `请评估以下面试回答的质量。
 
@@ -239,12 +276,12 @@ ${historyText}
 问题：${question}
 
 候选人回答：${answer}
-
+${videoAnalysisSection}
 请从以下维度进行评分（每项1-10分）：
 1. 完整性（completeness）：是否完整回答了问题
 2. 清晰度（clarity）：回答是否有条理
 3. 深度（depth）：回答的专业程度
-4. 表达能力（expression）：语言组织和表达
+4. 表达能力（expression）：语言组织和表达（参考视频行为）
 5. 亮点（highlights）：是否有亮点或独特见解
 
 请以JSON格式返回评估结果，格式如下：

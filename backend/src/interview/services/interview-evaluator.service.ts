@@ -14,14 +14,16 @@ export class InterviewEvaluatorService {
     question: string,
     answer: string,
     interview: Interview,
+    videoAnalysis?: any,
   ): Promise<MessageEvaluation> {
     try {
-      this.logger.log(`开始评估回答 - 面试ID: ${interview.id}`);
+      this.logger.log(`开始评估回答 - 面试ID: ${interview.id}${videoAnalysis ? '（含视频分析）' : ''}`);
       
       const evaluation = await this.llmService.evaluateAnswer(
         question,
         answer,
         interview,
+        videoAnalysis,
       );
 
       this.logger.log(`评估完成 - 综合评分: ${evaluation.overall.toFixed(2)}`);

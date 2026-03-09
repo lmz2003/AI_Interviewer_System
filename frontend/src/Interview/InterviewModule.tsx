@@ -376,6 +376,12 @@ interface VideoInterviewLoaderProps {
   onSessionReady: (sessionId: string) => void;
 }
 
+/**
+ * VideoInterviewLoader 职责：
+ * 仅负责从后端获取 sessionId 和开场白文本（SSE 流），
+ * 一旦 sessionId 就绪且开场白文本已收到，立即渲染 VideoInterview。
+ * 摄像头初始化、开场白播放、截帧等全部由 VideoInterview 内部完成。
+ */
 const VideoInterviewLoader: React.FC<VideoInterviewLoaderProps> = ({
   interview,
   initialSessionId,
@@ -385,91 +391,53 @@ const VideoInterviewLoader: React.FC<VideoInterviewLoaderProps> = ({
   onSessionReady,
 }) => {
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
-  const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [openingText, setOpeningText] = useState('');
-  const [isPlayingOpening, setIsPlayingOpening] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // session 就绪且文本收完后才渲染 VideoInterview
+  const [sessionReady, setSessionReady] = useState(!!initialSessionId);
+
   const initialElapsedTimeRef = useRef(initialElapsedTime);
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const playOpeningAudio = useCallback(async (text: string) => {
-    if (!text.trim()) return;
-
-    setIsPlayingOpening(true);
-    try {
-      const audioBlob = await interviewApi.textToSpeech(text, 'anna', 1.0);
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        setIsPlayingOpening(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      audio.onerror = () => {
-        setIsPlayingOpening(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      await audio.play();
-    } catch (err) {
-      console.error('播放开场白失败:', err);
-      setIsPlayingOpening(false);
-    }
-  }, []);
-
   useEffect(() => {
-    if (sessionId) return;
+    // 无论是新建面试还是继续面试，都需要通过 SSE 获取开场白文本
+    // 因为后端 startSession 会返回 firstMessage（即开场白）
 
-    setIsStarting(true);
-    let tempSessionId: string | null = null;
+    let tempSessionId: string | null = initialSessionId || null;
     let tempText = '';
+
+    // 如果是继续面试，先设置 sessionId，但仍然需要获取开场白
+    if (initialSessionId) {
+      setSessionId(initialSessionId);
+      onSessionReady(initialSessionId);
+    }
 
     const control = interviewApi.startInterviewStream(
       interview.id,
       (event) => {
         if (event.type === 'session') {
           tempSessionId = event.data.sessionId as string;
+          setSessionId(tempSessionId);
+          onSessionReady(tempSessionId);
         } else if (event.type === 'chunk') {
           tempText += event.data as string;
           setOpeningText(tempText);
         } else if (event.type === 'done') {
-          if (tempSessionId) {
-            setSessionId(tempSessionId);
-            onSessionReady(tempSessionId);
-          }
-          setIsStarting(false);
-          if (tempText.trim()) {
-            playOpeningAudio(tempText);
-          }
+          // 文本收完（或没有文本时），通知 VideoInterview 可以开始了
+          setSessionReady(true);
         } else if (event.type === 'error') {
           setStartError((event.data?.message as string) || '启动面试失败');
-          setIsStarting(false);
         }
       },
       (err) => {
         setStartError(err.message);
-        setIsStarting(false);
       },
     );
 
-    return () => {
-      control.abort();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
+    return () => { control.abort(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, []);
 
+  // 错误状态
   if (startError) {
     return (
       <div className="video-interview-page">
@@ -479,26 +447,21 @@ const VideoInterviewLoader: React.FC<VideoInterviewLoaderProps> = ({
           </button>
           <div className="video-header-info">
             <div className="video-title">{interview.title || interview.sceneName}</div>
-            <div className="video-meta">
-              {interview.jobName || '通用岗位'} · {interview.difficultyName}
-            </div>
+            <div className="video-meta">{interview.jobName || '通用岗位'} · {interview.difficultyName}</div>
           </div>
         </div>
         <div className="video-main">
           <div className="video-container">
-            <div className="error-state">
-              <div className="error-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-              </div>
+            <div className="error-state" style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="40" height="40">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
               <p>启动面试失败：{startError}</p>
               <button className="start-btn" onClick={onBack}>返回重试</button>
             </div>
           </div>
-          <div className="video-status-label">启动失败</div>
         </div>
         <div className="video-controls">
           <button className="control-btn end-call-btn" onClick={onBack}>
@@ -510,96 +473,51 @@ const VideoInterviewLoader: React.FC<VideoInterviewLoaderProps> = ({
     );
   }
 
-  if (isStarting || !sessionId) {
+  // session 就绪后立即渲染 VideoInterview（开场白由它内部播放）
+  if (sessionReady && sessionId) {
     return (
-      <div className="video-interview-page">
-        <div className="video-header">
-          <button className="back-btn" onClick={onBack}>
-            <ChevronLeftIcon /> 返回
-          </button>
-          <div className="video-header-info">
-            <div className="video-title">{interview.title || interview.sceneName}</div>
-            <div className="video-meta">
-              {interview.jobName || '通用岗位'} · {interview.difficultyName}
-            </div>
-          </div>
-        </div>
-        <div className="video-main">
-          <div className="video-container">
-            <div className="loading-state">
-              <div className="spinner" />
-              <p>正在连接面试官...</p>
-              {openingText && (
-                <div className="opening-preview">{openingText}</div>
-              )}
-            </div>
-          </div>
-          <div className="video-status-label">正在连接面试官...</div>
-        </div>
-        <div className="video-controls">
-          <button className="control-btn end-call-btn" disabled={true}>
-            <PhoneOffIcon />
-            <span>结束面试</span>
-          </button>
-        </div>
-      </div>
+      <VideoInterview
+        interview={interview}
+        sessionId={sessionId}
+        openingText={openingText}
+        onEnd={onEnd}
+        onBack={onBack}
+        initialDuration={initialElapsedTimeRef.current}
+      />
     );
   }
 
-  if (isPlayingOpening) {
-    return (
-      <div className="video-interview-page">
-        <div className="video-header">
-          <button className="back-btn" onClick={onBack}>
-            <ChevronLeftIcon /> 返回
-          </button>
-          <div className="video-header-info">
-            <div className="video-title">{interview.title || interview.sceneName}</div>
-            <div className="video-meta">
-              {interview.jobName || '通用岗位'} · {interview.difficultyName}
-            </div>
-          </div>
-        </div>
-        <div className="video-main">
-          <div className="video-container">
-            <div className={`ai-video-section speaking`}>
-              <div className="ai-avatar-large">
-                <BotIcon />
-                <div className="ai-speaking-ring-large" />
-              </div>
-              <div className="ai-label">AI 面试官</div>
-              <div className="ai-waveform-large">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <div key={i} className="ai-wave-bar-large" style={{ animationDelay: `${i * 0.1}s` }} />
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="video-info-row">
-            <div className="subtitles-area">
-              <div className="current-subtitle">{openingText}</div>
-            </div>
-          </div>
-          <div className="video-status-label">面试官正在说话...</div>
-        </div>
-        <div className="video-controls">
-          <button className="control-btn end-call-btn" disabled={true}>
-            <PhoneOffIcon />
-            <span>结束面试</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // 等待 session 建立中
   return (
-    <VideoInterview
-      interview={interview}
-      sessionId={sessionId}
-      onEnd={onEnd}
-      onBack={onBack}
-      initialDuration={initialElapsedTimeRef.current}
-    />
+    <div className="video-interview-page">
+      <div className="video-header">
+        <button className="back-btn" onClick={onBack}>
+          <ChevronLeftIcon /> 返回
+        </button>
+        <div className="video-header-info">
+          <div className="video-title">{interview.title || interview.sceneName}</div>
+          <div className="video-meta">{interview.jobName || '通用岗位'} · {interview.difficultyName}</div>
+        </div>
+      </div>
+      <div className="video-main">
+        <div className="video-container">
+          <div className="loading-state" style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
+            <div className="spinner" />
+            <p>正在连接面试官...</p>
+            {openingText && (
+              <div className="opening-preview">{openingText}</div>
+            )}
+          </div>
+        </div>
+        <div className="video-status-label">正在连接面试官...</div>
+      </div>
+      <div className="video-controls">
+        <button className="control-btn end-call-btn" disabled={true}>
+          <PhoneOffIcon />
+          <span>结束面试</span>
+        </button>
+      </div>
+    </div>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { interviewApi } from './api';
 import type { Interview, VoiceCallStatus } from './types';
+import { useToastModal } from '@/components/ui/toast-modal';
 
 // SVG 图标
 const MicIcon = () => (
@@ -385,7 +386,12 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   }, [callStatus, sessionId, voice, playAudioBase64, onEnd, saveProgress]);
 
   const handleEndInterview = useCallback(async () => {
-    if (!confirm('确定要结束语音面试吗？')) return;
+    const toastModal = useToastModal();
+    const confirmed = await toastModal.confirm(
+      '确定要结束语音面试吗？',
+      '结束面试',
+    );
+    if (!confirmed) return;
 
     cleanup();
     setCallStatus('ended');

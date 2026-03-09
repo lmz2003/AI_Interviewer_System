@@ -29,27 +29,41 @@ export class InterviewReportService {
     this.logger.log(`开始生成面试报告 - 面试ID: ${interview.id}`);
 
     const dimensionScores = this.evaluatorService.calculateDimensionAverages(messages);
-    const overallScore = this.evaluatorService.calculateSessionScore(messages);
+    const langScore = this.evaluatorService.calculateSessionScore(messages);
     const { strengths, weaknesses } = this.evaluatorService.analyzeStrengthsAndWeaknesses(dimensionScores);
     const suggestions = this.evaluatorService.generateSuggestions(dimensionScores, interview);
 
     const questionAnalysis = this.extractQuestionAnalysis(messages);
 
-    const summary = await this.generateSummary(interview, messages, overallScore);
-
-    const learningResources = this.generateLearningResources(dimensionScores, interview);
-
     const videoBehaviorScores = this.calculateVideoBehaviorScores(messages);
     const videoBehaviorFeedback = this.generateVideoBehaviorFeedback(videoBehaviorScores, messages);
+
+    // 若有视频行为分析数据，将视频综合分（百分制→十分制）按 20% 权重混合进总分
+    let overallScore = langScore;
+    if (videoBehaviorScores) {
+      const videoScore10 = videoBehaviorScores.overallVideoScore / 10; // 0-100 → 0-10
+      overallScore = langScore * 0.8 + videoScore10 * 0.2;
+      this.logger.log(
+        `[报告] 语言评分: ${langScore.toFixed(2)}, 视频评分: ${videoScore10.toFixed(2)}, 综合评分: ${overallScore.toFixed(2)}`,
+      );
+    }
+
+    // 视频行为维度纳入优劣势和建议
+    const { strengths: finalStrengths, weaknesses: finalWeaknesses } =
+      this.mergeVideoIntoStrengthsWeaknesses(strengths, weaknesses, videoBehaviorScores);
+    const finalSuggestions = this.mergeVideoIntoSuggestions(suggestions, videoBehaviorScores);
+
+    const summary = await this.generateSummary(interview, messages, overallScore);
+    const learningResources = this.generateLearningResources(dimensionScores, interview);
 
     const report = this.reportRepository.create({
       interviewId: interview.id,
       overallScore,
       dimensionScores,
       videoBehaviorScores,
-      strengths: strengths.join('、'),
-      weaknesses: weaknesses.join('、'),
-      suggestions: suggestions.join('\n'),
+      strengths: finalStrengths.join('、'),
+      weaknesses: finalWeaknesses.join('、'),
+      suggestions: finalSuggestions.join('\n'),
       videoBehaviorFeedback,
       summary,
       questionAnalysis,
@@ -275,6 +289,68 @@ export class InterviewReportService {
     }
 
     return summary;
+  }
+
+  /**
+   * 将视频行为维度融合进优劣势分析。
+   * 视频综合分 ≥ 70 → 「视频表现」列为优势；< 50 → 列为劣势。
+   */
+  private mergeVideoIntoStrengthsWeaknesses(
+    strengths: string[],
+    weaknesses: string[],
+    videoBehaviorScores: VideoBehaviorScores | undefined,
+  ): { strengths: string[]; weaknesses: string[] } {
+    if (!videoBehaviorScores) {
+      return { strengths, weaknesses };
+    }
+
+    const mergedStrengths = [...strengths];
+    const mergedWeaknesses = [...weaknesses];
+
+    if (videoBehaviorScores.overallVideoScore >= 70) {
+      mergedStrengths.push('视频面试表现');
+    } else if (videoBehaviorScores.overallVideoScore < 50) {
+      mergedWeaknesses.push('视频面试表现');
+    }
+
+    // 细粒度：眼神接触
+    if (videoBehaviorScores.eyeContactScore >= 80) {
+      if (!mergedStrengths.includes('眼神交流')) mergedStrengths.push('眼神交流');
+    } else if (videoBehaviorScores.eyeContactScore < 50) {
+      if (!mergedWeaknesses.includes('眼神交流')) mergedWeaknesses.push('眼神交流');
+    }
+
+    return { strengths: mergedStrengths, weaknesses: mergedWeaknesses };
+  }
+
+  /**
+   * 将视频行为维度融合进改进建议。
+   */
+  private mergeVideoIntoSuggestions(
+    suggestions: string[],
+    videoBehaviorScores: VideoBehaviorScores | undefined,
+  ): string[] {
+    if (!videoBehaviorScores) return suggestions;
+
+    const merged = [...suggestions];
+
+    if (videoBehaviorScores.eyeContactScore < 60) {
+      merged.push('建议在面试中保持与摄像头的眼神接触，这能展示自信与专注，给面试官留下更好的印象');
+    }
+
+    if (videoBehaviorScores.emotionStabilityScore < 50) {
+      merged.push('建议面试前做好心理准备，保持平和放松的状态，面部表情自然得体有助于给面试官留下积极印象');
+    }
+
+    if (videoBehaviorScores.gazeStabilityScore < 50) {
+      merged.push('建议减少视线游移，将注意力集中在屏幕上，避免频繁向侧面或上方看，以展示专注度');
+    }
+
+    if (videoBehaviorScores.faceVisibilityScore < 80) {
+      merged.push('建议调整摄像头角度和位置，确保面部始终清晰可见，避免光线过暗或摄像头偏移');
+    }
+
+    return merged;
   }
 
   private generateLearningResources(

@@ -69,6 +69,13 @@ const ExternalLinkIcon = () => (
   </svg>
 );
 
+const VideoIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+    <polygon points="23 7 16 12 23 17 23 7" />
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+  </svg>
+);
+
 interface InterviewReportProps {
   reportId: string;
   interview: Interview | null;
@@ -267,6 +274,101 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
             ))}
           </div>
         </div>
+
+        {report.videoBehaviorScores && (
+          <div className="report-section video-behavior-section">
+            <h3>
+              <VideoIcon />
+              视频行为分析
+            </h3>
+
+            {/* 视频综合评分总览 */}
+            <div className="video-overall-card">
+              <div className="video-overall-score">
+                <div
+                  className="video-score-circle"
+                  style={{
+                    background: `conic-gradient(
+                      ${report.videoBehaviorScores.overallVideoScore >= 70 ? '#10b981' : report.videoBehaviorScores.overallVideoScore >= 50 ? '#f59e0b' : '#ef4444'} 
+                      ${report.videoBehaviorScores.overallVideoScore * 3.6}deg,
+                      #e5e7eb ${report.videoBehaviorScores.overallVideoScore * 3.6}deg
+                    )`,
+                  }}
+                >
+                  <div className="video-score-inner">
+                    <span className="video-score-value">{report.videoBehaviorScores.overallVideoScore}</span>
+                    <span className="video-score-max">/100</span>
+                  </div>
+                </div>
+                <div className="video-score-label">视频行为综合评分</div>
+              </div>
+
+              {/* 四项子维度 */}
+              <div className="video-dimensions">
+                {[
+                  {
+                    key: 'eyeContactScore',
+                    label: '眼神接触',
+                    desc: '与摄像头保持目光接触的比例',
+                    icon: '👁',
+                  },
+                  {
+                    key: 'emotionStabilityScore',
+                    label: '情绪稳定性',
+                    desc: '面部表情是否积极平稳',
+                    icon: '😊',
+                  },
+                  {
+                    key: 'gazeStabilityScore',
+                    label: '视线稳定性',
+                    desc: '视线集中在屏幕方向的程度',
+                    icon: '🎯',
+                  },
+                  {
+                    key: 'faceVisibilityScore',
+                    label: '面部可见度',
+                    desc: '全程面部在画面中的清晰度',
+                    icon: '📷',
+                  },
+                ].map((dim) => {
+                  const score = report.videoBehaviorScores![dim.key as keyof typeof report.videoBehaviorScores] as number;
+                  const color = score >= 70 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+                  return (
+                    <div key={dim.key} className="video-dimension-item">
+                      <div className="video-dimension-header">
+                        <span className="video-dimension-icon">{dim.icon}</span>
+                        <span className="video-dimension-name">{dim.label}</span>
+                        <span className="video-dimension-score" style={{ color }}>{score}</span>
+                      </div>
+                      <div className="video-dimension-bar">
+                        <div
+                          className="video-dimension-fill"
+                          style={{ width: `${score}%`, backgroundColor: color }}
+                        />
+                      </div>
+                      <p className="video-dimension-desc">{dim.desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 视频行为文字反馈 */}
+            {report.videoBehaviorFeedback && (
+              <div className="video-feedback-card">
+                <h4>行为反馈</h4>
+                <div className="video-feedback-list">
+                  {report.videoBehaviorFeedback.split('；').filter(Boolean).map((fb, i) => (
+                    <div key={i} className="video-feedback-item">
+                      <span className="video-feedback-bullet">•</span>
+                      <span>{fb}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {report.questionAnalysis && report.questionAnalysis.length > 0 && (
           <div className="report-section questions-section">
