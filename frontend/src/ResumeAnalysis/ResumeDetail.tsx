@@ -20,6 +20,7 @@ interface Resume {
   title: string;
   content: string;
   fileType: string;
+  fileName?: string;
   parsedData?: any;
   createdAt: string;
 }
@@ -178,7 +179,7 @@ const ResumeDetail: React.FC = () => {
         {/* Left: PDF/Text viewer */}
         <div style={{ flex: 1, overflow: 'auto', background: C.surface, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', overflow: 'auto', minHeight: 0 }}>
-            {resume.fileType === 'pdf' ? (
+            {resume.fileType === 'pdf' && resume.fileName ? (
               <PDFViewer resumeId={resume.id} />
             ) : (
               <div style={{ padding: '20px', whiteSpace: 'pre-wrap', wordWrap: 'break-word', overflow: 'auto', fontFamily: C.font, fontSize: '0.9rem', lineHeight: 1.7, color: C.text }}>

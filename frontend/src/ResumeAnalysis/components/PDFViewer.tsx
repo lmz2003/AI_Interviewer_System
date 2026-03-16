@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
 const Container = styled.div`
@@ -121,6 +121,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ resumeId }) => {
   const [isDarkMode, setIsDarkMode] = useState(() =>
     document.documentElement.classList.contains('dark')
   );
+  const pdfUrlRef = useRef<string>('');
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -131,11 +132,16 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ resumeId }) => {
   }, []);
 
   useEffect(() => {
-    // 从数据库获取 PDF 二进制数据
+    let isCancelled = false;
+    
     const fetchPdfFromDatabase = async () => {
       try {
         const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
         const token = localStorage.getItem('token');
+
+        if (!token) {
+          throw new Error('未登录，请先登录');
+        }
 
         const response = await fetch(`${apiBaseUrl}/resume-analysis/${resumeId}/pdf`, {
           headers: {
@@ -143,30 +149,53 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ resumeId }) => {
           },
         });
 
+        if (isCancelled) return;
+
         if (!response.ok) {
-          throw new Error('Failed to fetch PDF from database');
+          if (response.status === 404) {
+            throw new Error('PDF 文件不存在或已被删除');
+          } else if (response.status === 401) {
+            throw new Error('登录已过期，请重新登录');
+          } else if (response.status === 403) {
+            throw new Error('无权访问此文件');
+          }
+          
+          const errorData = await response.json().catch(() => ({ message: '未知错误' }));
+          throw new Error(errorData.message || `请求失败 (${response.status})`);
         }
 
-        // 获取二进制数据
+        const contentType = response.headers.get('content-type');
+        if (!contentType?.includes('pdf') && !contentType?.includes('octet-stream')) {
+          throw new Error('服务器返回的不是 PDF 文件');
+        }
+
         const blob = await response.blob();
         
-        // 创建本地 Blob URL
+        if (blob.size === 0) {
+          throw new Error('PDF 文件为空');
+        }
+        
         const blobUrl = URL.createObjectURL(blob);
+        pdfUrlRef.current = blobUrl;
         setPdfUrl(blobUrl);
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to load PDF';
+        if (isCancelled) return;
+        const errorMsg = err instanceof Error ? err.message : '加载 PDF 失败';
         setError(errorMsg);
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchPdfFromDatabase();
 
-    // 清理 Blob URL
     return () => {
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
+      isCancelled = true;
+      if (pdfUrlRef.current) {
+        URL.revokeObjectURL(pdfUrlRef.current);
+        pdfUrlRef.current = '';
       }
     };
   }, [resumeId]);
@@ -193,7 +222,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ resumeId }) => {
     );
   }
 
-  // 尝试使用 embed 标签（推荐）
   return (
     <Container>
       <PDFEmbed
