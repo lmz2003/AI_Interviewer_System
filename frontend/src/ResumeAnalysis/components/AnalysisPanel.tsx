@@ -209,7 +209,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
   // ---- Tab content renderers ----
   const renderOverview = () => (
     <>
-      <Section>
+      {/* <Section>
         <SectionTitle icon={<BarChartIcon />} label="各维度评分" />
         <div style={{ 
           display: 'grid', 
@@ -228,7 +228,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
             );
           })}
         </div>
-      </Section>
+      </Section> */}
 
       {reportData.overallEvaluation && (
         <Section>
@@ -412,7 +412,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }}>
         {visibleTabs.map(({ id, label, Icon }) => (
           <button
             key={id}
