@@ -91,6 +91,7 @@ export class InterviewReportService {
   async getReportById(reportId: string): Promise<InterviewReport | null> {
     return this.reportRepository.findOne({
       where: { id: reportId },
+      relations: ['interview'],
     });
   }
 
@@ -835,7 +836,11 @@ export class InterviewReportService {
           id: String(idCounter++),
           type: 'p',
           children: [
-            { text: resource.title, url: resource.url },
+            {
+              type: 'a',
+              url: resource.url,
+              children: [{ text: resource.title }],
+            },
             { text: ` (${resource.type})` },
           ],
         });

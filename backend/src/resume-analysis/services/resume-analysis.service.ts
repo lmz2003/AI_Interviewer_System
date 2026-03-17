@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, forwardRef, Inject } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { validate as validateUUID } from 'uuid';
@@ -20,7 +20,6 @@ export class ResumeAnalysisService {
     private analysisRepository: Repository<ResumeAnalysis>,
     private parserService: ResumeParserService,
     private analyzerService: ResumeAnalyzerService,
-    @Inject(forwardRef(() => ResumeAnalysisGateway))
     private gateway: ResumeAnalysisGateway,
   ) {}
 

@@ -160,9 +160,12 @@ export class ResumeAnalysisController {
     }
 
     // 设置响应头
+    // 文件名使用 RFC 5987 编码，支持中文等非 ASCII 字符
+    const rawFileName = resume.fileName || 'resume.pdf';
+    const encodedFileName = encodeURIComponent(rawFileName).replace(/'/g, '%27');
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${resume.fileName || 'resume.pdf'}"`,
+      'Content-Disposition': `attachment; filename="resume.pdf"; filename*=UTF-8''${encodedFileName}`,
       'Content-Length': resume.fileBinary.length,
     });
 

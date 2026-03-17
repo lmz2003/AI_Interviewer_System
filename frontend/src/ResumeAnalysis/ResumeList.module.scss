@@ -113,6 +113,15 @@ $font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-
   }
 }
 
+.buttonDisabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 // ---- Resume Grid ----
 .resumeGrid {
   display: grid;
@@ -350,6 +359,13 @@ $font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-
     color: $dark-danger;
 
     &:hover { background: rgba($dark-danger, 0.2); }
+  }
+
+  .buttonDisabled {
+    background: rgba(255, 255, 255, 0.06);
+    color: #6B7FAA;
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   .resumeCard {

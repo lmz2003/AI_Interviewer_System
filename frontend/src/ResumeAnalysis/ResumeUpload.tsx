@@ -84,7 +84,7 @@ const ResumeUpload: React.FC = () => {
       if (uploadType === 'file' && file) formData.append('file', file);
       else formData.append('content', content);
 
-      const progressInterval = setInterval(() => { setProgress(prev => prev < 90 ? prev + Math.random() * 30 : prev); }, 500);
+      const progressInterval = setInterval(() => { setProgress(prev => prev < 90 ? Math.min(90, prev + Math.random() * 15) : prev); }, 500);
       const response = await fetch(`${apiBaseUrl}/resume-analysis/upload`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
       clearInterval(progressInterval);
       setProgress(100);
@@ -106,11 +106,11 @@ const ResumeUpload: React.FC = () => {
   const btnBase: React.CSSProperties = { border: 'none', borderRadius: '6px', fontFamily: C.font, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s ease' };
 
   return (
-    <div style={{ fontFamily: C.font, color: C.text, maxWidth: '720px' }}>
+    <div style={{ minHeight: '100dvh', background: C.bg, display: 'flex', flexDirection: 'column', fontFamily: C.font, color: C.text }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* Back + title */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
+      {/* Page header bar */}
+      <div style={{ height: '54px', background: C.surface, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', padding: '0 1.5rem', gap: '10px', flexShrink: 0 }}>
         <button
           onClick={() => navigate('/dashboard/resume')}
           style={{ ...btnBase, background: C.primarySoft, color: C.primary, padding: '6px 12px', fontSize: '0.82rem' }}
@@ -119,8 +119,12 @@ const ResumeUpload: React.FC = () => {
         >
           <ArrowLeftIcon /> 返回
         </button>
-        <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>上传简历</h2>
+        <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>上传简历</h2>
       </div>
+
+      {/* Centered content */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '2rem 1rem', overflowY: 'auto' }}>
+      <div style={{ width: '100%', maxWidth: '680px' }}>
 
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         {/* Tabs */}
@@ -277,6 +281,8 @@ const ResumeUpload: React.FC = () => {
             {loading ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-flex' }}><SpinIcon /></span> 上传中...</> : '上传并分析'}
           </button>
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );

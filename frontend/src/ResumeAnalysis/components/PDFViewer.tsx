@@ -165,7 +165,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ resumeId }) => {
         }
 
         const contentType = response.headers.get('content-type');
-        if (!contentType?.includes('pdf') && !contentType?.includes('octet-stream')) {
+        // 仅当服务器明确返回文本/HTML 时才视为错误；其他 binary 类型（如 application/download 等）均允许
+        if (contentType && (contentType.includes('text/html') || contentType.includes('text/plain'))) {
           throw new Error('服务器返回的不是 PDF 文件');
         }
 

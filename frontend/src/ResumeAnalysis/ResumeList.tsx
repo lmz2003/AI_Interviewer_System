@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToastModal } from '../components/ui/toast-modal';
 import LoadingModal from './components/LoadingModal';
 import styles from './ResumeList.module.scss';
+import { io, Socket } from 'socket.io-client';
+
+const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
 
 const PlusIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -71,6 +74,145 @@ const ResumeList: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const socketRef = useRef<Socket | null>(null);
+  const subscribedIdsRef = useRef<Set<string>>(new Set());
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 更新单条简历进度
+  const updateResumeStage = useCallback((resumeId: string, stage: number) => {
+    setResumes(prev => prev.map(r => r.id === resumeId ? { ...r, analysisStage: stage } : r));
+  }, []);
+
+  // 标记简历分析完成
+  const markResumeComplete = useCallback((resumeId: string, overallScore: number) => {
+    setResumes(prev => prev.map(r =>
+      r.id === resumeId ? { ...r, isProcessed: true, analysisStage: 5, overallScore } : r
+    ));
+  }, []);
+
+  // 轮询刷新未完成的简历状态（作为 WebSocket 的降级/兜底方案）
+  const startPolling = useCallback(() => {
+    if (pollTimerRef.current) return;
+    pollTimerRef.current = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+        const response = await fetch(`${apiBaseUrl}/resume-analysis`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        const latest: Resume[] = data.data || [];
+
+        setResumes(prev => {
+          const hasPending = prev.some(r => !r.isProcessed);
+          if (!hasPending) {
+            // 没有待处理的简历，停止轮询
+            if (pollTimerRef.current) {
+              clearInterval(pollTimerRef.current);
+              pollTimerRef.current = null;
+            }
+            return prev;
+          }
+          // 只更新有变化的条目（避免不必要重渲染）
+          return prev.map(r => {
+            const fresh = latest.find(f => f.id === r.id);
+            if (!fresh) return r;
+            if (fresh.isProcessed !== r.isProcessed ||
+                fresh.analysisStage !== r.analysisStage ||
+                fresh.overallScore !== r.overallScore) {
+              return { ...r, ...fresh };
+            }
+            return r;
+          });
+        });
+      } catch {
+        // 轮询失败静默忽略
+      }
+    }, 3000);
+  }, []);
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  // 初始化 WebSocket 连接（只建立一次）
+  useEffect(() => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+
+    if (socketRef.current) return;
+
+    const socket = io(`${WS_URL}/resume-analysis`, {
+      transports: ['websocket', 'polling'],
+    });
+    socketRef.current = socket;
+
+    socket.on('analysis-progress', (data: { resumeId: string; stage: number }) => {
+      updateResumeStage(data.resumeId, data.stage);
+    });
+
+    socket.on('analysis-complete', (data: { resumeId: string; overallScore: number }) => {
+      markResumeComplete(data.resumeId, data.overallScore);
+    });
+
+    // 连接成功后，将所有待订阅的 resumeId 批量发送
+    socket.on('connect', () => {
+      const currentUserId = localStorage.getItem('userId') || '';
+      subscribedIdsRef.current.forEach(resumeId => {
+        socket.emit('join-resume', { resumeId, userId: currentUserId });
+      });
+    });
+
+    return () => {
+      const currentUserId = localStorage.getItem('userId') || '';
+      subscribedIdsRef.current.forEach(resumeId => {
+        socket.emit('leave-resume', { resumeId, userId: currentUserId });
+      });
+      socket.disconnect();
+      socketRef.current = null;
+      subscribedIdsRef.current.clear();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 当简历列表变化时，为新增的未完成简历订阅 WebSocket，并管理轮询
+  useEffect(() => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+
+    const pendingResumes = resumes.filter(r => !r.isProcessed);
+
+    if (pendingResumes.length === 0) {
+      // 所有简历已处理完成，停止轮询
+      stopPolling();
+      return;
+    }
+
+    // 有未处理简历时，启动降级轮询兜底
+    startPolling();
+
+    const socket = socketRef.current;
+
+    // 为未完成的简历发送 join-resume
+    pendingResumes.forEach(r => {
+      const isNew = !subscribedIdsRef.current.has(r.id);
+      if (isNew) {
+        subscribedIdsRef.current.add(r.id);
+      }
+      // 只要 socket 已连接就发送 join-resume（确保加入 room）
+      // connect 事件可能在 resumes 变更前已触发，导致 id 未被 join
+      if (socket && socket.connected) {
+        socket.emit('join-resume', { resumeId: r.id, userId });
+      }
+    });
+  }, [resumes, startPolling, stopPolling]);
+
+  // 组件卸载时停止轮询
+  useEffect(() => () => stopPolling(), [stopPolling]);
 
   useEffect(() => { fetchResumes(); }, []);
 
@@ -231,10 +373,14 @@ const ResumeList: React.FC = () => {
           {resumes.map(resume => (
             <div
               key={resume.id}
-              onClick={() => batchMode ? toggleSelect(resume.id) : handleViewResume(resume.id)}
+              onClick={() => {
+                if (batchMode) { toggleSelect(resume.id); return; }
+                if (!resume.isProcessed) return;
+                handleViewResume(resume.id);
+              }}
               className={styles.resumeCard}
               style={{
-                cursor: deletingId === resume.id ? 'not-allowed' : 'pointer',
+                cursor: deletingId === resume.id ? 'not-allowed' : (!resume.isProcessed && !batchMode) ? 'default' : 'pointer',
                 opacity: deletingId === resume.id ? 0.6 : 1,
                 pointerEvents: deletingId === resume.id ? 'none' : 'auto',
                 borderLeft: selectedIds.has(resume.id) ? '3px solid #6366F1' : '3px solid transparent',
@@ -294,11 +440,13 @@ const ResumeList: React.FC = () => {
               {!batchMode && (
                 <div className={styles.cardActions}>
                   <button
-                    onClick={e => { e.stopPropagation(); handleViewResume(resume.id); }}
-                    className={`${styles.button} ${styles.buttonSecondary}`}
-                    style={{ flex: 1, justifyContent: 'center' }}
+                    onClick={e => { e.stopPropagation(); if (resume.isProcessed) handleViewResume(resume.id); }}
+                    className={`${styles.button} ${resume.isProcessed ? styles.buttonSecondary : styles.buttonDisabled}`}
+                    style={{ flex: 1, justifyContent: 'center', cursor: resume.isProcessed ? 'pointer' : 'not-allowed', opacity: resume.isProcessed ? 1 : 0.5 }}
+                    disabled={!resume.isProcessed}
+                    title={resume.isProcessed ? '查看分析结果' : 'AI 分析中，请稍候...'}
                   >
-                    <SearchIcon /> 查看分析
+                    <SearchIcon /> {resume.isProcessed ? '查看分析' : '分析中...'}
                   </button>
                   <button
                     onClick={e => handleDeleteResume(e, resume.id)}
