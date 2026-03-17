@@ -209,27 +209,6 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
   // ---- Tab content renderers ----
   const renderOverview = () => (
     <>
-      {/* <Section>
-        <SectionTitle icon={<BarChartIcon />} label="各维度评分" />
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
-          gap: '8px' 
-        }}>
-          {scoreItems.map(({ key, label }) => {
-            const val = Math.round(analysis[key] ?? 0);
-            const color = getScoreColor(val);
-            const bgColor = getScoreBg(val);
-            return (
-              <div key={key} style={{ background: bgColor, border: `1px solid ${C.border}`, borderRadius: C.radius, padding: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color, lineHeight: 1 }}>{val}</div>
-                <div style={{ fontSize: '0.75rem', color: C.textMuted, fontWeight: 600, marginTop: '4px' }}>{label}</div>
-              </div>
-            );
-          })}
-        </div>
-      </Section> */}
-
       {reportData.overallEvaluation && (
         <Section>
           <SectionTitle icon={<TargetIcon />} label="总体评价" />

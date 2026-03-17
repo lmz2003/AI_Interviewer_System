@@ -512,7 +512,7 @@ const AIAssistant: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="输入消息...（Enter 发送，Shift+Enter 换行）"
+            placeholder="输入消息..."
             disabled={isTyping || !token}
             className="textarea-input"
             rows={1}
