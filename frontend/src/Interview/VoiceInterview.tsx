@@ -64,6 +64,8 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   voice = 'anna',
   initialDuration = 0,
 }) => {
+  const toastModal = useToastModal();
+
   const [callStatus, setCallStatus] = useState<VoiceCallStatus>('idle');
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(initialDuration);
@@ -386,7 +388,6 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   }, [callStatus, sessionId, voice, playAudioBase64, onEnd, saveProgress]);
 
   const handleEndInterview = useCallback(async () => {
-    const toastModal = useToastModal();
     const confirmed = await toastModal.confirm(
       '确定要结束语音面试吗？',
       '结束面试',
@@ -404,7 +405,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
       setError(err instanceof Error ? err.message : '结束面试失败');
       setCallStatus('idle');
     }
-  }, [cleanup, sessionId, onEnd, saveProgress]);
+  }, [cleanup, sessionId, onEnd, saveProgress, toastModal]);
 
   const handleBack = useCallback(async () => {
     await saveProgress();
@@ -448,20 +449,20 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         <div className="voice-duration">{formatDuration(callDuration)}</div>
       </div>
 
-      {/* 错误提示 */}
-      {error && (
-        <div className="error-message" onClick={() => setError(null)}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          {error}（点击关闭）
-        </div>
-      )}
-
       {/* 主内容区 */}
       <div className="voice-main">
+        {/* 错误提示 —— 绝对定位浮层，不占文档流 */}
+        {error && (
+          <div className="voice-error-toast" onClick={() => setError(null)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            {error}（点击关闭）
+          </div>
+        )}
+
         {/* AI 面试官显示区 */}
         <div className={`ai-avatar-section ${isAIPlaying ? 'speaking' : ''}`}>
           <div className="ai-avatar">
@@ -472,22 +473,18 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
               <line x1="8" y1="16" x2="8" y2="16" strokeWidth="3" />
               <line x1="16" y1="16" x2="16" y2="16" strokeWidth="3" />
             </svg>
-            {isAIPlaying && (
-              <div className="ai-speaking-ring" />
-            )}
+            <div className={`ai-speaking-ring${isAIPlaying ? '' : ' hidden'}`} />
           </div>
           <div className="ai-label">AI 面试官</div>
-          {isAIPlaying && (
-            <div className="ai-waveform">
-              {Array.from({ length: 8 }, (_, i) => (
-                <div
-                  key={i}
-                  className="ai-wave-bar"
-                  style={{ animationDelay: `${i * 0.1}s` }}
-                />
-              ))}
-            </div>
-          )}
+          <div className={`ai-waveform${isAIPlaying ? '' : ' hidden'}`}>
+            {Array.from({ length: 8 }, (_, i) => (
+              <div
+                key={i}
+                className="ai-wave-bar"
+                style={{ animationDelay: `${i * 0.1}s` }}
+              />
+            ))}
+          </div>
         </div>
 
         {/* 字幕/对话记录区 */}
@@ -510,23 +507,21 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
             </div>
           )}
 
-          {currentSubtitle && (
+          {/* {currentSubtitle && (
             <div className="current-subtitle">{currentSubtitle}</div>
-          )}
+          )} */}
         </div>
 
-        {/* 用户波形显示（录音时） */}
-        {callStatus === 'recording' && (
-          <div className="user-waveform">
-            {waveformData.map((height, i) => (
-              <div
-                key={i}
-                className="user-wave-bar"
-                style={{ height: `${height}%` }}
-              />
-            ))}
-          </div>
-        )}
+        {/* 用户波形显示 —— 始终占位，录音时显示 */}
+        <div className={`user-waveform${callStatus === 'recording' ? '' : ' hidden'}`}>
+          {waveformData.map((height, i) => (
+            <div
+              key={i}
+              className="user-wave-bar"
+              style={{ height: `${height}%` }}
+            />
+          ))}
+        </div>
 
         {/* 状态标签 */}
         <div className="voice-status-label">{getStatusLabel()}</div>

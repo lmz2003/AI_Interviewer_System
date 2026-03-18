@@ -541,7 +541,12 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
                   className="resource-item"
                 >
                   <span className="resource-type">{resource.type}</span>
-                  <span className="resource-title">{resource.title}</span>
+                  <div className="resource-info">
+                    <span className="resource-title">{resource.title}</span>
+                    {resource.reason && (
+                      <span className="resource-reason">{resource.reason}</span>
+                    )}
+                  </div>
                   <span className="resource-arrow"><ExternalLinkIcon /></span>
                 </a>
               ))}

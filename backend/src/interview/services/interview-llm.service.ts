@@ -4,6 +4,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { Interview } from '../entities/interview.entity';
 import { InterviewMessage, MessageEvaluation } from '../entities/interview-message.entity';
+import { LearningResource, DimensionScores } from '../entities/interview-report.entity';
 import {
   SCENE_CONFIG,
   EVALUATION_DIMENSIONS,
@@ -553,6 +554,93 @@ ${historyText.substring(0, 1000)}...
     });
     
     return !hasContent;
+  }
+
+  /**
+   * 使用大模型根据面试情况生成个性化学习资源推荐
+   */
+  async generateLearningResources(
+    interview: Interview,
+    messages: InterviewMessage[],
+    dimensionScores: DimensionScores,
+    strengths: string,
+    weaknesses: string,
+  ): Promise<LearningResource[]> {
+    const sceneConfig = SCENE_CONFIG[interview.sceneType as keyof typeof SCENE_CONFIG];
+    const sceneName = sceneConfig?.name || interview.sceneType;
+    const jobName = interview.jobType || '通用岗位';
+
+    // 提取评分较低的维度
+    const weakDimensions: string[] = [];
+    if (dimensionScores.completeness < 7) weakDimensions.push('回答完整性');
+    if (dimensionScores.clarity < 7) weakDimensions.push('表达清晰度');
+    if (dimensionScores.depth < 7) weakDimensions.push('专业深度');
+    if (dimensionScores.expression < 7) weakDimensions.push('沟通表达');
+    if (dimensionScores.highlights < 7) weakDimensions.push('亮点展示');
+
+    // 取最后几轮对话作为上下文参考（避免 prompt 过长）
+    const recentMessages = messages.slice(-6);
+    const conversationSample = recentMessages
+      .map((m) => `${m.role === 'user' ? '候选人' : '面试官'}：${m.content.substring(0, 200)}`)
+      .join('\n');
+
+    const prompt = `你是一位资深职业规划顾问，请根据以下面试情况为候选人推荐5个具体的学习资源。
+
+## 面试基本信息
+- 面试场景：${sceneName}
+- 应聘岗位：${jobName}
+- 难度等级：${interview.difficulty || 'medium'}
+
+## 本次表现分析
+- 优势：${strengths || '暂无'}
+- 不足：${weaknesses || '暂无'}
+- 需要加强的维度：${weakDimensions.length > 0 ? weakDimensions.join('、') : '整体表现良好，可继续深化'}
+
+## 对话片段参考
+${conversationSample || '（暂无对话记录）'}
+
+## 要求
+请推荐 5 个**真实存在**的学习资源，优先推荐以下平台的内容：
+- 课程类：极客时间、慕课网、Coursera、B站
+- 练习类：LeetCode、牛客网、HackerRank
+- 文章类：掘金、知乎、InfoQ、美团技术博客
+- 书籍类：豆瓣、京东图书
+
+每个资源需要针对候选人的**具体不足**或**岗位技能要求**，不要推荐过于泛泛的资源。
+
+请以如下 JSON 数组格式返回，**只返回 JSON，不要有其他内容**：
+[
+  {
+    "type": "course",
+    "title": "资源标题（包含平台名）",
+    "url": "https://真实URL",
+    "reason": "推荐理由（一句话，结合候选人具体情况）"
+  }
+]
+
+type 取值范围：course（课程）| article（文章）| video（视频）| practice（练习）| book（书籍）`;
+
+    try {
+      const response = await this.llm.invoke([new HumanMessage(prompt)]);
+      const content = this.filterThinkingContent(response.content as string);
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]) as LearningResource[];
+        // 校验结构并过滤无效项
+        const valid = parsed
+          .filter((r) => r && typeof r.type === 'string' && typeof r.title === 'string' && typeof r.url === 'string')
+          .slice(0, 5);
+        if (valid.length > 0) {
+          this.logger.log(`[学习资源] LLM 生成 ${valid.length} 条推荐`);
+          return valid;
+        }
+      }
+      this.logger.warn('[学习资源] LLM 返回内容无法解析，将使用兜底规则');
+      return [];
+    } catch (error) {
+      this.logger.error('[学习资源] LLM 调用失败:', error);
+      return [];
+    }
   }
 
   private formatHistory(history: InterviewMessage[]): string {

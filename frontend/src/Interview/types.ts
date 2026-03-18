@@ -113,6 +113,8 @@ export interface InterviewReport {
     type: string;
     title: string;
     url: string;
+    /** LLM 生成的个性化推荐理由 */
+    reason?: string;
   }>;
   summary?: string;
   questionAnalysis?: Array<{

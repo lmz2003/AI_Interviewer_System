@@ -60,7 +60,13 @@ export class InterviewReportService {
     const finalSuggestions = this.mergeVideoIntoSuggestions(suggestions, videoBehaviorScores);
 
     const summary = await this.generateSummary(interview, messages, overallScore);
-    const learningResources = this.generateLearningResources(dimensionScores, interview);
+    const learningResources = await this.generateLearningResources(
+      dimensionScores,
+      interview,
+      messages,
+      finalStrengths.join('、'),
+      finalWeaknesses.join('、'),
+    );
 
     const report = this.reportRepository.create({
       interviewId: interview.id,
@@ -360,10 +366,31 @@ export class InterviewReportService {
     return merged;
   }
 
-  private generateLearningResources(
+  private async generateLearningResources(
     dimensionScores: DimensionScores,
     interview: Interview,
-  ): LearningResource[] {
+    messages: InterviewMessage[],
+    strengths: string,
+    weaknesses: string,
+  ): Promise<LearningResource[]> {
+    // 优先使用大模型生成个性化推荐
+    try {
+      const llmResources = await this.llmService.generateLearningResources(
+        interview,
+        messages,
+        dimensionScores,
+        strengths,
+        weaknesses,
+      );
+      if (llmResources.length > 0) {
+        return llmResources;
+      }
+    } catch (error) {
+      this.logger.warn('[学习资源] LLM 生成失败，使用规则兜底:', error);
+    }
+
+    // 兜底：规则引擎
+    this.logger.log('[学习资源] 使用规则引擎兜底生成');
     const resources: LearningResource[] = [];
 
     if (dimensionScores.depth < 7) {

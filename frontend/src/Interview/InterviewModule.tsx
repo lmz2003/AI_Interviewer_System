@@ -56,14 +56,14 @@ const ClearIcon = () => (
   </svg>
 );
 
-const BotIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
-    <rect x="3" y="11" width="18" height="10" rx="2" />
-    <circle cx="12" cy="5" r="2" />
-    <path d="M12 7v4" />
-    <line x1="8" y1="16" x2="8" y2="16" strokeWidth="3" />
-    <line x1="16" y1="16" x2="16" y2="16" strokeWidth="3" />
-  </svg>
+const BotIcon = ({ className }: { className?: string }) => (
+<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+<rect x="3" y="11" width="18" height="10" rx="2" />
+<circle cx="12" cy="5" r="2" />
+<path d="M12 7v4" />
+<line x1="8" y1="16" x2="8" y2="16" strokeWidth="3" />
+<line x1="16" y1="16" x2="16" y2="16" strokeWidth="3" />
+</svg>
 );
 
 const PhoneOffIcon = () => (
@@ -214,9 +214,15 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
         <div className="voice-main">
           <div className="ai-avatar-section">
             <div className="ai-avatar">
-              <BotIcon />
+              <BotIcon className="ai-avatar-svg" />
+              <div className="ai-speaking-ring hidden" />
             </div>
             <div className="ai-label">AI 面试官</div>
+            <div className="ai-waveform hidden">
+              {Array.from({ length: 8 }, (_, i) => (
+                <div key={i} className="ai-wave-bar" style={{ animationDelay: `${i * 0.1}s` }} />
+              ))}
+            </div>
           </div>
           <div className="subtitles-area">
             <div className="no-subtitles">
@@ -272,9 +278,15 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
         <div className="voice-main">
           <div className="ai-avatar-section">
             <div className="ai-avatar">
-              <BotIcon />
+              <BotIcon className="ai-avatar-svg" />
+              <div className="ai-speaking-ring hidden" />
             </div>
             <div className="ai-label">AI 面试官</div>
+            <div className="ai-waveform hidden">
+              {Array.from({ length: 8 }, (_, i) => (
+                <div key={i} className="ai-wave-bar" style={{ animationDelay: `${i * 0.1}s` }} />
+              ))}
+            </div>
           </div>
           <div className="subtitles-area">
             <div className="no-subtitles">
@@ -325,17 +337,15 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
         <div className="voice-main">
           <div className={`ai-avatar-section ${isPlayingOpening ? 'speaking' : ''}`}>
             <div className="ai-avatar">
-              <BotIcon />
-              {isPlayingOpening && <div className="ai-speaking-ring" />}
+              <BotIcon className="ai-avatar-svg" />
+              <div className={`ai-speaking-ring${isPlayingOpening ? '' : ' hidden'}`} />
             </div>
             <div className="ai-label">AI 面试官</div>
-            {isPlayingOpening && (
-              <div className="ai-waveform">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <div key={i} className="ai-wave-bar" style={{ animationDelay: `${i * 0.1}s` }} />
-                ))}
-              </div>
-            )}
+            <div className={`ai-waveform${isPlayingOpening ? '' : ' hidden'}`}>
+              {Array.from({ length: 8 }, (_, i) => (
+                <div key={i} className="ai-wave-bar" style={{ animationDelay: `${i * 0.1}s` }} />
+              ))}
+            </div>
           </div>
           <div className="subtitles-area">
             <div className="current-subtitle">{openingText}</div>
