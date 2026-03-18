@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Interview, VideoAnalysisSummary } from '../entities/interview.entity';
 import { InterviewSession } from '../entities/interview-session.entity';
 import { InterviewMessage, VideoAnalysisResult } from '../entities/interview-message.entity';
-import { InterviewReport, DimensionScores, VideoBehaviorScores, LearningResource } from '../entities/interview-report.entity';
+import { InterviewReport, DimensionScores, VideoBehaviorScores, LearningSuggestion } from '../entities/interview-report.entity';
 import { InterviewEvaluatorService } from './interview-evaluator.service';
 import { InterviewLLMService } from './interview-llm.service';
 import { SceneService } from './scene.service';
@@ -60,7 +60,7 @@ export class InterviewReportService {
     const finalSuggestions = this.mergeVideoIntoSuggestions(suggestions, videoBehaviorScores);
 
     const summary = await this.generateSummary(interview, messages, overallScore);
-    const learningResources = await this.generateLearningResources(
+    const learningSuggestions = await this.generateLearningSuggestions(
       dimensionScores,
       interview,
       messages,
@@ -79,7 +79,7 @@ export class InterviewReportService {
       videoBehaviorFeedback,
       summary,
       questionAnalysis,
-      learningResources,
+      learningSuggestions,
     });
 
     const savedReport = await this.reportRepository.save(report);
@@ -366,105 +366,110 @@ export class InterviewReportService {
     return merged;
   }
 
-  private async generateLearningResources(
+  private async generateLearningSuggestions(
     dimensionScores: DimensionScores,
     interview: Interview,
     messages: InterviewMessage[],
     strengths: string,
     weaknesses: string,
-  ): Promise<LearningResource[]> {
-    // 优先使用大模型生成个性化推荐
+  ): Promise<LearningSuggestion[]> {
     try {
-      const llmResources = await this.llmService.generateLearningResources(
+      const llmSuggestions = await this.llmService.generateLearningSuggestions(
         interview,
         messages,
         dimensionScores,
         strengths,
         weaknesses,
       );
-      if (llmResources.length > 0) {
-        return llmResources;
+      if (llmSuggestions.length > 0) {
+        return llmSuggestions;
       }
     } catch (error) {
-      this.logger.warn('[学习资源] LLM 生成失败，使用规则兜底:', error);
+      this.logger.warn('[学习建议] LLM 生成失败，使用规则兜底:', error);
     }
 
-    // 兜底：规则引擎
-    this.logger.log('[学习资源] 使用规则引擎兜底生成');
-    const resources: LearningResource[] = [];
+    this.logger.log('[学习建议] 使用规则引擎兜底生成');
+    const suggestions: LearningSuggestion[] = [];
 
     if (dimensionScores.depth < 7) {
-      resources.push({
-        type: 'course',
-        title: '技术面试核心知识点精讲 - 极客时间',
-        url: 'https://time.geekbang.org/column/intro/100020801',
-      });
-      resources.push({
-        type: 'course',
-        title: '数据结构与算法 - 慕课网',
-        url: 'https://www.imooc.com/learn/1170',
+      suggestions.push({
+        category: 'knowledge',
+        title: '深化专业知识体系',
+        content: `建议系统学习${interview.jobType || '目标岗位'}的核心技术栈，通过阅读官方文档、技术博客和经典书籍建立完整的知识体系。重点关注原理层面的理解，而非仅停留在使用层面。`,
+        priority: 'high',
+        relatedDimension: '专业深度',
       });
     }
 
     if (dimensionScores.clarity < 7) {
-      resources.push({
-        type: 'article',
-        title: '如何清晰表达技术方案 - 掘金',
-        url: 'https://juejin.cn/post/6844904195802632206',
+      suggestions.push({
+        category: 'technique',
+        title: '提升回答逻辑性',
+        content: '建议使用"总-分-总"或"STAR法则"等结构化方法组织回答。在回答前先快速梳理要点，确保逻辑清晰、层次分明。可以通过录音回放的方式检查自己的表达是否条理清楚。',
+        priority: 'high',
+        relatedDimension: '逻辑清晰度',
       });
     }
 
     if (dimensionScores.expression < 7) {
-      resources.push({
-        type: 'video',
-        title: '面试表达技巧 - B站',
-        url: 'https://www.bilibili.com/video/BV1aV411k7yD',
-      });
-    }
-
-    if (interview.sceneType === 'technical') {
-      resources.push({
-        type: 'practice',
-        title: 'LeetCode 力扣 - 算法练习平台',
-        url: 'https://leetcode.cn',
-      });
-      resources.push({
-        type: 'practice',
-        title: '牛客网 - 面试题库',
-        url: 'https://www.nowcoder.com/exam/interview',
-      });
-    }
-
-    if (interview.sceneType === 'behavioral') {
-      resources.push({
-        type: 'article',
-        title: 'STAR法则详解与应用 - 知乎',
-        url: 'https://zhuanlan.zhihu.com/p/266525867',
-      });
-      resources.push({
-        type: 'article',
-        title: '行为面试常见问题及回答技巧',
-        url: 'https://zhuanlan.zhihu.com/p/139532699',
+      suggestions.push({
+        category: 'skill',
+        title: '加强沟通表达能力',
+        content: '建议多进行模拟面试练习，注意语速适中、用词准确。可以录制自己的回答视频，观察表情、语调和肢体语言。同时多阅读技术文章，积累专业表达词汇。',
+        priority: 'medium',
+        relatedDimension: '表达能力',
       });
     }
 
     if (dimensionScores.completeness < 7) {
-      resources.push({
-        type: 'article',
-        title: '面试回答如何更完整 - 掘金',
-        url: 'https://juejin.cn/post/6844904065863610376',
+      suggestions.push({
+        category: 'technique',
+        title: '提高回答完整性',
+        content: '建议在回答问题时先理解问题的核心意图，然后从多个角度展开。可以采用"是什么-为什么-怎么做"的框架，确保回答覆盖问题的各个方面，避免遗漏关键信息。',
+        priority: 'high',
+        relatedDimension: '内容完整性',
       });
     }
 
     if (dimensionScores.highlights < 7) {
-      resources.push({
-        type: 'article',
-        title: '如何在面试中展现个人亮点 - 知乎',
-        url: 'https://zhuanlan.zhihu.com/p/137837636',
+      suggestions.push({
+        category: 'technique',
+        title: '学会展示个人亮点',
+        content: '建议在回答中主动展示与问题相关的项目经验、技术成果或独特见解。准备2-3个能体现个人能力的典型案例，在合适的时机自然引入，让面试官记住你的独特价值。',
+        priority: 'medium',
+        relatedDimension: '亮点突出',
       });
     }
 
-    return resources.slice(0, 5);
+    if (interview.sceneType === 'technical') {
+      suggestions.push({
+        category: 'practice',
+        title: '加强算法与编码练习',
+        content: '建议在LeetCode、牛客网等平台进行系统性刷题，重点练习数据结构、算法和系统设计题目。每天保持1-2道题的练习量，注重总结解题思路和优化方法。',
+        priority: 'medium',
+      });
+    }
+
+    if (interview.sceneType === 'behavioral') {
+      suggestions.push({
+        category: 'practice',
+        title: '准备行为面试素材库',
+        content: '建议按照STAR法则（情境-任务-行动-结果）整理3-5个典型工作/项目案例，涵盖团队协作、问题解决、冲突处理等常见行为面试主题。确保每个案例都有具体的细节和量化成果。',
+        priority: 'medium',
+      });
+    }
+
+    const avgScore = (dimensionScores.completeness + dimensionScores.clarity + dimensionScores.depth + dimensionScores.expression + dimensionScores.highlights) / 5;
+    if (avgScore < 6) {
+      suggestions.push({
+        category: 'mindset',
+        title: '建立自信心态',
+        content: '面试表现与心态密切相关。建议通过充分的准备来增强自信，包括模拟面试、复盘总结等。同时保持积极的学习态度，将每次面试视为成长的机会，而非单纯的考核。',
+        priority: 'high',
+      });
+    }
+
+    return suggestions.slice(0, 5);
   }
 
   async syncToKnowledgeBase(reportId: string, userId: string): Promise<{ success: boolean; message: string; documentId?: string }> {
@@ -656,10 +661,11 @@ export class InterviewReportService {
       }
     }
 
-    if (report.learningResources && report.learningResources.length > 0) {
-      sections.push(`## 学习资源推荐`);
-      for (const resource of report.learningResources) {
-        sections.push(`- [${resource.title}](${resource.url}) (${resource.type})`);
+    if (report.learningSuggestions && report.learningSuggestions.length > 0) {
+      sections.push(`## 学习建议`);
+      for (const suggestion of report.learningSuggestions) {
+        sections.push(`- **${suggestion.title}** [${suggestion.priority === 'high' ? '高优先级' : suggestion.priority === 'medium' ? '中优先级' : '低优先级'}]`);
+        sections.push(`  ${suggestion.content}`);
       }
     }
 
@@ -851,25 +857,23 @@ export class InterviewReportService {
       }
     }
 
-    if (report.learningResources && report.learningResources.length > 0) {
+    if (report.learningSuggestions && report.learningSuggestions.length > 0) {
       children.push({
         id: String(idCounter++),
         type: 'h2',
-        children: [{ text: '📚 学习资源推荐' }],
+        children: [{ text: '📚 学习建议' }],
       });
 
-      for (const resource of report.learningResources) {
+      for (const suggestion of report.learningSuggestions) {
+        children.push({
+          id: String(idCounter++),
+          type: 'h3',
+          children: [{ text: suggestion.title }],
+        });
         children.push({
           id: String(idCounter++),
           type: 'p',
-          children: [
-            {
-              type: 'a',
-              url: resource.url,
-              children: [{ text: resource.title }],
-            },
-            { text: ` (${resource.type})` },
-          ],
+          children: [{ text: suggestion.content }],
         });
       }
     }

@@ -109,12 +109,12 @@ export interface InterviewReport {
   weaknesses: string;
   suggestions: string;
   videoBehaviorFeedback?: string;
-  learningResources?: Array<{
-    type: string;
+  learningSuggestions?: Array<{
+    category: 'knowledge' | 'skill' | 'technique' | 'practice' | 'mindset';
     title: string;
-    url: string;
-    /** LLM 生成的个性化推荐理由 */
-    reason?: string;
+    content: string;
+    priority: 'high' | 'medium' | 'low';
+    relatedDimension?: string;
   }>;
   summary?: string;
   questionAnalysis?: Array<{

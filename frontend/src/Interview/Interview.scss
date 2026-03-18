@@ -1683,71 +1683,119 @@ $dark-warning-light: #3F2F0F;
 
 // ─── 报告暗色模式 - 视频行为 ────────────────────────────────────────────────────
 
-.resources-section {
-  .resources-list {
+.suggestions-learning-section {
+  .learning-suggestions-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 16px;
   }
 
-  .resource-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
+  .suggestion-item {
+    padding: 18px 20px;
     background: $bg-white;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid $border;
-    text-decoration: none;
     transition: all 0.2s ease;
-    cursor: pointer;
 
     &:hover {
-      border-color: $primary;
-      background: $primary-light;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
-    .resource-type {
+    &.priority-high {
+      border-left: 4px solid #ef4444;
+    }
+
+    &.priority-medium {
+      border-left: 4px solid #f59e0b;
+    }
+
+    &.priority-low {
+      border-left: 4px solid #10b981;
+    }
+
+    .suggestion-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .suggestion-category {
       padding: 3px 10px;
-      background: $primary-light;
-      color: $primary;
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
-      text-transform: uppercase;
-      flex-shrink: 0;
+
+      &.category-knowledge {
+        background: #eff6ff;
+        color: #2563eb;
+      }
+
+      &.category-skill {
+        background: #f0fdf4;
+        color: #16a34a;
+      }
+
+      &.category-technique {
+        background: #fef3c7;
+        color: #d97706;
+      }
+
+      &.category-practice {
+        background: #fce7f3;
+        color: #db2777;
+      }
+
+      &.category-mindset {
+        background: #f3e8ff;
+        color: #9333ea;
+      }
     }
 
-    .resource-info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      min-width: 0;
+    .suggestion-priority {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+
+      &.priority-high {
+        background: #fef2f2;
+        color: #dc2626;
+      }
+
+      &.priority-medium {
+        background: #fffbeb;
+        color: #d97706;
+      }
+
+      &.priority-low {
+        background: #f0fdf4;
+        color: #16a34a;
+      }
     }
 
-    .resource-title {
+    .suggestion-title {
+      font-size: 15px;
+      font-weight: 600;
       color: $text-primary;
-      font-size: 14px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      margin: 0 0 8px 0;
     }
 
-    .resource-reason {
-      color: $text-muted;
-      font-size: 12px;
-      line-height: 1.4;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .suggestion-content {
+      font-size: 13px;
+      line-height: 1.7;
+      color: $text-secondary;
+      margin: 0;
     }
 
-    .resource-arrow {
+    .suggestion-dimension {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 11px;
       color: $text-muted;
-      font-size: 16px;
-      flex-shrink: 0;
+      background: $bg;
+      padding: 3px 8px;
+      border-radius: 4px;
     }
   }
 }
@@ -4346,23 +4394,20 @@ $dark-warning-light: #3F2F0F;
       }
     }
 
-    .resources-section .resource-item {
+    .suggestions-learning-section .suggestion-item {
       background: $dark-bg-white;
       border-color: $dark-border;
 
       &:hover {
-        border-color: $dark-primary;
-        background: rgba($dark-primary, 0.08);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       }
 
-      .resource-type {
-        background: rgba($dark-primary, 0.1);
-        color: $dark-primary;
+      .suggestion-title { color: $dark-text-primary; }
+      .suggestion-content { color: $dark-text-secondary; }
+      .suggestion-dimension { 
+        background: rgba(255, 255, 255, 0.1);
+        color: $dark-text-muted;
       }
-
-.resource-title { color: $dark-text-primary; }
-.resource-reason { color: $dark-text-muted; }
-.resource-arrow { color: $dark-text-muted; }
     }
 
     // Video behavior section dark mode

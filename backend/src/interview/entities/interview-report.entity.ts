@@ -24,12 +24,12 @@ export interface VideoBehaviorScores {
   overallVideoScore: number;
 }
 
-export interface LearningResource {
-  type: string;
+export interface LearningSuggestion {
+  category: 'knowledge' | 'skill' | 'technique' | 'practice' | 'mindset';
   title: string;
-  url: string;
-  /** LLM 生成的个性化推荐理由 */
-  reason?: string;
+  content: string;
+  priority: 'high' | 'medium' | 'low';
+  relatedDimension?: string;
 }
 
 @Entity('interview_reports')
@@ -62,7 +62,7 @@ export class InterviewReport {
   videoBehaviorFeedback?: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  learningResources?: LearningResource[];
+  learningSuggestions?: LearningSuggestion[];
 
   @Column({ type: 'text', nullable: true })
   summary?: string;

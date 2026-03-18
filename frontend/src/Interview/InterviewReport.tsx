@@ -190,6 +190,26 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
     return '需要加强';
   };
 
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      knowledge: '知识补充',
+      skill: '技能提升',
+      technique: '面试技巧',
+      practice: '练习实践',
+      mindset: '心态调整',
+    };
+    return labels[category] || category;
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    const labels: Record<string, string> = {
+      high: '高优先级',
+      medium: '中优先级',
+      low: '低优先级',
+    };
+    return labels[priority] || priority;
+  };
+
   if (loading) {
     return (
       <div className="interview-report-page">
@@ -525,30 +545,34 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
           </div>
         )}
 
-        {report.learningResources && report.learningResources.length > 0 && (
-          <div className="report-section resources-section">
+        {report.learningSuggestions && report.learningSuggestions.length > 0 && (
+          <div className="report-section suggestions-learning-section">
             <h3>
               <BookOpenIcon />
-              学习资源推荐
+              学习建议
             </h3>
-            <div className="resources-list">
-              {report.learningResources.map((resource, index) => (
-                <a
+            <div className="learning-suggestions-list">
+              {report.learningSuggestions.map((suggestion, index) => (
+                <div
                   key={index}
-                  href={resource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="resource-item"
+                  className={`suggestion-item priority-${suggestion.priority}`}
                 >
-                  <span className="resource-type">{resource.type}</span>
-                  <div className="resource-info">
-                    <span className="resource-title">{resource.title}</span>
-                    {resource.reason && (
-                      <span className="resource-reason">{resource.reason}</span>
-                    )}
+                  <div className="suggestion-header">
+                    <span className={`suggestion-category category-${suggestion.category}`}>
+                      {getCategoryLabel(suggestion.category)}
+                    </span>
+                    <span className={`suggestion-priority priority-${suggestion.priority}`}>
+                      {getPriorityLabel(suggestion.priority)}
+                    </span>
                   </div>
-                  <span className="resource-arrow"><ExternalLinkIcon /></span>
-                </a>
+                  <h4 className="suggestion-title">{suggestion.title}</h4>
+                  <p className="suggestion-content">{suggestion.content}</p>
+                  {suggestion.relatedDimension && (
+                    <span className="suggestion-dimension">
+                      关联维度：{suggestion.relatedDimension}
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
           </div>

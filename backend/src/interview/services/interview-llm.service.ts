@@ -4,7 +4,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { Interview } from '../entities/interview.entity';
 import { InterviewMessage, MessageEvaluation } from '../entities/interview-message.entity';
-import { LearningResource, DimensionScores } from '../entities/interview-report.entity';
+import { LearningSuggestion, DimensionScores } from '../entities/interview-report.entity';
 import {
   SCENE_CONFIG,
   EVALUATION_DIMENSIONS,
@@ -557,20 +557,19 @@ ${historyText.substring(0, 1000)}...
   }
 
   /**
-   * 使用大模型根据面试情况生成个性化学习资源推荐
+   * 使用大模型根据面试表现生成个性化学习建议
    */
-  async generateLearningResources(
+  async generateLearningSuggestions(
     interview: Interview,
     messages: InterviewMessage[],
     dimensionScores: DimensionScores,
     strengths: string,
     weaknesses: string,
-  ): Promise<LearningResource[]> {
+  ): Promise<LearningSuggestion[]> {
     const sceneConfig = SCENE_CONFIG[interview.sceneType as keyof typeof SCENE_CONFIG];
     const sceneName = sceneConfig?.name || interview.sceneType;
     const jobName = interview.jobType || '通用岗位';
 
-    // 提取评分较低的维度
     const weakDimensions: string[] = [];
     if (dimensionScores.completeness < 7) weakDimensions.push('回答完整性');
     if (dimensionScores.clarity < 7) weakDimensions.push('表达清晰度');
@@ -578,13 +577,12 @@ ${historyText.substring(0, 1000)}...
     if (dimensionScores.expression < 7) weakDimensions.push('沟通表达');
     if (dimensionScores.highlights < 7) weakDimensions.push('亮点展示');
 
-    // 取最后几轮对话作为上下文参考（避免 prompt 过长）
     const recentMessages = messages.slice(-6);
     const conversationSample = recentMessages
       .map((m) => `${m.role === 'user' ? '候选人' : '面试官'}：${m.content.substring(0, 200)}`)
       .join('\n');
 
-    const prompt = `你是一位资深职业规划顾问，请根据以下面试情况为候选人推荐5个具体的学习资源。
+    const prompt = `你是一位资深职业规划顾问和面试教练，请根据以下面试表现为候选人制定个性化的学习建议。
 
 ## 面试基本信息
 - 面试场景：${sceneName}
@@ -592,6 +590,13 @@ ${historyText.substring(0, 1000)}...
 - 难度等级：${interview.difficulty || 'medium'}
 
 ## 本次表现分析
+- 综合评分：${((dimensionScores.completeness + dimensionScores.clarity + dimensionScores.depth + dimensionScores.expression + dimensionScores.highlights) / 5).toFixed(1)} / 10
+- 各维度评分：
+  - 内容完整性：${dimensionScores.completeness.toFixed(1)}
+  - 逻辑清晰度：${dimensionScores.clarity.toFixed(1)}
+  - 专业深度：${dimensionScores.depth.toFixed(1)}
+  - 表达能力：${dimensionScores.expression.toFixed(1)}
+  - 亮点突出：${dimensionScores.highlights.toFixed(1)}
 - 优势：${strengths || '暂无'}
 - 不足：${weaknesses || '暂无'}
 - 需要加强的维度：${weakDimensions.length > 0 ? weakDimensions.join('、') : '整体表现良好，可继续深化'}
@@ -600,45 +605,52 @@ ${historyText.substring(0, 1000)}...
 ${conversationSample || '（暂无对话记录）'}
 
 ## 要求
-请推荐 5 个**真实存在**的学习资源，优先推荐以下平台的内容：
-- 课程类：极客时间、慕课网、Coursera、B站
-- 练习类：LeetCode、牛客网、HackerRank
-- 文章类：掘金、知乎、InfoQ、美团技术博客
-- 书籍类：豆瓣、京东图书
+请生成 5 条具体、可操作的学习建议，每条建议需要：
+1. 针对候选人的具体表现和不足
+2. 提供明确的学习方向和行动步骤
+3. 建议要具体可执行，避免泛泛而谈
 
-每个资源需要针对候选人的**具体不足**或**岗位技能要求**，不要推荐过于泛泛的资源。
+建议类别说明：
+- knowledge：知识补充（如：学习某个技术概念、了解行业知识等）
+- skill：技能提升（如：提升编码能力、系统设计能力等）
+- technique：面试技巧（如：回答结构、表达方式、时间控制等）
+- practice：练习实践（如：刷题、模拟面试、项目实践等）
+- mindset：心态调整（如：自信心培养、压力管理等）
+
+优先级说明：
+- high：急需改进，对面试结果影响大
+- medium：建议改进，有助于提升表现
+- low：可选改进，锦上添花
 
 请以如下 JSON 数组格式返回，**只返回 JSON，不要有其他内容**：
 [
   {
-    "type": "course",
-    "title": "资源标题（包含平台名）",
-    "url": "https://真实URL",
-    "reason": "推荐理由（一句话，结合候选人具体情况）"
+    "category": "knowledge",
+    "title": "建议标题（简短有力）",
+    "content": "具体的学习建议内容，包含可执行的步骤",
+    "priority": "high",
+    "relatedDimension": "关联的评估维度（如：专业深度、表达能力等，可选）"
   }
-]
-
-type 取值范围：course（课程）| article（文章）| video（视频）| practice（练习）| book（书籍）`;
+]`;
 
     try {
       const response = await this.llm.invoke([new HumanMessage(prompt)]);
       const content = this.filterThinkingContent(response.content as string);
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]) as LearningResource[];
-        // 校验结构并过滤无效项
+        const parsed = JSON.parse(jsonMatch[0]) as LearningSuggestion[];
         const valid = parsed
-          .filter((r) => r && typeof r.type === 'string' && typeof r.title === 'string' && typeof r.url === 'string')
+          .filter((s) => s && typeof s.category === 'string' && typeof s.title === 'string' && typeof s.content === 'string')
           .slice(0, 5);
         if (valid.length > 0) {
-          this.logger.log(`[学习资源] LLM 生成 ${valid.length} 条推荐`);
+          this.logger.log(`[学习建议] LLM 生成 ${valid.length} 条建议`);
           return valid;
         }
       }
-      this.logger.warn('[学习资源] LLM 返回内容无法解析，将使用兜底规则');
+      this.logger.warn('[学习建议] LLM 返回内容无法解析，将使用兜底规则');
       return [];
     } catch (error) {
-      this.logger.error('[学习资源] LLM 调用失败:', error);
+      this.logger.error('[学习建议] LLM 调用失败:', error);
       return [];
     }
   }
