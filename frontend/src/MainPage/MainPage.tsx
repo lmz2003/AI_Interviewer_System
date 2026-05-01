@@ -52,10 +52,29 @@ const CollapseRightIcon = () => (
 );
 
 const LogoutIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" stroke-linejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
     <polyline points="16 17 21 12 16 7"/>
     <line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+);
+
+const LogoIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+    <defs>
+      <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#6366F1"/>
+        <stop offset="100%" stopColor="#818CF8"/>
+      </linearGradient>
+    </defs>
+    <rect width="32" height="32" rx="8" fill="url(#logoGrad)"/>
+    <path d="M16 7C14.5 7 13.3 8.2 13.3 9.7V13.3C13.3 14.8 14.5 16 16 16C17.5 16 18.7 14.8 18.7 13.3V9.7C18.7 8.2 17.5 7 16 7Z" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    <path d="M22 13.3V14.7C22 17.9 19.3 20.7 16 20.7C12.7 20.7 10 17.9 10 14.7V13.3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    <path d="M16 20.7V24" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+    <path d="M12.7 24H19.3" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+    <circle cx="16" cy="10.5" r="1.5" fill="white"/>
+    <circle cx="23" cy="9" r="2" fill="#10B981"/>
+    <path d="M22 9L22.7 9.7L24.2 8.3" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 
@@ -341,13 +360,9 @@ const Header: React.FC<{
                   onClick={() => { onNavClick('home'); onMenuClick(); }}
                 >
                   <div className={styles.sidebarLogoMark}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                      <path d="M2 17l10 5 10-5"/>
-                      <path d="M2 12l10 5 10-5"/>
-                    </svg>
+                    <LogoIcon />
                   </div>
-                  <span className={styles.mobileDropdownTitle}>AI 面试官</span>
+                  <span className={styles.mobileDropdownTitle}>智面</span>
                 </div>
                 
                 <nav className={styles.mobileNav}>
@@ -591,13 +606,9 @@ const MainPageLayout: React.FC = () => {
                   title="返回首页"
                 >
                   <div className={styles.sidebarLogoMark}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                      <path d="M2 17l10 5 10-5"/>
-                      <path d="M2 12l10 5 10-5"/>
-                    </svg>
+                    <LogoIcon />
                   </div>
-                  <h2 className={styles.sidebarTitle}>AI 面试官</h2>
+                  <h2 className={styles.sidebarTitle}>智面</h2>
                 </div>
               )}
               <button

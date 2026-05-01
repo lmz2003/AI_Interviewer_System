@@ -102,8 +102,8 @@ const i18n = {
         { title: '数据分析', description: '学习进度跟踪、面试表现分析与个性化建议，持续追踪成长。' },
       ],
     },
-    cta: { title: '准备好了吗？', subtitle: '加入 AI 面试官系统，让每一次练习都有价值', button: '立即登录' },
-    footer: { copy: 'AI 面试官系统' },
+    cta: { title: '准备好了吗？', subtitle: '加入智面系统，让每一次练习都有价值', button: '立即登录' },
+    footer: { copy: '智面 - AI面试助手' },
     login: { button: '登录' },
     lang: { switch: 'EN' },
   },
@@ -226,16 +226,23 @@ const HomePage: React.FC = () => {
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
           <div style={{
-            width: '34px', height: '34px',
+            width: '32px',
+            height: '32px',
             background: 'linear-gradient(135deg, #6366F1 0%, #818CF8 100%)',
             borderRadius: '8px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+              <path d="M16 7C14.5 7 13.3 8.2 13.3 9.7V13.3C13.3 14.8 14.5 16 16 16C17.5 16 18.7 14.8 18.7 13.3V9.7C18.7 8.2 17.5 7 16 7Z" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <path d="M22 13.3V14.7C22 17.9 19.3 20.7 16 20.7C12.7 20.7 10 17.9 10 14.7V13.3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <path d="M16 20.7V24" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+              <path d="M12.7 24H19.3" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+              <circle cx="16" cy="10.5" r="1.5" fill="white"/>
+              <circle cx="23" cy="9" r="2" fill="#10B981"/>
+              <path d="M22 9L22.7 9.7L24.2 8.3" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 800, fontSize: '1.05rem', color: colors.text }}>AI 面试官</span>
+          <span style={{ fontWeight: 800, fontSize: '1.05rem', color: colors.text }}>智面</span>
         </div>
 
         {/* Nav Links - Desktop */}

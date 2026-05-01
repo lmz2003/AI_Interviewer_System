@@ -19,6 +19,168 @@ import './Interview.scss';
 
 type ViewMode = 'list' | 'select' | 'chat' | 'voice' | 'video' | 'report';
 
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
+interface FilterDropdownProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: FilterOption[];
+  ariaLabel: string;
+}
+
+const FilterDropdown: React.FC<FilterDropdownProps> = ({
+  label,
+  value,
+  onChange,
+  options,
+  ariaLabel,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find(opt => opt.value === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && optionsRef.current) {
+      const selectedIdx = options.findIndex(opt => opt.value === value);
+      if (selectedIdx >= 0) {
+        setHighlightedIndex(selectedIdx);
+      }
+    }
+  }, [isOpen, options, value]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setIsOpen(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex(prev => (prev < options.length - 1 ? prev + 1 : 0));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex(prev => (prev > 0 ? prev - 1 : options.length - 1));
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (highlightedIndex >= 0) {
+          onChange(options[highlightedIndex].value);
+          setIsOpen(false);
+        }
+        break;
+      case 'Tab':
+        setIsOpen(false);
+        break;
+    }
+  };
+
+  const handleSelect = (optionValue: string) => {
+    onChange(optionValue);
+    setIsOpen(false);
+  };
+
+  const dropdownId = useRef(`dropdown-${Math.random().toString(36).slice(2, 9)}`);
+
+  return (
+    <div className="filter-item">
+      <label id={`${dropdownId.current}-label`}>{label}</label>
+      <div 
+        ref={dropdownRef}
+        className={`custom-filter-dropdown ${isOpen ? 'open' : ''}`}
+        onKeyDown={handleKeyDown}
+      >
+        <button
+          type="button"
+          className="dropdown-trigger"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen ? 'true' : 'false'}
+          aria-label={ariaLabel}
+        >
+          <span className="dropdown-value">{selectedOption?.label || '请选择'}</span>
+          <svg 
+            className="dropdown-arrow" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2.5" 
+            width="14" 
+            height="14"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        
+        {isOpen && (
+          <div 
+            className="dropdown-menu" 
+            role="listbox" 
+            ref={optionsRef}
+            aria-label={ariaLabel}
+            aria-activedescendant={highlightedIndex >= 0 ? `${dropdownId.current}-option-${highlightedIndex}` : undefined}
+          >
+            <div className="dropdown-menu-inner">
+              {options.map((option, index) => (
+                <button
+                  key={option.value}
+                  id={`${dropdownId.current}-option-${index}`}
+                  type="button"
+                  className={`dropdown-option ${option.value === value ? 'selected' : ''} ${index === highlightedIndex ? 'highlighted' : ''}`}
+                  onClick={() => handleSelect(option.value)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  role="option"
+                  aria-selected={option.value === value ? 'true' : 'false'}
+                >
+                  <span className="option-label">{option.label}</span>
+                  {option.value === value && (
+                    <svg className="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // SVG 图标组件
 const MicIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1131,112 +1293,87 @@ const InterviewModule: React.FC = () => {
                 className="filter-toggle-btn"
                 onClick={() => setFilterExpanded(!filterExpanded)}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
                   <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                 </svg>
-                <span>筛选条件</span>
-                <svg 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  width="16" 
-                  height="16"
-                  style={{ transform: filterExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                <span>{filterExpanded ? '收起筛选' : '展开筛选'}</span>
+                <span className="toggle-indicator">
+                  <svg 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2.5" 
+                    width="14" 
+                    height="14"
+                    style={{ transform: filterExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s ease' }}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </span>
               </button>
             )}
 
             <div className={`filter-group ${isMobile ? (filterExpanded ? 'filter-expanded' : 'filter-collapsed') : ''}`}>
-              <div className="filter-item">
-                <label>面试状态</label>
-                <select 
-                  title="选择面试状态"
-                  aria-label="选择面试状态"
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">全部</option>
-                  <option value="pending">待开始</option>
-                  <option value="in_progress">进行中</option>
-                  <option value="completed">已完成</option>
-                  <option value="interrupted">已中断</option>
-                  <option value="abandoned">已放弃</option>
-                </select>
-              </div>
+              <FilterDropdown
+                label="面试状态"
+                value={filterStatus}
+                onChange={setFilterStatus}
+                ariaLabel="选择面试状态"
+                options={[
+                  { value: 'all', label: '全部' },
+                  { value: 'pending', label: '待开始' },
+                  { value: 'in_progress', label: '进行中' },
+                  { value: 'completed', label: '已完成' },
+                  { value: 'interrupted', label: '已中断' },
+                  { value: 'abandoned', label: '已放弃' },
+                ]}
+              />
 
-              <div className="filter-item">
-                <label>面试场景</label>
-                <select 
-                  title="选择面试场景"
-                  aria-label="选择面试场景"
-                  value={filterScene}
-                  onChange={(e) => setFilterScene(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">全部</option>
-                  {scenes.map((scene) => (
-                    <option key={scene.code} value={scene.code}>
-                      {scene.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <FilterDropdown
+                label="面试场景"
+                value={filterScene}
+                onChange={setFilterScene}
+                ariaLabel="选择面试场景"
+                options={[
+                  { value: 'all', label: '全部' },
+                  ...scenes.map(scene => ({ value: scene.code, label: scene.name })),
+                ]}
+              />
 
-              <div className="filter-item">
-                <label>面试形式</label>
-                <select 
-                  title="选择面试形式"
-                  aria-label="选择面试形式"
-                  value={filterMode}
-                  onChange={(e) => setFilterMode(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">全部</option>
-                  <option value="text">文本面试</option>
-                  <option value="voice">语音面试</option>
-                  <option value="video">视频面试</option>
-                </select>
-              </div>
+              <FilterDropdown
+                label="面试形式"
+                value={filterMode}
+                onChange={setFilterMode}
+                ariaLabel="选择面试形式"
+                options={[
+                  { value: 'all', label: '全部' },
+                  { value: 'text', label: '文本面试' },
+                  { value: 'voice', label: '语音面试' },
+                  { value: 'video', label: '视频面试' },
+                ]}
+              />
 
-              <div className="filter-item">
-                <label>岗位类型</label>
-                <select 
-                  title="选择岗位类型"
-                  aria-label="选择岗位类型"
-                  value={filterJobType}
-                  onChange={(e) => setFilterJobType(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">全部</option>
-                  {jobTypes.map((jobType) => (
-                    <option key={jobType.code} value={jobType.code}>
-                      {jobType.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <FilterDropdown
+                label="岗位类型"
+                value={filterJobType}
+                onChange={setFilterJobType}
+                ariaLabel="选择岗位类型"
+                options={[
+                  { value: 'all', label: '全部' },
+                  ...jobTypes.map(jobType => ({ value: jobType.code, label: jobType.name })),
+                ]}
+              />
 
-              <div className="filter-item">
-                <label>难度等级</label>
-                <select 
-                  title="选择难度等级"
-                  aria-label="选择难度等级"
-                  value={filterDifficulty}
-                  onChange={(e) => setFilterDifficulty(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">全部</option>
-                  {difficultyLevels.map((level) => (
-                    <option key={level.code} value={level.code}>
-                      {level.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <FilterDropdown
+                label="难度等级"
+                value={filterDifficulty}
+                onChange={setFilterDifficulty}
+                ariaLabel="选择难度等级"
+                options={[
+                  { value: 'all', label: '全部' },
+                  ...difficultyLevels.map(level => ({ value: level.code, label: level.name })),
+                ]}
+              />
             </div>
           </div>
 
