@@ -220,52 +220,6 @@ $dark-primary: #818CF8;
   }
 }
 
-.statusWrapper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
-
-  :global(.dark) & {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: $dark-border;
-  }
-}
-
-.statusIcon {
-  color: #64748b;
-  flex-shrink: 0;
-
-  :global(.dark) & {
-    color: $dark-text-muted;
-  }
-}
-
-.statusSelect {
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 500;
-  color: #475569;
-  cursor: pointer;
-  padding: 0;
-  padding-right: 4px;
-  outline: none;
-  min-width: 60px;
-
-  &:focus {
-    outline: none;
-  }
-
-  :global(.dark) & {
-    color: $dark-text-secondary;
-  }
-}
-
 .button {
   padding: 10px 16px;
   border-radius: 8px;

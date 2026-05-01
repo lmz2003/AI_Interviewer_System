@@ -45,7 +45,6 @@ interface Note {
   content: string;
   summary?: string;
   tags: string[];
-  status: string;
   createdAt: string;
   updatedAt: string;
   knowledgeDocumentId?: string;
@@ -57,7 +56,6 @@ interface QueryParams {
   pageSize: number;
   keyword?: string;
   tag?: string;
-  status?: string;
   sortBy: string;
   order: 'asc' | 'desc';
 }
@@ -70,7 +68,7 @@ const NotesListPage: React.FC = () => {
   const [batchMode, setBatchMode] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0 });
   const [queryParams, setQueryParams] = useState<QueryParams>({
-    page: 1, pageSize: 20, keyword: '', tag: '', status: '', sortBy: 'updatedAt', order: 'desc',
+    page: 1, pageSize: 20, keyword: '', tag: '', sortBy: 'updatedAt', order: 'desc',
   });
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
@@ -85,7 +83,6 @@ const NotesListPage: React.FC = () => {
       params.append('pageSize', queryParams.pageSize.toString());
       if (queryParams.keyword) params.append('keyword', queryParams.keyword);
       if (queryParams.tag) params.append('tag', queryParams.tag);
-      if (queryParams.status) params.append('status', queryParams.status);
       params.append('sortBy', queryParams.sortBy);
       params.append('order', queryParams.order);
       const response = await fetch(`${API_BASE}/notes?${params.toString()}`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -249,11 +246,6 @@ const NotesListPage: React.FC = () => {
             onChange={e => handleSearch(e.target.value)}
           />
         </div>
-        <select aria-label="状态筛选" className={styles.select} value={queryParams.status} onChange={e => handleFilterChange('status', e.target.value)}>
-          <option value="">全部状态</option>
-          <option value="draft">草稿</option>
-          <option value="published">已发布</option>
-        </select>
         <select aria-label="排序字段" className={styles.select} value={queryParams.sortBy} onChange={e => handleFilterChange('sortBy', e.target.value)}>
           <option value="updatedAt">最后修改</option>
           <option value="createdAt">创建时间</option>
@@ -324,9 +316,6 @@ const NotesListPage: React.FC = () => {
                     <p className={styles.noteContent}>{note.summary || note.content}</p>
 
                     <div className={styles.noteMeta}>
-                      <span className={`${styles.statusBadge} ${note.status === 'published' ? styles.statusPublished : styles.statusDraft}`}>
-                        {note.status === 'published' ? '已发布' : '草稿'}
-                      </span>
                       {note.tags?.map((tag, i) => <span key={i} className={styles.tag}>{tag}</span>)}
                       <span className={styles.timeText}>更新于 {formatDate(note.updatedAt)}</span>
                     </div>

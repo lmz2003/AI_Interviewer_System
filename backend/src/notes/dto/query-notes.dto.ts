@@ -23,10 +23,6 @@ export class QueryNotesDto {
   tag?: string;
 
   @IsOptional()
-  @IsIn(['draft', 'published'])
-  status?: string;
-
-  @IsOptional()
   @IsIn(['updatedAt', 'createdAt', 'title'])
   sortBy?: string = 'updatedAt';
 

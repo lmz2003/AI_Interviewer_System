@@ -189,11 +189,6 @@ export class NotesService {
       whereConditions.title = Like(`%${queryDto.keyword}%`);
     }
 
-    // 状态筛选
-    if (queryDto?.status) {
-      whereConditions.status = queryDto.status;
-    }
-
     // 标签筛选（简单实现，检查标签数组是否包含指定标签）
     // 注意：这里使用 Like 可能不够精确，生产环境建议用更复杂的查询
     if (queryDto?.tag) {

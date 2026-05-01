@@ -13,7 +13,6 @@ import {
   CloudUpload, 
   CloudCheck,
   Loader2,
-  FileText,
   CheckCircle2,
   AlertCircle,
   Pencil,
@@ -27,7 +26,6 @@ interface Note {
   content: string;
   summary?: string;
   tags: string[];
-  status: string;
   createdAt: string;
   updatedAt: string;
   knowledgeDocumentId?: string;
@@ -105,7 +103,6 @@ const NoteDetailPage: React.FC = () => {
   const [summary, setSummary] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [status, setStatus] = useState('draft');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -166,7 +163,6 @@ const NoteDetailPage: React.FC = () => {
         setContent(noteData.content);
         setSummary(noteData.summary || '');
         setTags(noteData.tags || []);
-        setStatus(noteData.status);
         setDataLoaded(true);
       }
     } catch (error) {
@@ -210,8 +206,7 @@ const NoteDetailPage: React.FC = () => {
         title !== note.title ||
         content !== note.content ||
         summary !== (note.summary || '') ||
-        JSON.stringify(tags) !== JSON.stringify(note.tags) ||
-        status !== note.status;
+        JSON.stringify(tags) !== JSON.stringify(note.tags);
       setHasChanges(changed);
       
       setNeedsSync(note.needsSync || false);
@@ -220,7 +215,7 @@ const NoteDetailPage: React.FC = () => {
       setHasChanges(title.length > 0 || content.length > 0 || tags.length > 0);
       setShowSyncButton(false);
     }
-  }, [title, content, summary, tags, status, note, isNewNote]);
+  }, [title, content, summary, tags, note, isNewNote]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -232,7 +227,6 @@ const NoteDetailPage: React.FC = () => {
         content: content,
         summary: summary || undefined,
         tags,
-        status,
       };
 
       let response;
@@ -266,7 +260,6 @@ const NoteDetailPage: React.FC = () => {
         setContent(savedNote.content);
         setSummary(savedNote.summary || '');
         setTags(savedNote.tags || []);
-        setStatus(savedNote.status);
         setHasChanges(false);
 
         if (isNewNote) {
@@ -281,7 +274,7 @@ const NoteDetailPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [title, content, summary, tags, status, isNewNote, id, API_BASE, navigate]);
+  }, [title, content, summary, tags, isNewNote, id, API_BASE, navigate]);
 
   const handleDelete = async () => {
     const confirmed = await toastModal.confirm(
@@ -531,19 +524,6 @@ const NoteDetailPage: React.FC = () => {
               <Save size={16} />
               <span>保存</span>
             </button>
-
-            <div className={styles.statusWrapper}>
-              <FileText size={14} className={styles.statusIcon} />
-              <select
-                className={styles.statusSelect}
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                aria-label="笔记状态"
-              >
-                <option value="draft">草稿</option>
-                <option value="published">已发布</option>
-              </select>
-            </div>
 
             {!isNewNote && (
               <button
