@@ -1161,6 +1161,24 @@ export class InterviewController {
   }
 
   private toInterviewResponse(interview: Interview) {
+    let reportStatus = interview.reportStatus;
+    
+    if (!reportStatus || reportStatus === 'pending') {
+      if (interview.report) {
+        reportStatus = 'completed';
+      } else if (interview.status === 'completed') {
+        reportStatus = 'pending';
+      }
+    }
+
+    let startedAt: Date | null = null;
+    if (interview.sessions && interview.sessions.length > 0) {
+      const sortedSessions = [...interview.sessions].sort(
+        (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+      );
+      startedAt = sortedSessions[0].startedAt;
+    }
+
     return {
       id: interview.id,
       userId: interview.userId,
@@ -1177,9 +1195,11 @@ export class InterviewController {
       duration: interview.duration,
       status: interview.status,
       statusName: this.sceneService.getStatusName(interview.status),
+      reportStatus,
       mode: interview.mode || 'text',
       title: interview.title,
       createdAt: interview.createdAt,
+      startedAt,
       updatedAt: interview.updatedAt,
     };
   }

@@ -15,6 +15,8 @@ import { InterviewReport } from './interview-report.entity';
 
 export type InterviewMode = 'text' | 'voice' | 'video';
 
+export type ReportStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
 export interface VideoAnalysisSummary {
   totalFrames: number;
   averageEyeContactRatio: number;
@@ -54,6 +56,9 @@ export class Interview {
 
   @Column({ type: 'varchar', length: 20, default: 'pending' })
   status!: string;
+
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
+  reportStatus!: ReportStatus;
 
   @Column({ type: 'varchar', length: 20, default: 'text' })
   mode!: InterviewMode;

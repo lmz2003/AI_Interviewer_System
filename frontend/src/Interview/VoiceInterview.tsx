@@ -44,7 +44,6 @@ const VolumeOnIcon = () => (
 interface VoiceInterviewProps {
   interview: Interview;
   sessionId: string;
-  onEnd: (reportId: string) => void;
   onBack: () => void;
   voice?: string;
   initialDuration?: number;
@@ -59,7 +58,6 @@ interface ConversationMessage {
 const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   interview,
   sessionId,
-  onEnd,
   onBack,
   voice = 'anna',
   initialDuration = 0,
@@ -74,7 +72,6 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   const [isAIPlaying, setIsAIPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waveformData, setWaveformData] = useState<number[]>(new Array(24).fill(2));
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -358,11 +355,10 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
           await playAudioBase64(result.audioBase64, result.audioFormat);
 
           if (result.shouldEnd) {
-            // 面试结束，触发结束流程
             setCallStatus('ended');
             try {
-              const endResult = await interviewApi.endInterview(sessionId);
-              onEnd(endResult.reportId);
+              await interviewApi.endInterview(sessionId);
+              onBack();
             } catch {
               setError('结束面试失败，请手动点击结束按钮');
               setCallStatus('idle');
@@ -386,7 +382,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     };
 
     mediaRecorderRef.current.stop();
-  }, [callStatus, sessionId, voice, playAudioBase64, onEnd, saveProgress]);
+  }, [callStatus, sessionId, voice, playAudioBase64, onBack, saveProgress]);
 
   const handleEndInterview = useCallback(async () => {
     const confirmed = await toastModal.confirm(
@@ -397,18 +393,16 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
 
     cleanup();
     setCallStatus('ended');
-    setIsGeneratingReport(true);
 
     try {
       await saveProgress();
-      const result = await interviewApi.endInterview(sessionId);
-      onEnd(result.reportId);
+      await interviewApi.endInterview(sessionId);
+      onBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : '结束面试失败');
       setCallStatus('idle');
-      setIsGeneratingReport(false);
     }
-  }, [cleanup, sessionId, onEnd, saveProgress, toastModal]);
+  }, [cleanup, sessionId, onBack, saveProgress, toastModal]);
 
   const handleBack = useCallback(async () => {
     await saveProgress();
@@ -435,28 +429,6 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
 
   return (
     <div className="voice-interview-page">
-      {isGeneratingReport && (
-        <div className="interview-modal-overlay">
-          <div className="interview-modal report-modal">
-            <div className="modal-icon spinning">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-            </div>
-            <h3>正在生成面试报告...</h3>
-            <p>AI正在分析您的面试表现，请稍候</p>
-            <div className="modal-progress">
-              <div className="progress-bar">
-                <div className="progress-fill" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 顶部信息栏 */}
       <div className="voice-header">
         <button className="back-btn" onClick={handleBack}>

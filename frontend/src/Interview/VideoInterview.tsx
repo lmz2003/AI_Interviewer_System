@@ -57,13 +57,10 @@ const VideoOnIcon = () => (
 interface VideoInterviewProps {
   interview: Interview;
   sessionId: string;
-  /** 开场白文本，作为面试的第一轮对话显示并播放（新建面试时使用） */
   openingText?: string;
-  onEnd: (reportId: string) => void;
   onBack: () => void;
   voice?: string;
   initialDuration?: number;
-  /** 继续面试时从后端恢复的历史对话记录 */
   initialConversations?: ConversationMessage[];
 }
 
@@ -76,7 +73,6 @@ interface ConversationMessage {
 interface FrameData {
   base64: string;
   timestamp: number;
-  /** 每轮问答的编号，从 0 开始（0 号 = 开场白阶段） */
   roundIndex: number;
 }
 
@@ -84,7 +80,6 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   interview,
   sessionId,
   openingText = '',
-  onEnd,
   onBack,
   voice = 'anna',
   initialDuration = 0,
@@ -113,7 +108,6 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   const [videoAnalysisData, setVideoAnalysisData] = useState<VideoAnalysisInMessage | null>(null);
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // 媒体相关 refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -530,8 +524,8 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
           if (result.shouldEnd) {
             setCallStatus('ended');
             try {
-              const endResult = await interviewApi.endInterview(sessionId);
-              onEnd(endResult.reportId);
+              await interviewApi.endInterview(sessionId);
+              onBack();
             } catch {
               setError('结束面试失败，请手动点击结束按钮');
               setCallStatus('idle');
@@ -552,7 +546,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
     };
 
     mediaRecorderRef.current.stop();
-  }, [callStatus, sessionId, voice, playAudioBase64, onEnd, getFramesForRound]);
+  }, [callStatus, sessionId, voice, playAudioBase64, onBack, getFramesForRound]);
 
   // ─── 结束/返回 ─────────────────────────────────────────────────────────────
     const toastModal = useToastModal();
@@ -565,18 +559,16 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
 
     cleanup();
     setCallStatus('ended');
-    setIsGeneratingReport(true);
 
     try {
       await saveProgress();
-      const result = await interviewApi.endInterview(sessionId);
-      onEnd(result.reportId);
+      await interviewApi.endInterview(sessionId);
+      onBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : '结束面试失败');
       setCallStatus('idle');
-      setIsGeneratingReport(false);
     }
-  }, [cleanup, sessionId, onEnd, saveProgress, toastModal]);
+  }, [cleanup, sessionId, onBack, saveProgress, toastModal]);
 
   const handleBack = useCallback(async () => {
     await saveProgress();
@@ -637,28 +629,6 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
 
   return (
     <div className="video-interview-page">
-      {isGeneratingReport && (
-        <div className="interview-modal-overlay">
-          <div className="interview-modal report-modal">
-            <div className="modal-icon spinning">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-            </div>
-            <h3>正在生成面试报告...</h3>
-            <p>AI正在分析您的面试表现，请稍候</p>
-            <div className="modal-progress">
-              <div className="progress-bar">
-                <div className="progress-fill" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="video-header">
         <button className="back-btn" onClick={handleBack}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">

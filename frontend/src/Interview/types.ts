@@ -35,11 +35,15 @@ export interface Interview {
   duration?: number;
   status: string;
   statusName: string;
+  reportStatus: ReportStatus;
   mode: InterviewMode;
   title?: string;
   createdAt: Date;
+  startedAt: Date | null;
   updatedAt: Date;
 }
+
+export type ReportStatus = 'pending' | 'generating' | 'completed' | 'failed';
 
 export interface InterviewSession {
   id: string;

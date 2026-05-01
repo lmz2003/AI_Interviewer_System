@@ -8,6 +8,7 @@ import { CreateInterviewDto } from '../dto/create-interview.dto';
 import { SceneService } from './scene.service';
 import { InterviewLLMService } from './interview-llm.service';
 import { InterviewReportService } from './interview-report.service';
+import { InterviewReportGateway } from '../interview-report.gateway';
 
 export interface StartSessionResult {
   sessionId: string;
@@ -38,6 +39,7 @@ export class InterviewSessionService {
     @Inject(forwardRef(() => InterviewReportService))
     private reportService: InterviewReportService,
     private dataSource: DataSource,
+    private reportGateway: InterviewReportGateway,
   ) {}
 
   async createInterview(userId: string, dto: CreateInterviewDto): Promise<Interview> {
@@ -68,6 +70,17 @@ export class InterviewSessionService {
   async getInterviewList(userId: string, status?: string): Promise<Interview[]> {
     const queryBuilder = this.interviewRepository
       .createQueryBuilder('interview')
+      .leftJoinAndSelect('interview.report', 'report')
+      .leftJoin(
+        (qb) =>
+          qb
+            .from(InterviewSession, 'session')
+            .select('"interviewId", MAX("startedAt") as "startedAt"')
+            .groupBy('"interviewId"'),
+        'latest_session',
+        'interview.id = latest_session."interviewId"',
+      )
+      .addSelect('latest_session."startedAt"', 'session_startedAt')
       .where('interview.userId = :userId', { userId })
       .orderBy('interview.createdAt', 'DESC');
 
@@ -75,7 +88,14 @@ export class InterviewSessionService {
       queryBuilder.andWhere('interview.status = :status', { status });
     }
 
-    return queryBuilder.getMany();
+    const results = await queryBuilder.getMany();
+
+    return results.map((interview: any) => {
+      if (interview.session_startedAt) {
+        interview.sessions = [{ startedAt: interview.session_startedAt }];
+      }
+      return interview;
+    });
   }
 
   async getInterviewById(interviewId: string, userId: string): Promise<Interview> {
@@ -211,6 +231,7 @@ export class InterviewSessionService {
       const messages = await this.getSessionMessages(sessionId);
 
       interview.status = 'completed';
+      interview.reportStatus = 'generating';
       interview.duration = Math.floor(
         (session.endedAt.getTime() - session.startedAt.getTime()) / 1000,
       );
@@ -226,15 +247,29 @@ export class InterviewSessionService {
 
       await queryRunner.manager.save(interview);
 
-      const report = await this.reportService.generateReport(interview, session, messages);
-
       await queryRunner.commitTransaction();
 
-      this.logger.log(`面试结束成功 - 报告ID: ${report.id}`);
+      this.logger.log(`面试结束成功 - 面试ID: ${interviewId}，报告将在后台异步生成`);
+
+      this.reportGateway.emitProgress(interviewId, { status: 'generating', message: '正在生成面试报告...' });
+
+      this.reportService.generateReport(interview, session, messages).then(async (report) => {
+        this.logger.log(`面试报告生成完成 - 报告ID: ${report.id}`);
+        
+        await this.interviewRepository.update(interviewId, { reportStatus: 'completed' });
+        
+        this.reportGateway.emitCompletion(interviewId, report.id);
+      }).catch(async (error) => {
+        this.logger.error(`面试报告生成失败: ${error}`);
+        
+        await this.interviewRepository.update(interviewId, { reportStatus: 'failed' });
+        
+        this.reportGateway.emitError(interviewId, error.message || '报告生成失败');
+      });
 
       return {
         interview,
-        reportId: report.id,
+        reportId: '',
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();

@@ -18,6 +18,7 @@ import { VideoAnalysisService } from './services/video-analysis.service';
 import { ResumeAnalysisModule } from '../resume-analysis/resume-analysis.module';
 import { KnowledgeBaseModule } from '../knowledge-base/knowledge-base.module';
 import { NotesModule } from '../notes/notes.module';
+import { InterviewReportGateway } from './interview-report.gateway';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { NotesModule } from '../notes/notes.module';
     SpeechRecognitionService,
     SpeechSynthesisService,
     VideoAnalysisService,
+    InterviewReportGateway,
   ],
   exports: [
     SceneService,

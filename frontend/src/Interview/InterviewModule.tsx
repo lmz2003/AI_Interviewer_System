@@ -9,13 +9,17 @@ import type {
   CreateInterviewDto,
   Resume,
   InterviewMode,
+  ReportStatus,
 } from './types';
 import InterviewChat from './InterviewChat';
 import InterviewReport from './InterviewReport';
 import InterviewModeSelector from './InterviewModeSelector';
 import VoiceInterview from './VoiceInterview';
 import VideoInterview from './VideoInterview';
+import { io, Socket } from 'socket.io-client';
 import './Interview.scss';
+
+const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
 
 type ViewMode = 'list' | 'select' | 'chat' | 'voice' | 'video' | 'report';
 
@@ -266,7 +270,6 @@ interface VoiceInterviewLoaderProps {
   interview: Interview;
   initialSessionId: string | null;
   initialElapsedTime?: number;
-  onEnd: (reportId: string) => void;
   onBack: () => void;
   onSessionReady: (sessionId: string) => void;
 }
@@ -275,7 +278,6 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
   interview,
   initialSessionId,
   initialElapsedTime = 0,
-  onEnd,
   onBack,
   onSessionReady,
 }) => {
@@ -540,7 +542,6 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
     <VoiceInterview
       interview={interview}
       sessionId={sessionId}
-      onEnd={onEnd}
       onBack={onBack}
       initialDuration={initialElapsedTimeRef.current}
     />
@@ -551,22 +552,14 @@ interface VideoInterviewLoaderProps {
   interview: Interview;
   initialSessionId: string | null;
   initialElapsedTime?: number;
-  onEnd: (reportId: string) => void;
   onBack: () => void;
   onSessionReady: (sessionId: string) => void;
 }
 
-/**
- * VideoInterviewLoader 职责：
- * 仅负责从后端获取 sessionId 和开场白文本（SSE 流），
- * 一旦 sessionId 就绪且开场白文本已收到，立即渲染 VideoInterview。
- * 摄像头初始化、开场白播放、截帧等全部由 VideoInterview 内部完成。
- */
 const VideoInterviewLoader: React.FC<VideoInterviewLoaderProps> = ({
   interview,
   initialSessionId,
   initialElapsedTime = 0,
-  onEnd,
   onBack,
   onSessionReady,
 }) => {
@@ -665,16 +658,13 @@ const VideoInterviewLoader: React.FC<VideoInterviewLoaderProps> = ({
     );
   }
 
-  // session 就绪后立即渲染 VideoInterview（开场白由它内部播放）
   if (sessionReady && sessionId) {
     const isResuming = historyConversations.length > 0;
     return (
       <VideoInterview
         interview={interview}
         sessionId={sessionId}
-        // 继续面试时不传 openingText，避免重播开场白
         openingText={isResuming ? '' : openingText}
-        onEnd={onEnd}
         onBack={onBack}
         initialDuration={initialElapsedTimeRef.current}
         initialConversations={isResuming ? historyConversations : undefined}
@@ -747,6 +737,9 @@ const InterviewModule: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [filterExpanded, setFilterExpanded] = useState(false);
 
+  const socketRef = useRef<Socket | null>(null);
+  const subscribedInterviewIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth <= 900;
@@ -791,6 +784,124 @@ const InterviewModule: React.FC = () => {
   useEffect(() => {
     loadInitialData();
   }, [loadInitialData]);
+
+  const getUserId = useCallback(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.userId || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const userId = getUserId();
+    console.log('[WebSocket] useEffect triggered, userId:', userId, 'socketRef.current:', socketRef.current);
+    
+    if (!userId) {
+      console.log('[WebSocket] No userId, skipping WebSocket connection');
+      return;
+    }
+
+    if (socketRef.current) {
+      console.log('[WebSocket] Socket already exists, skipping');
+      return;
+    }
+
+    console.log('[WebSocket] Creating new socket connection to:', `${WS_URL}/interview-report`);
+    const socket = io(`${WS_URL}/interview-report`, {
+      transports: ['websocket', 'polling'],
+    });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('[WebSocket] Connected, socket id:', socket.id);
+      const currentUserId = getUserId() || '';
+      subscribedInterviewIdsRef.current.forEach((interviewId) => {
+        console.log('[WebSocket] Re-subscribing to interview:', interviewId);
+        socket.emit('join-interview', { interviewId, userId: currentUserId });
+      });
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[WebSocket] Disconnected');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('[WebSocket] Connection error:', error);
+    });
+
+    socket.on('report-progress', (data: { interviewId: string; status: ReportStatus; message?: string }) => {
+      console.log('[WebSocket] Received report-progress:', data);
+      setInterviews((prev) =>
+        prev.map((interview) =>
+          interview.id === data.interviewId
+            ? { ...interview, reportStatus: data.status }
+            : interview
+        )
+      );
+    });
+
+    socket.on('report-complete', (data: { interviewId: string; reportId: string }) => {
+      console.log('[WebSocket] Received report-complete:', data);
+      setInterviews((prev) =>
+        prev.map((interview) =>
+          interview.id === data.interviewId
+            ? { ...interview, reportStatus: 'completed' as ReportStatus }
+            : interview
+        )
+      );
+    });
+
+    socket.on('report-error', (data: { interviewId: string; error: string }) => {
+      console.log('[WebSocket] Received report-error:', data);
+      setInterviews((prev) =>
+        prev.map((interview) =>
+          interview.id === data.interviewId
+            ? { ...interview, reportStatus: 'failed' as ReportStatus }
+            : interview
+        )
+      );
+    });
+
+    return () => {
+      console.log('[WebSocket] Cleanup, disconnecting socket');
+      const currentUserId = getUserId() || '';
+      subscribedInterviewIdsRef.current.forEach((interviewId) => {
+        socket.emit('leave-interview', { interviewId, userId: currentUserId });
+      });
+      socket.disconnect();
+      socketRef.current = null;
+      subscribedInterviewIdsRef.current.clear();
+    };
+  }, [getUserId]);
+
+  useEffect(() => {
+    const userId = getUserId();
+    if (!userId) return;
+
+    const generatingInterviews = interviews.filter(
+      (interview) => interview.reportStatus === 'generating'
+    );
+
+    const socket = socketRef.current;
+    console.log('[WebSocket] Interviews updated, generating count:', generatingInterviews.length, 'socket connected:', socket?.connected);
+
+    generatingInterviews.forEach((interview) => {
+      const isNew = !subscribedInterviewIdsRef.current.has(interview.id);
+      if (isNew) {
+        subscribedInterviewIdsRef.current.add(interview.id);
+        console.log('[WebSocket] Subscribing to interview:', interview.id);
+        if (socket && socket.connected) {
+          socket.emit('join-interview', { interviewId: interview.id, userId });
+        } else {
+          console.log('[WebSocket] Socket not connected, will subscribe on connect');
+        }
+      }
+    });
+  }, [interviews, getUserId]);
 
   const handleStartNewInterview = () => {
     setCurrentInterview(null);
@@ -901,12 +1012,6 @@ const InterviewModule: React.FC = () => {
     }
   };
 
-  const handleChatEnd = (reportId: string) => {
-    setCurrentReportId(reportId);
-    setViewMode('report');
-    loadInitialData();
-  };
-
   const handleBackToList = () => {
     setViewMode('list');
     setCurrentReportId(null);
@@ -914,12 +1019,6 @@ const InterviewModule: React.FC = () => {
     setCurrentInterview(null);
     setCurrentSessionId(null);
     setCurrentSessionElapsedTime(0);
-    loadInitialData();
-  };
-
-  const handleVoiceChatEnd = (reportId: string) => {
-    setCurrentReportId(reportId);
-    setViewMode('report');
     loadInitialData();
   };
 
@@ -1044,7 +1143,6 @@ const InterviewModule: React.FC = () => {
         key={currentSessionId || 'new'}
         interview={currentInterview}
         sessionId={currentSessionId}
-        onEnd={handleChatEnd}
         onBack={handleBackToList}
         initialElapsedTime={currentSessionElapsedTime}
         onElapsedTimeChange={setCurrentSessionElapsedTime}
@@ -1059,7 +1157,6 @@ const InterviewModule: React.FC = () => {
         interview={currentInterview}
         initialSessionId={currentSessionId}
         initialElapsedTime={currentSessionElapsedTime}
-        onEnd={handleVoiceChatEnd}
         onBack={handleBackToList}
         onSessionReady={setCurrentSessionId}
       />
@@ -1073,7 +1170,6 @@ const InterviewModule: React.FC = () => {
         interview={currentInterview}
         initialSessionId={currentSessionId}
         initialElapsedTime={currentSessionElapsedTime}
-        onEnd={handleVoiceChatEnd}
         onBack={handleBackToList}
         onSessionReady={setCurrentSessionId}
       />
@@ -1449,7 +1545,7 @@ const InterviewModule: React.FC = () => {
                   </div>
 
                   <div className="card-footer">
-                    <span className="create-time">{formatDate(interview.createdAt)}</span>
+                    <span className="create-time">{formatDate(interview.startedAt || interview.createdAt)}</span>
                     <div className="card-actions">
                       {interview.status === 'in_progress' && (
                         <button
@@ -1461,10 +1557,20 @@ const InterviewModule: React.FC = () => {
                       )}
                       {interview.status === 'completed' && (
                         <button
-                          className="action-btn report"
+                          className={`action-btn report ${interview.reportStatus === 'generating' ? 'generating' : ''}`}
                           onClick={() => handleViewReport(interview)}
+                          disabled={interview.reportStatus === 'generating' || interview.reportStatus === 'pending' || interview.reportStatus === 'failed'}
                         >
-                          查看报告
+                          {interview.reportStatus === 'generating' || interview.reportStatus === 'pending' ? (
+                            <>
+                              <span className="btn-spinner-small" />
+                              报告生成中
+                            </>
+                          ) : interview.reportStatus === 'failed' ? (
+                            '报告生成失败'
+                          ) : (
+                            '查看报告'
+                          )}
                         </button>
                       )}
                       <button
