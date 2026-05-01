@@ -186,9 +186,26 @@ const KnowledgeBase: React.FC = () => {
   const [loadingBatchDelete, setLoadingBatchDelete] = useState(false);
   const [isBatchDeleteMode, setIsBatchDeleteMode] = useState(false);
   const [query, setQuery] = useState('');
+  const [isNarrow, setIsNarrow] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { isDark } = useTheme();
   const C = getThemeColors(isDark);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        setIsNarrow(width < 700);
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   const token = localStorage.getItem('token');
   const API_BASE = import.meta.env.VITE_API_BASE_URL + '/knowledge-base';
@@ -262,7 +279,11 @@ const KnowledgeBase: React.FC = () => {
 
   const handleDocumentSelect = (docId: string) => {
     const s = new Set(selectedDocuments);
-    s.has(docId) ? s.delete(docId) : s.add(docId);
+    if (s.has(docId)) {
+      s.delete(docId);
+    } else {
+      s.add(docId);
+    }
     setSelectedDocuments(s);
   };
 
@@ -377,7 +398,7 @@ const KnowledgeBase: React.FC = () => {
           if (attempts < maxAttempts) setTimeout(poll, 3000);
           else { setProcessingDocuments(new Set()); toastModal.warning(`${stillProcessing.length} 个文档处理超时`); fetchStats(); }
         }
-      } catch (e) { if (attempts < maxAttempts) setTimeout(poll, 3000); else setProcessingDocuments(new Set()); }
+      } catch { if (attempts < maxAttempts) setTimeout(poll, 3000); else setProcessingDocuments(new Set()); }
     };
     poll();
   };
@@ -434,11 +455,11 @@ const KnowledgeBase: React.FC = () => {
   `;
 
   return (
-    <div style={{ fontFamily: font, color: C.text, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+    <div ref={containerRef} style={{ fontFamily: font, color: C.text, display: 'flex', flexDirection: 'column', height: isNarrow ? 'auto' : 'calc(100vh - 120px)', minHeight: isNarrow ? 'calc(100vh - 120px)' : 'auto', overflowY: isNarrow ? 'auto' : 'hidden' }}>
       <style>{scrollbarStyles}</style>
 
       {/* Stats */}
-      <div style={{ ...sectionStyle, flexShrink: 0 }}>
+      <div style={{ ...sectionStyle, flexShrink: isNarrow ? 0 : 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
           <ChartIcon color={C.primary} />
           <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: C.text }}>知识库统计</h3>
@@ -458,9 +479,9 @@ const KnowledgeBase: React.FC = () => {
       </div>
 
       {/* Two-column layout with independent scrolling */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr', gap: '1.25rem', flex: isNarrow ? 'none' : 1, minHeight: isNarrow ? 'auto' : 0 }}>
         {/* Left column: Query + Add Document */}
-        <div className="kb-scroll-container" style={{ overflowY: 'auto', overflowX: 'hidden', paddingRight: '8px' }}>
+        <div className="kb-scroll-container" style={{ overflowY: isNarrow ? 'visible' : 'auto', overflowX: 'hidden', paddingRight: isNarrow ? '0' : '8px', height: isNarrow ? 'auto' : '100%' }}>
           {/* Query */}
           <div style={sectionStyle}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
@@ -598,7 +619,7 @@ const KnowledgeBase: React.FC = () => {
                   <p style={{ margin: '0 0 4px', color: C.text, fontSize: '0.9rem', fontWeight: 600 }}>拖拽文件到此处，或点击选择</p>
                   <p style={{ margin: 0, color: C.textMuted, fontSize: '0.8rem' }}>支持 PDF、Word、Excel、Markdown、JSON、CSV、TXT</p>
                 </div>
-                <input ref={fileInputRef} type="file" multiple accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.md,.txt,.json" onChange={e => handleFileSelect(e.target.files!)} style={{ display: 'none' }} />
+                <input ref={fileInputRef} type="file" multiple accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.md,.txt,.json" onChange={e => handleFileSelect(e.target.files!)} style={{ display: 'none' }} aria-label="选择文件上传" />
 
                 {selectedFiles.length > 0 && (
                   <>
@@ -650,7 +671,7 @@ const KnowledgeBase: React.FC = () => {
         </div>
 
         {/* Right column: Document list */}
-        <div className="kb-scroll-container" style={{ overflowY: 'auto', overflowX: 'hidden', paddingLeft: '8px' }}>
+        <div className="kb-scroll-container" style={{ overflowY: isNarrow ? 'visible' : 'auto', overflowX: 'hidden', paddingLeft: isNarrow ? '0' : '8px', height: isNarrow ? 'auto' : '100%' }}>
           {/* Document list */}
           <div style={{ ...sectionStyle, marginBottom: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
@@ -705,6 +726,7 @@ const KnowledgeBase: React.FC = () => {
                         checked={selectedDocuments.has(doc.id)}
                         onChange={() => handleDocumentSelect(doc.id)}
                         style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: C.primary, flexShrink: 0 }}
+                        aria-label={`选择文档: ${doc.title}`}
                       />
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>

@@ -10,6 +10,7 @@ import { AIAssistantModule } from './ai-assistant/ai-assistant.module';
 import { UploadModule } from './upload/upload.module';
 import { ResumeAnalysisModule } from './resume-analysis/resume-analysis.module';
 import { InterviewModule } from './interview/interview.module';
+import { PlateAiModule } from './plate-ai/plate-ai.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { InterviewModule } from './interview/interview.module';
     UploadModule,
     ResumeAnalysisModule,
     InterviewModule,
+    PlateAiModule,
   ],
   controllers: [],
   providers: [],

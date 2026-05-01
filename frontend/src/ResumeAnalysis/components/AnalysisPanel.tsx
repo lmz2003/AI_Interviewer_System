@@ -136,13 +136,6 @@ const TABS: { id: TabId; label: string; Icon: React.FC }[] = [
   { id: 'keywords',   label: '关键词',   Icon: KeyIcon },
 ];
 
-const scoreItems = [
-  { key: 'completenessScore', label: '完整性' },
-  { key: 'keywordScore',      label: '关键词' },
-  { key: 'experienceScore',   label: '工作经验' },
-  { key: 'skillsScore',       label: '技能评分' },
-];
-
 const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
   // 判断是否有岗位匹配数据（用于控制 jobMatch Tab 的显示）
   const hasJobMatch = !!analysis.jobMatchAnalysis && analysis.jobMatchAnalysis !== 'null';

@@ -9,7 +9,6 @@ import {
   useChatChunk,
 } from '@platejs/ai/react';
 import { getPluginType, KEYS, PathApi } from 'platejs';
-import { usePluginOption } from 'platejs/react';
 
 import { AILoadingBar, AIMenu } from '@/components/ui/ai-menu';
 import { AIAnchorElement, AILeaf } from '@/components/ui/ai-node';
@@ -34,11 +33,12 @@ export const aiChatPlugin = AIChatPlugin.extend({
   useHooks: ({ editor, getOption }) => {
     useChat();
 
-    const mode = usePluginOption(AIChatPlugin, 'mode');
-    const toolName = usePluginOption(AIChatPlugin, 'toolName');
     useChatChunk({
       onChunk: ({ chunk, isFirst, nodes, text: content }) => {
-        if (isFirst && mode === 'insert') {
+        const currentMode = editor.getOption(AIChatPlugin, 'mode');
+        const currentToolName = editor.getOption(AIChatPlugin, 'toolName');
+
+        if (isFirst && currentMode === 'insert') {
           editor.tf.withoutSaving(() => {
             editor.tf.insertNodes(
               {
@@ -53,7 +53,7 @@ export const aiChatPlugin = AIChatPlugin.extend({
           editor.setOption(AIChatPlugin, 'streaming', true);
         }
 
-        if (mode === 'insert' && nodes.length > 0) {
+        if (currentMode === 'insert' && nodes.length > 0) {
           withAIBatch(
             editor,
             () => {
@@ -70,7 +70,7 @@ export const aiChatPlugin = AIChatPlugin.extend({
           );
         }
 
-        if (toolName === 'edit' && mode === 'chat') {
+        if (currentToolName === 'edit' && currentMode === 'chat') {
           withAIBatch(
             editor,
             () => {

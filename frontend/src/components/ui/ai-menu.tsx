@@ -94,7 +94,6 @@ export function AIMenu() {
         setAnchorElement(anchorDom);
       }, 0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streaming]);
 
   const setOpen = (open: boolean) => {
@@ -138,9 +137,6 @@ export function AIMenu() {
 
   useHotkeys('esc', () => {
     api.aiChat.stop();
-
-    // remove when you implement the route /api/ai/command
-    (chat as any)._abortFakeStream();
   });
 
   const isLoading = status === 'streaming' || status === 'submitted';
@@ -165,7 +161,6 @@ export function AIMenu() {
       const block = editor.api.block({ at: anchorNode[1] });
       setAnchorElement(editor.api.toDOMNode(block![0]!)!);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]);
 
   if (isLoading && mode === 'insert') return null;
@@ -204,7 +199,7 @@ export function AIMenu() {
           {isLoading ? (
             <div className="flex grow select-none items-center gap-2 p-2 text-muted-foreground text-sm">
               <Loader2Icon className="size-4 animate-spin" />
-              {messages.length > 1 ? 'Editing...' : 'Thinking...'}
+              {messages.length > 1 ? '编辑中...' : '思考中...'}
             </div>
           ) : (
             <CommandPrimitive.Input
@@ -221,12 +216,24 @@ export function AIMenu() {
                 }
                 if (isHotkey('enter')(e) && !e.shiftKey && !value) {
                   e.preventDefault();
-                  void api.aiChat.submit(input);
+                  if (isSelecting) {
+                    editor.setOption(AIChatPlugin, 'toolName', 'edit');
+                    void api.aiChat.submit(input, {
+                      mode: 'chat',
+                      toolName: 'edit',
+                    });
+                  } else {
+                    editor.setOption(AIChatPlugin, 'toolName', 'generate');
+                    void api.aiChat.submit(input, {
+                      mode: 'insert',
+                      toolName: 'generate',
+                    });
+                  }
                   setInput('');
                 }
               }}
               onValueChange={setInput}
-              placeholder="Ask AI anything..."
+              placeholder="向 AI 提问..."
               data-plate-focus
               autoFocus
             />
@@ -276,7 +283,7 @@ const AICommentIcon = () => (
 const aiChatItems = {
   accept: {
     icon: <Check />,
-    label: 'Accept',
+    label: '接受',
     value: 'accept',
     onSelect: ({ aiEditor, editor }) => {
       const { mode, toolName } = editor.getOptions(AIChatPlugin);
@@ -293,20 +300,21 @@ const aiChatItems = {
   },
   comment: {
     icon: <AICommentIcon />,
-    label: 'Comment',
+    label: '添加评论',
     value: 'comment',
     onSelect: ({ editor, input }) => {
+      editor.setOption(AIChatPlugin, 'toolName', 'comment');
       editor.getApi(AIChatPlugin).aiChat.submit(input, {
         mode: 'insert',
         prompt:
-          'Please comment on the following content and provide reasonable and meaningful feedback.',
+          '请对以下内容进行评论，并提供合理且有意义的反馈：\n\n{editor}',
         toolName: 'comment',
       });
     },
   },
   continueWrite: {
     icon: <PenLine />,
-    label: 'Continue writing',
+    label: '继续写作',
     value: 'continueWrite',
     onSelect: ({ editor, input }) => {
       const ancestorNode = editor.api.block({ highest: true });
@@ -318,18 +326,18 @@ const aiChatItems = {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
         mode: 'insert',
         prompt: isEmpty
-          ? `<Document>
+          ? `<文档>
 {editor}
-</Document>
-Start writing a new paragraph AFTER <Document> ONLY ONE SENTENCE`
-          : 'Continue writing AFTER <Block> ONLY ONE SENTENCE. DONT REPEAT THE TEXT.',
+</文档>
+在<文档>之后开始写一个新段落，只需一句话`
+          : `在以下内容之后继续写作，只需一句话。不要重复已有文本：\n\n{editor}`,
         toolName: 'generate',
       });
     },
   },
   discard: {
     icon: <X />,
-    label: 'Discard',
+    label: '放弃',
     shortcut: 'Escape',
     value: 'discard',
     onSelect: ({ editor }) => {
@@ -339,82 +347,78 @@ Start writing a new paragraph AFTER <Document> ONLY ONE SENTENCE`
   },
   emojify: {
     icon: <SmileIcon />,
-    label: 'Emojify',
+    label: '添加表情',
     value: 'emojify',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
         prompt:
-          'Add a small number of contextually relevant emojis within each block only. You may insert emojis, but do not remove, replace, or rewrite existing text, and do not modify Markdown syntax, links, or line breaks.',
+          '在以下内容中添加少量上下文相关的表情符号。你可以插入表情，但不要删除、替换或重写现有文本，也不要修改 Markdown 语法、链接或换行符：\n\n{editor}',
         toolName: 'edit',
       });
     },
   },
   explain: {
     icon: <BadgeHelp />,
-    label: 'Explain',
+    label: '解释说明',
     value: 'explain',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
-        prompt: {
-          default: 'Explain {editor}',
-          selecting: 'Explain',
-        },
+        prompt: '解释以下内容：\n\n{editor}',
         toolName: 'generate',
       });
     },
   },
   fixSpelling: {
     icon: <Check />,
-    label: 'Fix spelling & grammar',
+    label: '修正拼写和语法',
     value: 'fixSpelling',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
         prompt:
-          'Fix spelling, grammar, and punctuation errors within each block only, without changing meaning, tone, or adding new information.',
+          '修正以下内容中的拼写、语法和标点错误，不改变含义、语气或添加新信息：\n\n{editor}',
         toolName: 'edit',
       });
     },
   },
   generateMarkdownSample: {
     icon: <BookOpenCheck />,
-    label: 'Generate Markdown sample',
+    label: '生成 Markdown 示例',
     value: 'generateMarkdownSample',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
-        prompt: 'Generate a markdown sample',
+        prompt: '生成一个 Markdown 示例',
         toolName: 'generate',
       });
     },
   },
   generateMdxSample: {
     icon: <BookOpenCheck />,
-    label: 'Generate MDX sample',
+    label: '生成 MDX 示例',
     value: 'generateMdxSample',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
-        prompt: 'Generate a mdx sample',
+        prompt: '生成一个 MDX 示例',
         toolName: 'generate',
       });
     },
   },
   improveWriting: {
     icon: <Wand />,
-    label: 'Improve writing',
+    label: '改进写作',
     value: 'improveWriting',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
         prompt:
-          'Improve the writing for clarity and flow, without changing meaning or adding new information.',
+          '改进以下内容的写作以提高清晰度和流畅性，不改变含义或添加新信息：\n\n{editor}',
         toolName: 'edit',
       });
     },
   },
   insertBelow: {
     icon: <ListEnd />,
-    label: 'Insert below',
+    label: '插入到下方',
     value: 'insertBelow',
     onSelect: ({ aiEditor, editor }) => {
-      /** Format: 'none' Fix insert table */
       void editor
         .getTransforms(AIChatPlugin)
         .aiChat.insertBelow(aiEditor, { format: 'none' });
@@ -422,31 +426,31 @@ Start writing a new paragraph AFTER <Document> ONLY ONE SENTENCE`
   },
   makeLonger: {
     icon: <ListPlus />,
-    label: 'Make longer',
+    label: '扩展内容',
     value: 'makeLonger',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
         prompt:
-          'Make the content longer by elaborating on existing ideas within each block only, without changing meaning or adding new information.',
+          '通过详细阐述以下内容中的现有观点来扩展内容，不改变含义或添加新信息：\n\n{editor}',
         toolName: 'edit',
       });
     },
   },
   makeShorter: {
     icon: <ListMinus />,
-    label: 'Make shorter',
+    label: '精简内容',
     value: 'makeShorter',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
         prompt:
-          'Make the content shorter by reducing verbosity within each block only, without changing meaning or removing essential information.',
+          '通过减少冗余来精简以下内容，不改变含义或删除关键信息：\n\n{editor}',
         toolName: 'edit',
       });
     },
   },
   replace: {
     icon: <Check />,
-    label: 'Replace selection',
+    label: '替换选中内容',
     value: 'replace',
     onSelect: ({ aiEditor, editor }) => {
       void editor.getTransforms(AIChatPlugin).aiChat.replaceSelection(aiEditor);
@@ -454,34 +458,31 @@ Start writing a new paragraph AFTER <Document> ONLY ONE SENTENCE`
   },
   simplifyLanguage: {
     icon: <FeatherIcon />,
-    label: 'Simplify language',
+    label: '简化语言',
     value: 'simplifyLanguage',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
         prompt:
-          'Simplify the language by using clearer and more straightforward wording within each block only, without changing meaning or adding new information.',
+          '使用更清晰、更直接的措辞简化以下内容的语言，不改变含义或添加新信息：\n\n{editor}',
         toolName: 'edit',
       });
     },
   },
   summarize: {
     icon: <Album />,
-    label: 'Add a summary',
+    label: '添加摘要',
     value: 'summarize',
     onSelect: ({ editor, input }) => {
       void editor.getApi(AIChatPlugin).aiChat.submit(input, {
         mode: 'insert',
-        prompt: {
-          default: 'Summarize {editor}',
-          selecting: 'Summarize',
-        },
+        prompt: '总结以下内容：\n\n{editor}',
         toolName: 'generate',
       });
     },
   },
   tryAgain: {
     icon: <CornerUpLeft />,
-    label: 'Try again',
+    label: '重试',
     value: 'tryAgain',
     onSelect: ({ editor }) => {
       void editor.getApi(AIChatPlugin).aiChat.reload();
@@ -652,9 +653,6 @@ export function AILoadingBar() {
 
   useHotkeys('esc', () => {
     api.aiChat.stop();
-
-    // remove when you implement the route /api/ai/command
-    (chat as any)._abortFakeStream();
   });
 
   if (
@@ -670,7 +668,7 @@ export function AILoadingBar() {
         )}
       >
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-        <span>{status === 'submitted' ? 'Thinking...' : 'Writing...'}</span>
+        <span>{status === 'submitted' ? '思考中...' : '写作中...'}</span>
         <Button
           size="sm"
           variant="ghost"
@@ -678,7 +676,7 @@ export function AILoadingBar() {
           onClick={() => api.aiChat.stop()}
         >
           <PauseIcon className="h-4 w-4" />
-          Stop
+          停止
           <kbd className="ml-1 rounded bg-border px-1 font-mono text-[10px] text-muted-foreground shadow-sm">
             Esc
           </kbd>
@@ -695,7 +693,6 @@ export function AILoadingBar() {
           'p-3'
         )}
       >
-        {/* Header with controls */}
         <div className="flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-5">
             <Button
@@ -703,7 +700,7 @@ export function AILoadingBar() {
               disabled={isLoading}
               onClick={() => handleComments('accept')}
             >
-              Accept
+              接受
             </Button>
 
             <Button
@@ -711,7 +708,7 @@ export function AILoadingBar() {
               disabled={isLoading}
               onClick={() => handleComments('reject')}
             >
-              Reject
+              拒绝
             </Button>
           </div>
         </div>

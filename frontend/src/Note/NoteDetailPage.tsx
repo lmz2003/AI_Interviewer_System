@@ -16,14 +16,15 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  Pencil
+  Pencil,
+  X
 } from 'lucide-react';
 import styles from './NoteDetailPage.module.scss';
 
 interface Note {
   id: string;
   title: string;
-  content: string; // Plate 编辑器格式，JSON 序列化字符串
+  content: string;
   summary?: string;
   tags: string[];
   status: string;
@@ -33,6 +34,66 @@ interface Note {
   syncedToKnowledgeAt?: string;
   needsSync?: boolean;
 }
+
+const SparkleIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3c.3 4.4 3.3 7.4 9 9-5.7 1.6-8.7 4.6-9 9-.3-4.4-3.3-7.4-9-9 5.7-1.6 8.7-4.6 9-9z"/>
+  </svg>
+);
+
+const AIAssistantModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+}> = ({ isOpen, onClose }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={styles.aiModalOverlay} onClick={onClose}>
+      <div 
+        className={styles.aiModal} 
+        ref={modalRef}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.aiModalHeader}>
+          <div className={styles.aiModalTitle}>
+            <SparkleIcon />
+            <span>AI 助手</span>
+          </div>
+          <button className={styles.aiModalClose} onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className={styles.aiModalContent}>
+          <AIAssistant />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const NoteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +110,7 @@ const NoteDetailPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   const [mainWidthPercent, setMainWidthPercent] = useState<number>(() => {
     const saved = localStorage.getItem('noteLayoutWidth');
     const defaultValue = saved ? parseInt(saved) : 67;
@@ -61,6 +123,16 @@ const NoteDetailPage: React.FC = () => {
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
   const isNewNote = id === 'new';
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 900;
+      setIsMobile(mobile);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchNote = async () => {
     if (isNewNote) {
@@ -108,7 +180,6 @@ const NoteDetailPage: React.FC = () => {
 
   useEffect(() => {
     fetchNote();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const token = localStorage.getItem('token');
@@ -189,7 +260,6 @@ const NoteDetailPage: React.FC = () => {
       if (result.code === 0) {
         await toastModal.success('保存成功');
 
-        // 保存成功后，更新 note 和 content 确保 hasChanges 判断正确
         const savedNote = result.data;
         setNote(savedNote);
         setTitle(savedNote.title);
@@ -365,13 +435,10 @@ const NoteDetailPage: React.FC = () => {
     }
   };
 
-  // 监听快捷键保存 (Ctrl+S / Cmd+S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 检查是否按下了 Ctrl+S (Windows/Linux) 或 Cmd+S (Mac)
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        // 只有当有未保存的修改且没有正在保存时才执行保存
         if (hasChanges && !saving) {
           handleSave();
         }
@@ -388,12 +455,12 @@ const NoteDetailPage: React.FC = () => {
 
   return (
     <div 
-      className={`${styles.pageContainer} ${isDragging ? styles.dragging : ''}`}
+      className={`${styles.pageContainer} ${isDragging ? styles.dragging : ''} ${isMobile ? styles.mobile : ''}`}
     >
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        flex: `0 0 ${showAI ? mainWidthPercent : 100}%`,
+        flex: `0 0 ${!isMobile && showAI ? mainWidthPercent : 100}%`,
         minWidth: 0,
         height: '100%'
       }}>
@@ -493,15 +560,13 @@ const NoteDetailPage: React.FC = () => {
               onClick={() => setShowAI(!showAI)}
             >
               <Bot size={16} />
-              <span>AI助手</span>
+              {!isMobile && <span>AI助手</span>}
             </button>
           </div>
         </header>
 
-
         <div className={styles.metaBar}>
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '8px' }}>
-            {/* 摘要编辑区域 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className={styles.metaLabel} style={{ minWidth: '60px' }}>摘要:</span>
               <input
@@ -520,7 +585,6 @@ const NoteDetailPage: React.FC = () => {
               />
             </div>
             
-            {/* 标签编辑区域 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span className={styles.metaLabel} style={{ minWidth: '60px' }}>标签:</span>
               <div className={styles.tagsList}>
@@ -557,7 +621,13 @@ const NoteDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {showAI && (
+      {/* Mobile AI Assistant Modal */}
+      {isMobile && (
+        <AIAssistantModal isOpen={showAI} onClose={() => setShowAI(false)} />
+      )}
+
+      {/* Desktop AI Assistant Panel */}
+      {!isMobile && showAI && (
         <>
           <div
             className={`${styles.resizer} ${isDragging ? styles.resizing : ''}`}
@@ -581,7 +651,6 @@ const NoteDetailPage: React.FC = () => {
   );
 };
 
-// Wrapper component to provide AI Assistant context
 const NoteDetailPageWithProvider: React.FC = () => {
   return (
     <AIAssistantProvider>

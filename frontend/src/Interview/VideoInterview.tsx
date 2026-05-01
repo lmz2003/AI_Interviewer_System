@@ -106,7 +106,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
     }
     return [];
   });
-  const [currentSubtitle, setCurrentSubtitle] = useState('');
+  const [_currentSubtitle, setCurrentSubtitle] = useState('');
   const [isAIPlaying, setIsAIPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waveformData, setWaveformData] = useState<number[]>(new Array(24).fill(2));
@@ -445,7 +445,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
         'audio/ogg',
         'audio/wav',
       ];
-      let mimeType = mimeTypes.find((t) => MediaRecorder.isTypeSupported(t)) || 'audio/webm';
+      const mimeType = mimeTypes.find((t) => MediaRecorder.isTypeSupported(t)) || 'audio/webm';
 
       const audioStream = new MediaStream([audioTrack]);
       const mediaRecorder = new MediaRecorder(audioStream, { mimeType });

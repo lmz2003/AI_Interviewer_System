@@ -582,6 +582,21 @@ const InterviewModule: React.FC = () => {
   const [filterMode, setFilterMode] = useState<string>('all');
   const [filterJobType, setFilterJobType] = useState<string>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
+  const [isMobile, setIsMobile] = useState(false);
+  const [filterExpanded, setFilterExpanded] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 900;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setFilterExpanded(true);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const loadInitialData = useCallback(async () => {
     try {
@@ -1111,7 +1126,30 @@ const InterviewModule: React.FC = () => {
               )}
             </div>
 
-            <div className="filter-group">
+            {isMobile && (
+              <button 
+                className="filter-toggle-btn"
+                onClick={() => setFilterExpanded(!filterExpanded)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                <span>筛选条件</span>
+                <svg 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  width="16" 
+                  height="16"
+                  style={{ transform: filterExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            )}
+
+            <div className={`filter-group ${isMobile ? (filterExpanded ? 'filter-expanded' : 'filter-collapsed') : ''}`}>
               <div className="filter-item">
                 <label>面试状态</label>
                 <select 

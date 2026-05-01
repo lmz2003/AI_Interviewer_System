@@ -2,7 +2,6 @@
 
 import type { TElement } from 'platejs';
 
-import { faker } from '@faker-js/faker';
 import { CopilotPlugin } from '@platejs/ai/react';
 import { serializeMd, stripMarkdown } from '@platejs/markdown';
 
@@ -17,23 +16,21 @@ export const CopilotKit = [
       completeOptions: {
         api: '/api/ai/copilot',
         body: {
-          system: `You are an advanced AI writing assistant, similar to VSCode Copilot but for general text. Your task is to predict and generate the next part of the text based on the given context.
-  
-  Rules:
-  - Continue the text naturally up to the next punctuation mark (., ,, ;, :, ?, or !).
-  - Maintain style and tone. Don't repeat given text.
-  - For unclear context, provide the most likely continuation.
-  - Handle code snippets, lists, or structured text if needed.
-  - Don't include """ in your response.
-  - CRITICAL: Always end with a punctuation mark.
-  - CRITICAL: Avoid starting a new block. Do not use block formatting like >, #, 1., 2., -, etc. The suggestion should continue in the same block as the context.
-  - If no context is provided or you can't generate a continuation, return "0" without explanation.`,
+          system: `你是一个专业的中文文本补全助手，类似于 VSCode Copilot，但专注于通用文本。你的任务是根据给定的上下文预测并生成文本的后续部分。
+
+规则：
+- 自然地续写文本，直到下一个标点符号（句号、逗号、分号、冒号、问号或感叹号）。
+- 保持原有的风格和语气。不要重复已有的文本。
+- 如果上下文不明确，提供最可能的续写。
+- 如果需要，可以处理代码片段、列表或结构化文本。
+- 不要在回复中包含 """。
+- 重要：始终以标点符号结束。
+- 重要：避免开始新的段落。不要使用块级格式，如 >、#、1.、2.、- 等。建议应该在同一个段落中继续。
+- 如果没有提供上下文或无法生成续写，返回 "0"，无需解释。`,
         },
-        onError: () => {
-          // Mock the API response. Remove it when you implement the route /api/ai/copilot
-          api.copilot.setBlockSuggestion({
-            text: stripMarkdown(faker.lorem.sentence()),
-          });
+        headers: () => {
+          const token = localStorage.getItem('token');
+          return token ? { Authorization: `Bearer ${token}` } : {};
         },
         onFinish: (_, completion) => {
           if (completion === '0') return;
@@ -54,10 +51,10 @@ export const CopilotKit = [
           value: [contextEntry[0] as TElement],
         });
 
-        return `Continue the text up to the next punctuation mark:
-  """
-  ${prompt}
-  """`;
+        return `续写以下文本，直到下一个标点符号：
+"""
+${prompt}
+"""`;
       },
     },
     shortcuts: {

@@ -161,9 +161,20 @@ const HomePage: React.FC = () => {
   
   const [language, setLanguage] = useState<LanguageType>('zh');
   const [showLogin, setShowLogin] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const t = i18n[language];
   const isDark = theme === 'dark';
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Apply theme to document and handle theme changes
   React.useEffect(() => {
@@ -204,7 +215,7 @@ const HomePage: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 clamp(1.5rem, 5vw, 4rem)',
-        height: '68px',
+        height: isMobile ? '60px' : '68px',
         background: isDark ? 'rgba(15,15,26,0.9)' : 'rgba(255,255,255,0.9)',
         borderBottom: `1px solid ${colors.border}`,
         position: 'sticky',
@@ -227,44 +238,48 @@ const HomePage: React.FC = () => {
           <span style={{ fontWeight: 800, fontSize: '1.05rem', color: colors.text }}>AI 面试官</span>
         </div>
 
-        {/* Nav Links */}
-        <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'center' }}>
-          {Object.values(t.nav).map((label, i) => (
-            <a key={i} href={`#${Object.keys(t.nav)[i]}`} style={{
-              color: colors.textMuted,
-              textDecoration: 'none',
-              fontSize: '0.92rem',
-              fontWeight: 500,
-              transition: 'color 0.15s ease',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = colors.primary)}
-            onMouseLeave={e => (e.currentTarget.style.color = colors.textMuted)}
-            >{label}</a>
-          ))}
-        </div>
+        {/* Nav Links - Desktop */}
+        {!isMobile && (
+          <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'center' }}>
+            {Object.values(t.nav).map((label, i) => (
+              <a key={i} href={`#${Object.keys(t.nav)[i]}`} style={{
+                color: colors.textMuted,
+                textDecoration: 'none',
+                fontSize: '0.92rem',
+                fontWeight: 500,
+                transition: 'color 0.15s ease',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = colors.primary)}
+              onMouseLeave={e => (e.currentTarget.style.color = colors.textMuted)}
+              >{label}</a>
+            ))}
+          </div>
+        )}
 
         {/* Controls */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {/* Lang toggle */}
-          <button
-            onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
-            style={{
-              background: 'transparent',
-              border: `1px solid ${colors.border}`,
-              color: colors.textMuted,
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              letterSpacing: '0.03em',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = colors.primary; (e.currentTarget as HTMLElement).style.color = colors.primary; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = colors.border; (e.currentTarget as HTMLElement).style.color = colors.textMuted; }}
-          >
-            {t.lang.switch}
-          </button>
+          {/* Lang toggle - Desktop only */}
+          {!isMobile && (
+            <button
+              onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+              style={{
+                background: 'transparent',
+                border: `1px solid ${colors.border}`,
+                color: colors.textMuted,
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                letterSpacing: '0.03em',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = colors.primary; (e.currentTarget as HTMLElement).style.color = colors.primary; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = colors.border; (e.currentTarget as HTMLElement).style.color = colors.textMuted; }}
+            >
+              {t.lang.switch}
+            </button>
+          )}
 
           {/* Theme toggle */}
           <button
@@ -286,27 +301,133 @@ const HomePage: React.FC = () => {
             {isDark ? <SunIcon /> : <MoonIcon />}
           </button>
 
-          {/* Login button */}
-          <button
-            onClick={() => setShowLogin(true)}
-            style={{
-              background: colors.primary,
-              color: 'white',
-              border: 'none',
-              padding: '8px 20px',
-              borderRadius: '8px',
-              fontSize: '0.9rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'opacity 0.15s ease, transform 0.15s ease',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.88'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-          >
-            {t.login.button}
-          </button>
+          {/* Login button - Desktop only */}
+          {!isMobile && (
+            <button
+              onClick={() => setShowLogin(true)}
+              style={{
+                background: colors.primary,
+                color: 'white',
+                border: 'none',
+                padding: '8px 20px',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.88'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+            >
+              {t.login.button}
+            </button>
+          )}
+
+          {/* Mobile menu button */}
+          {isMobile && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
+              style={{
+                background: 'transparent',
+                border: `1px solid ${colors.border}`,
+                color: colors.textMuted,
+                padding: '7px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {mobileMenuOpen ? (
+                  <>
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </>
+                ) : (
+                  <>
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </>
+                )}
+              </svg>
+            </button>
+          )}
         </div>
       </nav>
+
+      {/* Mobile Menu Dropdown */}
+      {isMobile && mobileMenuOpen && (
+        <div style={{
+          position: 'fixed',
+          top: '60px',
+          left: 0,
+          right: 0,
+          background: isDark ? 'rgba(15,15,26,0.98)' : 'rgba(255,255,255,0.98)',
+          borderBottom: `1px solid ${colors.border}`,
+          padding: '1rem 1.5rem',
+          zIndex: 999,
+          backdropFilter: 'blur(12px)',
+          animation: 'slideDown 0.2s ease',
+        }}>
+          <style>{`@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {Object.values(t.nav).map((label, i) => (
+              <a
+                key={i}
+                href={`#${Object.keys(t.nav)[i]}`}
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  color: colors.textMuted,
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  padding: '0.75rem 0',
+                  borderBottom: `1px solid ${colors.border}`,
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = colors.primary)}
+                onMouseLeave={e => (e.currentTarget.style.color = colors.textMuted)}
+              >
+                {label}
+              </a>
+            ))}
+            <button
+              onClick={() => { setShowLogin(true); setMobileMenuOpen(false); }}
+              style={{
+                background: colors.primary,
+                color: 'white',
+                border: 'none',
+                padding: '12px 20px',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginTop: '0.5rem',
+              }}
+            >
+              {t.login.button}
+            </button>
+            <button
+              onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+              style={{
+                background: 'transparent',
+                border: `1px solid ${colors.border}`,
+                color: colors.textMuted,
+                padding: '10px 16px',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {t.lang.switch}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section style={{
@@ -421,7 +542,7 @@ const HomePage: React.FC = () => {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
           gap: '1.5rem',
         }}>
           {t.features.cards.map((card, index) => {
@@ -437,7 +558,7 @@ const HomePage: React.FC = () => {
                   background: colors.surface,
                   border: `1px solid ${cardBorder}`,
                   borderRadius: '14px',
-                  padding: '2rem',
+                  padding: isMobile ? '1.5rem' : '2rem',
                   cursor: 'pointer',
                   transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                 }}
@@ -567,6 +688,7 @@ const HomePage: React.FC = () => {
           }}>
             <button
               onClick={() => setShowLogin(false)}
+              aria-label="关闭登录窗口"
               style={{
                 position: 'absolute', top: '1.2rem', right: '1.2rem',
                 background: 'transparent',
