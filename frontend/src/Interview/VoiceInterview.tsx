@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { interviewApi } from './api';
 import type { Interview, VoiceCallStatus } from './types';
 import { useToastModal } from '@/components/ui/toast-modal';
+import InterviewPaused from './InterviewPaused';
 
 // SVG 图标
 const MicIcon = () => (
@@ -16,6 +17,13 @@ const MicIcon = () => (
 const StopSquareIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26">
     <rect x="5" y="5" width="14" height="14" rx="2" />
+  </svg>
+);
+
+const PauseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+    <rect x="6" y="4" width="4" height="16" />
+    <rect x="14" y="4" width="4" height="16" />
   </svg>
 );
 
@@ -47,6 +55,8 @@ interface VoiceInterviewProps {
   onBack: () => void;
   voice?: string;
   initialDuration?: number;
+  openingMessage?: string;
+  isPlayingOpening?: boolean;
 }
 
 interface ConversationMessage {
@@ -61,13 +71,21 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   onBack,
   voice = 'anna',
   initialDuration = 0,
+  openingMessage = '',
+  isPlayingOpening = false,
 }) => {
   const toastModal = useToastModal();
 
   const [callStatus, setCallStatus] = useState<VoiceCallStatus>('idle');
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(initialDuration);
-  const [conversations, setConversations] = useState<ConversationMessage[]>([]);
+  const [isPaused, setIsPaused] = useState(false);
+  const [conversations, setConversations] = useState<ConversationMessage[]>(() => {
+    if (openingMessage) {
+      return [{ role: 'assistant', text: openingMessage, timestamp: new Date() }];
+    }
+    return [];
+  });
   const [_currentSubtitle, setCurrentSubtitle] = useState('');
   const [isAIPlaying, setIsAIPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,12 +133,8 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   const saveProgressRef = useRef(saveProgress);
   saveProgressRef.current = saveProgress;
 
-  const initialDurationRef = useRef(initialDuration);
-
   useEffect(() => {
-    if (initialDurationRef.current > 0) {
-      startCallTimer();
-    }
+    startCallTimer();
 
     const handleBeforeUnload = () => {
       saveProgressRef.current();
@@ -135,7 +149,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       saveProgressRef.current();
     };
-  }, []);
+  }, [startCallTimer]);
 
   const cleanup = useCallback(() => {
     if (timerRef.current) {
@@ -283,10 +297,10 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
       mediaRecorder.start(100);
       setCallStatus('recording');
 
-      // 启动计时（首次）
-      if (callDuration === 0) startCallTimer();
+      if (!timerRef.current) {
+        startCallTimer();
+      }
 
-      // 启动波形动画
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
@@ -295,7 +309,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         setError('无法启动录音');
       }
     }
-  }, [callStatus, isMuted, callDuration, startCallTimer, updateWaveform]);
+  }, [callStatus, isMuted, startCallTimer, updateWaveform]);
 
   // 停止录音并发送
   const stopRecordingAndSend = useCallback(async () => {
@@ -305,76 +319,126 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     setCallStatus('processing');
     setCurrentSubtitle('识别中...');
 
-    // 停止波形动画
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
     setWaveformData(new Array(24).fill(2));
 
+    setConversations((prev) => [
+      ...prev,
+      { role: 'user', text: '正在识别...', timestamp: new Date() },
+    ]);
+
     mediaRecorderRef.current.onstop = async () => {
       if (audioChunksRef.current.length === 0) {
         setCallStatus('idle');
         setCurrentSubtitle('');
+        setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
         return;
       }
 
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       audioChunksRef.current = [];
 
-      // 停止媒体流
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
 
-      // 转为 base64
       const reader = new FileReader();
       reader.onload = async () => {
         try {
           const base64 = (reader.result as string).split(',')[1];
 
-          // 发送给后端处理
-          const result = await interviewApi.sendVoiceMessage(sessionId, base64, {
-            mimeType: 'audio/webm',
-            language: 'zh',
-            voice,
-          });
+          let userText = '';
+          let aiText = '';
 
-          // 更新字幕
-          setConversations((prev) => [
-            ...prev,
-            { role: 'user', text: result.userText, timestamp: new Date() },
-            { role: 'assistant', text: result.aiText, timestamp: new Date() },
-          ]);
+          interviewApi.sendVoiceMessageStream(
+            sessionId,
+            base64,
+            async (event) => {
+              if (event.type === 'transcription') {
+                userText = event.data.text;
+                setConversations((prev) =>
+                  prev.map((msg) =>
+                    msg.text === '正在识别...' ? { ...msg, text: userText } : msg,
+                  ),
+                );
+                setCurrentSubtitle('正在思考...');
+              } else if (event.type === 'correction') {
+                userText = event.data.correctedText;
+                setConversations((prev) =>
+                  prev.map((msg) =>
+                    msg.text === event.data.originalText || msg.text === '正在识别...'
+                      ? { ...msg, text: userText }
+                      : msg,
+                  ),
+                );
+              } else if (event.type === 'chunk') {
+                aiText += event.data.text;
+                setConversations((prev) => {
+                  const lastMsg = prev[prev.length - 1];
+                  if (lastMsg?.role === 'assistant') {
+                    return [...prev.slice(0, -1), { ...lastMsg, text: aiText }];
+                  }
+                  return [...prev, { role: 'assistant', text: aiText, timestamp: new Date() }];
+                });
+                setCurrentSubtitle(`面试官：${aiText}`);
+              } else if (event.type === 'done') {
+                const { audioBase64, audioFormat, shouldEnd } = event.data;
 
-          setCurrentSubtitle(`面试官：${result.aiText}`);
+                setConversations((prev) => {
+                  const lastMsg = prev[prev.length - 1];
+                  if (lastMsg?.role === 'assistant' && lastMsg.text !== aiText) {
+                    return [...prev.slice(0, -1), { ...lastMsg, text: aiText }];
+                  }
+                  return prev;
+                });
 
-          // 播放 AI 语音回复
-          setCallStatus('playing');
-          await playAudioBase64(result.audioBase64, result.audioFormat);
+                setCallStatus('playing');
+                await playAudioBase64(audioBase64, audioFormat);
 
-          if (result.shouldEnd) {
-            setCallStatus('ended');
-            try {
-              await interviewApi.endInterview(sessionId);
-              onBack();
-            } catch {
-              setError('结束面试失败，请手动点击结束按钮');
+                if (shouldEnd) {
+                  setCallStatus('ended');
+                  try {
+                    await interviewApi.endInterview(sessionId);
+                    onBack();
+                  } catch {
+                    setError('结束面试失败，请手动点击结束按钮');
+                    setCallStatus('idle');
+                  }
+                } else {
+                  setCallStatus('idle');
+                  setCurrentSubtitle('请说话...');
+                  subtitleTimeoutRef.current = setTimeout(() => {
+                    setCurrentSubtitle('');
+                  }, 3000);
+                }
+              } else if (event.type === 'error') {
+                setError(event.data.message || '处理失败');
+                setCallStatus('idle');
+                setCurrentSubtitle('');
+                setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
+              }
+            },
+            (err) => {
+              setError(err.message);
               setCallStatus('idle');
-            }
-          } else {
-            setCallStatus('idle');
-            setCurrentSubtitle('请说话...');
-            // 3秒后清除提示
-            subtitleTimeoutRef.current = setTimeout(() => {
               setCurrentSubtitle('');
-            }, 3000);
-          }
+              setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
+            },
+            {
+              mimeType: 'audio/webm',
+              language: 'zh',
+              voice,
+            },
+          );
         } catch (err) {
           setError(err instanceof Error ? err.message : '处理失败，请重试');
           setCallStatus('idle');
           setCurrentSubtitle('');
+          setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
         }
       };
 
@@ -382,12 +446,35 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     };
 
     mediaRecorderRef.current.stop();
-  }, [callStatus, sessionId, voice, playAudioBase64, onBack, saveProgress]);
+  }, [callStatus, sessionId, voice, playAudioBase64, onBack]);
+
+  const handlePause = useCallback(() => {
+    if (callStatus === 'recording') {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      setCallStatus('idle');
+    }
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      setIsAIPlaying(false);
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsPaused(true);
+  }, [callStatus]);
+
+  const handleResume = useCallback(() => {
+    setIsPaused(false);
+    startCallTimer();
+  }, [startCallTimer]);
 
   const handleEndInterview = useCallback(async () => {
     const confirmed = await toastModal.confirm(
-      '确定要结束语音面试吗？',
-      '结束面试',
+      '确定要结束本次面试吗？结束后将无法继续。',
+      '结束面试'
     );
     if (!confirmed) return;
 
@@ -404,11 +491,6 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     }
   }, [cleanup, sessionId, onBack, saveProgress, toastModal]);
 
-  const handleBack = useCallback(async () => {
-    await saveProgress();
-    onBack();
-  }, [saveProgress, onBack]);
-
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -416,6 +498,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   };
 
   const getStatusLabel = () => {
+    if (isPlayingOpening) return '面试官正在说话...';
     switch (callStatus) {
       case 'idle': return conversations.length === 0 ? '点击麦克风开始' : '点击麦克风继续';
       case 'recording': return '录音中，点击停止';
@@ -429,22 +512,29 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
 
   return (
     <div className="voice-interview-page">
-      {/* 顶部信息栏 */}
-      <div className="voice-header">
-        <button className="back-btn" onClick={handleBack}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          返回
-        </button>
-        <div className="voice-header-info">
-          <div className="voice-title">{interview.title || interview.sceneName}</div>
-          <div className="voice-meta">
-            {interview.jobName || '通用岗位'} · {interview.difficultyName}
+      {isPaused ? (
+        <InterviewPaused
+          interviewTitle={interview.title || interview.sceneName}
+          elapsedTime={callDuration}
+          onResume={handleResume}
+          onEnd={handleEndInterview}
+        />
+      ) : (
+        <>
+          {/* 顶部信息栏 */}
+          <div className="voice-header">
+            <button className="pause-btn" onClick={handlePause}>
+              <PauseIcon />
+              暂停
+            </button>
+            <div className="voice-header-info">
+              <div className="voice-title">{interview.title || interview.sceneName}</div>
+              <div className="voice-meta">
+                {interview.jobName || '通用岗位'} · {interview.difficultyName}
+              </div>
+            </div>
+            <div className="voice-duration">{formatDuration(callDuration)}</div>
           </div>
-        </div>
-        <div className="voice-duration">{formatDuration(callDuration)}</div>
-      </div>
 
       {/* 主内容区 */}
       <div className="voice-main">
@@ -461,7 +551,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         )}
 
         {/* AI 面试官显示区 */}
-        <div className={`ai-avatar-section ${isAIPlaying ? 'speaking' : ''}`}>
+        <div className={`ai-avatar-section ${isAIPlaying || isPlayingOpening ? 'speaking' : ''}`}>
           <div className="ai-avatar">
             <svg className="ai-avatar-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="10" rx="2" />
@@ -470,10 +560,10 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
               <line x1="8" y1="16" x2="8" y2="16" strokeWidth="3" />
               <line x1="16" y1="16" x2="16" y2="16" strokeWidth="3" />
             </svg>
-            <div className={`ai-speaking-ring${isAIPlaying ? '' : ' hidden'}`} />
+            <div className={`ai-speaking-ring${isAIPlaying || isPlayingOpening ? '' : ' hidden'}`} />
           </div>
           <div className="ai-label">AI 面试官</div>
-          <div className={`ai-waveform${isAIPlaying ? '' : ' hidden'}`}>
+          <div className={`ai-waveform${isAIPlaying || isPlayingOpening ? '' : ' hidden'}`}>
             {Array.from({ length: 8 }, (_, i) => (
               <div
                 key={i}
@@ -493,11 +583,21 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
           ) : (
             <div className="subtitles-list">
               {conversations.map((msg, index) => (
-                <div key={index} className={`subtitle-item ${msg.role}`}>
+                <div key={index} className={`subtitle-item ${msg.role}${msg.text === '正在识别...' ? ' recognizing' : ''}`}>
                   <span className="subtitle-role">
                     {msg.role === 'user' ? '你' : '面试官'}：
                   </span>
-                  <span className="subtitle-text">{msg.text}</span>
+                  <span className="subtitle-text">
+                    {msg.text === '正在识别...' ? (
+                      <>
+                        <span className="recognizing-dots">
+                          <span>.</span><span>.</span><span>.</span>
+                        </span>
+                      </>
+                    ) : (
+                      msg.text
+                    )}
+                  </span>
                 </div>
               ))}
               <div ref={subtitlesEndRef} />
@@ -540,7 +640,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         <button
           className={`main-mic-btn ${callStatus === 'recording' ? 'recording' : ''} ${callStatus === 'processing' ? 'processing' : ''}`}
           onClick={callStatus === 'recording' ? stopRecordingAndSend : startRecording}
-          disabled={callStatus === 'processing' || callStatus === 'ended' || isMuted}
+          disabled={callStatus === 'processing' || callStatus === 'ended' || isMuted || isPlayingOpening}
           title={getStatusLabel()}
         >
           {callStatus === 'processing' ? (
@@ -563,6 +663,8 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
           <span>结束面试</span>
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 };

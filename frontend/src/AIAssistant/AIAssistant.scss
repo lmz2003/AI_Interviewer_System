@@ -829,6 +829,7 @@ $shadow:         0 4px 12px rgba(0, 0, 0, 0.08);
   .rag-toggle {
     display: flex;
     align-items: center;
+    gap: 8px;
 
     .rag-button {
       display: inline-flex;
@@ -886,6 +887,173 @@ $shadow:         0 4px 12px rgba(0, 0, 0, 0.08);
           background: $dark-cta-soft;
           color: $dark-cta;
           svg { color: $dark-cta; }
+        }
+      }
+    }
+
+    .library-selector-wrapper {
+      position: relative;
+
+      .library-selector-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 10px;
+        border: 1px solid $border;
+        border-radius: 16px;
+        background: $surface;
+        color: $text-muted;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: $transition;
+        font-family: $font;
+
+        &:hover {
+          border-color: $primary;
+          color: $primary;
+        }
+
+        &.has-selection {
+          border-color: $primary;
+          background: $primary-soft;
+          color: $primary;
+        }
+
+        svg {
+          width: 12px;
+          height: 12px;
+          opacity: 0.6;
+        }
+
+        .dark & {
+          border-color: $dark-border;
+          background: $dark-surface;
+          color: $dark-text-muted;
+
+          &:hover {
+            border-color: $dark-primary;
+            color: $dark-primary;
+          }
+
+          &.has-selection {
+            border-color: $dark-primary;
+            background: $dark-primary-soft;
+            color: $dark-primary;
+          }
+        }
+      }
+
+      .library-dropdown {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 0;
+        min-width: 220px;
+        max-width: 300px;
+        background: $surface;
+        border: 1px solid $border;
+        border-radius: $radius;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        z-index: 100;
+        animation: slideUp 0.15s ease;
+
+        .dark & {
+          background: $dark-surface;
+          border-color: $dark-border;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .library-dropdown-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 12px;
+          border-bottom: 1px solid $border;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: $text;
+
+          .dark & {
+            border-color: $dark-border;
+            color: $dark-text;
+          }
+
+          .clear-selection-btn {
+            background: none;
+            border: none;
+            color: $primary;
+            font-size: 0.7rem;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: $transition;
+
+            &:hover:not(:disabled) {
+              background: $primary-soft;
+            }
+
+            &:disabled {
+              opacity: 0.4;
+              cursor: not-allowed;
+            }
+
+            .dark & {
+              color: $dark-primary;
+
+              &:hover:not(:disabled) {
+                background: $dark-primary-soft;
+              }
+            }
+          }
+        }
+
+        .library-list {
+          max-height: 200px;
+          overflow-y: auto;
+          padding: 6px 0;
+
+          .library-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.1s;
+
+            &:hover {
+              background: $primary-soft;
+            }
+
+            .dark & {
+              &:hover {
+                background: $dark-primary-soft;
+              }
+            }
+
+            input[type="checkbox"] {
+              width: 14px;
+              height: 14px;
+              accent-color: $primary;
+              cursor: pointer;
+
+              .dark & {
+                accent-color: $dark-primary;
+              }
+            }
+
+            .library-name {
+              font-size: 0.8rem;
+              color: $text;
+              flex: 1;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+
+              .dark & {
+                color: $dark-text;
+              }
+            }
+          }
         }
       }
     }

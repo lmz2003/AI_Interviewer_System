@@ -92,15 +92,6 @@ export class SpeechRecognitionService {
   }
 
   /**
-   * 检测音频中是否有语音活动（VAD）
-   * 简单实现：检查音频数据的大小（实际项目中应使用专业VAD库）
-   */
-  detectVoiceActivity(audioBuffer: Buffer): boolean {
-    // 简单判断：音频数据超过1KB认为有语音
-    return audioBuffer.length > 1024;
-  }
-
-  /**
    * 根据 MIME 类型获取文件扩展名
    */
   private getExtensionFromMimeType(mimeType: string): string {

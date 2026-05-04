@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNotEmpty, MaxLength, MinLength, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, MaxLength, MinLength, IsNumber, IsUUID } from 'class-validator';
 
 export class CreateDocumentDto {
   @IsString()
@@ -18,29 +18,32 @@ export class CreateDocumentDto {
 
   @IsString()
   @IsOptional()
-  documentType?: string; // 默认为 'text'
+  documentType?: string;
 
   @IsOptional()
   metadata?: Record<string, any>;
 
-  // 文件上传相关字段
+  @IsUUID('4', { message: '知识库ID必须是有效的UUID格式' })
+  @IsOptional()
+  libraryId?: string;
+
   @IsString()
   @IsOptional()
-  fileName?: string; // 原始文件名
+  fileName?: string;
 
   @IsNumber()
   @IsOptional()
-  fileSize?: number; // 文件大小（字节）
+  fileSize?: number;
 
   @IsString()
   @IsOptional()
-  fileMimeType?: string; // 文件 MIME 类型
+  fileMimeType?: string;
 
   @IsString()
   @IsOptional()
-  fileUrl?: string; // 服务器上保存的文件 URL
+  fileUrl?: string;
 
   @IsString()
   @IsOptional()
-  uploadType?: string; // input（文本输入）或 file（文件上传），默认为 'input'
+  uploadType?: string;
 }

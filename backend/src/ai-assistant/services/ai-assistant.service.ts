@@ -248,32 +248,29 @@ export class AIAssistantService {
     onChunk: (chunk: string) => void,
     sessionId?: string,
     requestId?: string,
+    libraryIds?: string[],
   ): Promise<{
     answer: string;
     sources: Array<{ title: string; score: number }>;
   }> {
     let sources: Array<{ title: string; score: number }> = [];
 
-    this.logger.log(`[流式生成] 开始生成答案 - 用户: ${userId}, 会话: ${sessionId || '无'}, RAG: ${useRAG}`);
+    this.logger.log(`[流式生成] 开始生成答案 - 用户: ${userId}, 会话: ${sessionId || '无'}, RAG: ${useRAG}, 知识库: ${libraryIds?.join(',') || '全部'}`);
 
     try {
-      // 获取会话历史（如果存在会话 ID）
       let conversationHistory = '';
       if (sessionId) {
         try {
           this.logger.log('[流式生成] 获取会话历史...');
           const { messages: sessionMessages } = await this.getSession(sessionId, userId);
           
-          // 构建对话历史（只保留用户和助手的消息，排除当前消息）
           if (sessionMessages && sessionMessages.length > 0) {
-            // 排除最后一条（当前用户消息）
             const historyMessages = sessionMessages.slice(0, -1);
             
             if (historyMessages.length > 0) {
               conversationHistory = '以前的对话记录如下：\n\n';
               historyMessages.forEach((msg, index) => {
                 const role = msg.role === 'user' ? '用户' : 'AI助手';
-                // 限制每条消息的长度，避免过长的历史影响生成效率
                 const content = msg.content.length > 500 
                   ? msg.content.substring(0, 500) + '...' 
                   : msg.content;
@@ -289,28 +286,64 @@ export class AIAssistantService {
       }
 
       if (useRAG) {
-        // 使用知识库增强
-        let ragResult: any = null;
+        let highQualityContexts: any[] = [];
         let hasRagError = false;
 
         try {
-          this.logger.log('[流式生成] 开始 RAG 查询...');
-          ragResult = await this.knowledgeBaseService.ragQuery(
-            { query: message, topK, threshold },
+          this.logger.log('[流式生成] 开始高级检索...');
+          
+          const advancedResults = await this.knowledgeBaseService.advancedQuery(
+            message,
             userId,
+            {
+              useHybridSearch: true,
+              useQueryOptimization: true,
+              useReranking: true,
+              topK: topK * 2,
+              threshold: threshold,
+              rerankTopN: topK,
+              libraryIds,
+            },
           );
-          this.logger.log(`[流式生成] RAG 查询完成，找到 ${ragResult?.contexts?.length || 0} 个相关文档`);
+
+          const qualityThreshold = 0.5;
+          highQualityContexts = advancedResults.filter(r => r.score > qualityThreshold);
+          
+          this.logger.log(`[流式生成] 高级检索完成: ${advancedResults.length} 条结果, ${highQualityContexts.length} 条高质量结果`);
         } catch (ragError) {
-          this.logger.warn('RAG 查询失败，自动降级到直接调用 LLM:', ragError);
-          hasRagError = true;
+          this.logger.warn('高级检索失败，尝试普通检索:', ragError);
+          
+          try {
+            let ragResult: any;
+            if (libraryIds && libraryIds.length > 0) {
+              ragResult = await this.knowledgeBaseService.ragQuery(
+                { query: message, topK, threshold, libraryIds },
+                userId,
+              );
+            } else {
+              ragResult = await this.knowledgeBaseService.ragQuery(
+                { query: message, topK, threshold },
+                userId,
+              );
+            }
+            if (ragResult?.contexts) {
+              highQualityContexts = ragResult.contexts.filter((ctx: any) => ctx.score > 0.5);
+            }
+            this.logger.log(`[流式生成] 普通检索完成: ${highQualityContexts.length} 条高质量结果`);
+          } catch (fallbackError) {
+            this.logger.warn('普通检索也失败，使用通用知识回答:', fallbackError);
+            hasRagError = true;
+          }
         }
 
-        // 构建 RAG 提示词
         let ragPrompt = '';
         
-        if (!hasRagError && ragResult?.contexts && ragResult.contexts.length > 0) {
-          const contextsText = ragResult.contexts
-            .map((ctx: any, idx: number) => `[${idx + 1}] ${ctx.title}:\n${ctx.content}`)
+        if (!hasRagError && highQualityContexts.length > 0) {
+          const contextsText = highQualityContexts
+            .slice(0, 5)
+            .map((ctx: any, idx: number) => 
+              `[${idx + 1}] (相关性: ${(ctx.score * 100).toFixed(0)}%) ${ctx.title}:\n${ctx.content?.substring(0, 800) || ctx.chunk?.substring(0, 800) || ''}`
+            )
             .join('\n\n');
 
           ragPrompt = `你是一个有帮助的AI助手。
@@ -319,43 +352,54 @@ ${conversationHistory}
 
 用户问题：${message}
 
-以下是一些可能相关的参考资料（作为补充信息）：
+【可选参考】以下是从知识库检索到的相关内容，仅当与问题高度相关时才参考使用：
 ${contextsText}
 
-请使用你的知识和上述参考资料来回答用户的问题。如果参考资料有帮助，可以参考；如果没有相关资料或参考资料不够准确，可以基于你的通用知识直接回答。生成回答时不用提到基于参考资料类似的话术。`;
+回答指南：
+- 优先使用你的通用知识回答问题
+- 如果检索内容与问题高度相关且有帮助，可以参考补充
+- 如果检索内容与问题无关或质量不高，请忽略，直接基于你的知识回答
+- 回答要准确、有帮助、条理清晰
+- 不需要提及"根据参考资料"等话术`;
 
-          sources = ragResult.contexts.map((ctx: any) => ({
+          sources = highQualityContexts.slice(0, 5).map((ctx: any) => ({
             title: ctx.title,
             score: ctx.score,
           }));
-          this.logger.log(`[流式生成] RAG 提示词构建完成，使用 ${sources.length} 个来源`);
+          this.logger.log(`[流式生成] 使用 ${sources.length} 条高质量参考内容`);
         } else {
           if (hasRagError) {
-            this.logger.log('知识库查询失败，使用 LLM 通用知识回答');
+            this.logger.log('知识库检索失败，使用通用知识回答');
+          } else {
+            this.logger.log('知识库未找到高质量相关内容，使用通用知识回答');
           }
-          ragPrompt = `${conversationHistory}${message}\n\n请直接回答上述问题。`;
+          ragPrompt = `${conversationHistory}
+
+用户问题：${message}
+
+请基于你的知识直接回答上述问题，要准确、有帮助、条理清晰。`;
           sources = [];
-          this.logger.log('[流式生成] 使用通用知识模式回答');
         }
 
-        // 调用 LLM 进行流式生成
         try {
           this.logger.log('[流式生成] 开始调用 LLM 流式生成...');
           
           const response = await this.llmIntegrationService.generateRAGAnswerStream(
             {
               query: message,
-              contexts: ragResult?.contexts || [],
+              contexts: highQualityContexts.map(ctx => ({
+                title: ctx.title,
+                content: ctx.content || ctx.chunk,
+                score: ctx.score,
+              })),
               ragPrompt,
             },
             onChunk,
-            // 中止检查函数：在 LLM 流中直接检查中止状态
             requestId ? () => this.isAborted(userId, requestId) : undefined,
           );
           this.logger.log(`[流式生成] LLM 流式生成完成，答案长度: ${response.answer.length}`);
           return { answer: response.answer, sources };
         } catch (error) {
-          // 检查是否是由中止导致的错误
           if (requestId && this.isAborted(userId, requestId)) {
             this.logger.log('[流式生成] 请求已中止，不返回错误消息');
             return { answer: '', sources };
@@ -367,7 +411,6 @@ ${contextsText}
           return { answer: errorMessage, sources };
         }
       } else {
-        // 不使用知识库，直接调用LLM
         this.logger.log('[流式生成] 不使用知识库，直接调用 LLM...');
         try {
           const response = await this.llmIntegrationService.generateRAGAnswerStream(
@@ -377,13 +420,11 @@ ${contextsText}
               ragPrompt: `${conversationHistory}${message}\n\n请直接回答上述问题。`,
             },
             onChunk,
-            // 中止检查函数：在 LLM 流中直接检查中止状态
             requestId ? () => this.isAborted(userId, requestId) : undefined,
           );
           this.logger.log(`[流式生成] LLM 流式生成完成，答案长度: ${response.answer.length}`);
           return { answer: response.answer, sources };
         } catch (error) {
-          // 检查是否是由中止导致的错误
           if (requestId && this.isAborted(userId, requestId)) {
             this.logger.log('[流式生成] 请求已中止，不返回错误消息');
             return { answer: '', sources };
@@ -413,15 +454,15 @@ ${contextsText}
     threshold: number = 0.5,
     onChunk?: (chunk: string) => void,
     requestId?: string,
+    libraryIds?: string[],
   ): Promise<{
     answer: string;
     sources: Array<{ title: string; score: number }>;
     sessionId: string;
   }> {
-    this.logger.log(`[流式处理] 开始处理消息 - 用户: ${userId}, 消息: "${message.substring(0, 50)}..."`);
+    this.logger.log(`[流式处理] 开始处理消息 - 用户: ${userId}, 消息: "${message.substring(0, 50)}...", 知识库: ${libraryIds?.join(',') || '全部'}`);
     
     try {
-      // 创建或获取会话
       let currentSessionId = sessionId;
       if (!currentSessionId) {
         this.logger.log('[流式处理] 创建新会话...');
@@ -432,11 +473,9 @@ ${contextsText}
         this.logger.log(`[流式处理] 使用现有会话: ${currentSessionId}`);
       }
 
-      // 存储用户消息
       this.logger.log('[流式处理] 存储用户消息...');
       await this.addMessage(currentSessionId, userId, message, 'user');
 
-      // 流式生成 AI 回复
       const { answer, sources } = await this.generateAnswerStream(
         message,
         userId,
@@ -444,20 +483,18 @@ ${contextsText}
         topK,
         threshold,
         (chunk: string) => {
-          // 确保只发送非空字符串
           if (chunk && chunk.trim().length > 0) {
             if (onChunk) {
               onChunk(chunk);
             }
           }
         },
-        currentSessionId, // 传递会话 ID，以便获取历史对话
-        requestId, // 传递请求 ID，用于中止
+        currentSessionId,
+        requestId,
+        libraryIds,
       );
 
-      // 只有当有实际内容时才存储 AI 回复
       if (answer && answer.trim().length > 0) {
-        // 存储 AI 回复
         this.logger.log('[流式处理] 存储 AI 回复...');
         await this.addMessage(currentSessionId, userId, answer, 'assistant', sources);
         this.logger.log('[流式处理] AI 回复存储成功');

@@ -66,6 +66,9 @@ export class Interview {
   @Column({ type: 'text', nullable: true })
   title?: string;
 
+  @Column({ type: 'simple-array', nullable: true })
+  libraryIds?: string[];
+
   @Column({ type: 'jsonb', nullable: true })
   videoAnalysisSummary?: VideoAnalysisSummary;
 

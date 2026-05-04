@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsUUID, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsUUID, IsIn, IsArray } from 'class-validator';
 import { InterviewMode } from '../entities/interview.entity';
 
 export type SceneType = 'technical' | 'behavioral' | 'hr' | 'stress' | 'group';
@@ -40,4 +40,9 @@ export class CreateInterviewDto {
   @IsOptional()
   @IsString({ message: '标题必须是字符串' })
   title?: string;
+
+  @IsOptional()
+  @IsArray({ message: '知识库ID列表必须是数组' })
+  @IsUUID('4', { each: true, message: '每个知识库ID必须是有效的UUID格式' })
+  libraryIds?: string[];
 }

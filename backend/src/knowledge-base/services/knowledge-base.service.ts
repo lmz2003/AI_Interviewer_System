@@ -1,11 +1,35 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { KnowledgeDocument } from '../entities/knowledge-document.entity';
 import { CreateDocumentDto } from '../dto/create-document.dto';
 import { QueryKnowledgeDto } from '../dto/query-knowledge.dto';
 import { MilvusService } from './milvus.service';
 import { LangChainService } from './langchain.service';
+import { RetrievalOptimizationService, SearchResult } from './retrieval-optimization.service';
+import { BM25IndexService } from './bm25-index.service';
+
+export interface AdvancedQueryOptions {
+  useHybridSearch?: boolean;
+  useQueryOptimization?: boolean;
+  useReranking?: boolean;
+  useHyDE?: boolean;
+  semanticChunking?: boolean;
+  topK?: number;
+  threshold?: number;
+  rerankTopN?: number;
+  libraryIds?: string[];
+}
+
+export interface AdvancedQueryResult extends SearchResult {
+  queryExpansion?: {
+    originalQuery: string;
+    rewrittenQuery: string;
+    expandedQueries: string[];
+    keywords: string[];
+  };
+  searchStrategy: string;
+}
 
 @Injectable()
 export class KnowledgeBaseService {
@@ -15,39 +39,40 @@ export class KnowledgeBaseService {
     @InjectRepository(KnowledgeDocument)
     private documentRepository: Repository<KnowledgeDocument>,
     private milvusService: MilvusService,
-    private langChainService: LangChainService
+    private langChainService: LangChainService,
+    private retrievalOptimizationService: RetrievalOptimizationService,
+    private bm25IndexService: BM25IndexService
   ) {}
 
-  /**
-   * 添加文档到知识库（同步处理）
-   */
   async addDocument(
     createDocumentDto: CreateDocumentDto,
     userId: string
   ): Promise<KnowledgeDocument> {
     try {
-      // 1. 保存文档到数据库
       const document = this.documentRepository.create({
-        ...createDocumentDto,
+        title: createDocumentDto.title,
+        content: createDocumentDto.content,
+        source: createDocumentDto.source,
         documentType: createDocumentDto.documentType || 'text',
+        metadata: createDocumentDto.metadata,
         ownerId: userId,
+        libraryId: createDocumentDto.libraryId || undefined,
       });
 
       const savedDocument = await this.documentRepository.save(document);
-      this.logger.log(`文档已保存: ${savedDocument.id}`);
+      this.logger.log(`文档已保存: ${savedDocument.id}, libraryId: ${savedDocument.libraryId || 'none'}`);
 
-      // 2. 处理文档并生成嵌入
       try {
         const chunks = await this.langChainService.processDocument(
           createDocumentDto.content,
           createDocumentDto.title,
           {
             source: createDocumentDto.source,
+            libraryId: createDocumentDto.libraryId,
             ...createDocumentDto.metadata,
           }
         );
 
-        // 3. 将向量插入 Milvus
         for (const chunk of chunks) {
           await this.milvusService.insertVector(
             `${savedDocument.id}_${chunk.metadata.chunkIndex}`,
@@ -55,23 +80,23 @@ export class KnowledgeBaseService {
             chunk.metadata.title,
             chunk.chunk,
             chunk.metadata.source || null,
-            userId
+            userId,
+            savedDocument.libraryId
           );
         }
 
-        // 4. 更新文档状态
         savedDocument.isProcessed = true;
         savedDocument.vectorId = savedDocument.id;
         savedDocument.status = 'processed';
         await this.documentRepository.save(savedDocument);
+
+        this.bm25IndexService.addDocument(savedDocument);
 
         this.logger.log(`文档处理完成: ${savedDocument.id} (${chunks.length} 个向量)`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
         this.logger.error(`文档向量处理失败: ${savedDocument.id} - ${errorMsg}`, error);
         
-        // 记录详细的错误信息但继续保存文档
-        // 用户可以稍后重新处理该文档
         savedDocument.isProcessed = false;
         savedDocument.status = 'failed';
         savedDocument.processingError = errorMsg;
@@ -88,28 +113,26 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 添加文档到知识库（异步处理）
-   * 立即返回，后台处理向量化
-   */
   async addDocumentAsync(
     createDocumentDto: CreateDocumentDto,
     userId: string
   ): Promise<KnowledgeDocument> {
     try {
-      // 1. 保存文档到数据库（待处理状态）
       const document = this.documentRepository.create({
-        ...createDocumentDto,
+        title: createDocumentDto.title,
+        content: createDocumentDto.content,
+        source: createDocumentDto.source,
         documentType: createDocumentDto.documentType || 'text',
+        metadata: createDocumentDto.metadata,
         ownerId: userId,
         isProcessed: false,
-        status: 'uploaded', // 状态为已上传
+        status: 'uploaded',
+        libraryId: createDocumentDto.libraryId || undefined,
       });
 
       const savedDocument = await this.documentRepository.save(document);
       this.logger.log(`文档已保存: ${savedDocument.id}，等待后台处理...`);
 
-      // 2. 在后台处理文档（不等待）
       this.processDocumentInBackground(savedDocument.id, createDocumentDto, userId)
         .catch((error) => {
           this.logger.error(`后台处理文档失败: ${savedDocument.id}`, error);
@@ -123,9 +146,6 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 在后台处理文档的向量化
-   */
   private async processDocumentInBackground(
     documentId: string,
     createDocumentDto: CreateDocumentDto,
@@ -142,7 +162,6 @@ export class KnowledgeBaseService {
       }
 
       try {
-        // 标记为处理中
         document.status = 'processing';
         await this.documentRepository.save(document);
         this.logger.log(`开始处理文档: ${documentId}`);
@@ -152,11 +171,11 @@ export class KnowledgeBaseService {
           createDocumentDto.title,
           {
             source: createDocumentDto.source,
+            libraryId: createDocumentDto.libraryId,
             ...createDocumentDto.metadata,
           }
         );
 
-        // 将向量插入 Milvus
         for (const chunk of chunks) {
           await this.milvusService.insertVector(
             `${documentId}_${chunk.metadata.chunkIndex}`,
@@ -164,13 +183,13 @@ export class KnowledgeBaseService {
             chunk.metadata.title,
             chunk.chunk,
             chunk.metadata.source || null,
-            userId
+            userId,
+            document.libraryId
           );
         }
 
-        // 更新文档状态为已处理
         document.isProcessed = true;
-        document.status = 'processed'; // 成功
+        document.status = 'processed';
         document.vectorId = documentId;
         document.processingError = undefined;
         await this.documentRepository.save(document);
@@ -180,9 +199,8 @@ export class KnowledgeBaseService {
         const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
         this.logger.error(`文档向量处理失败: ${documentId} - ${errorMsg}`, error);
 
-        // 标记为处理失败，用户可以重新上传
         document.isProcessed = false;
-        document.status = 'failed'; // 失败
+        document.status = 'failed';
         document.processingError = errorMsg;
         await this.documentRepository.save(document);
 
@@ -193,26 +211,23 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 查询知识库
-   */
   async queryKnowledge(
     queryDto: QueryKnowledgeDto,
     userId: string
-  ): Promise<Array<{ id: string; title: string; content: string; source?: string; score: number }>> {
+  ): Promise<Array<{ id: string; title: string; content: string; source?: string; libraryId?: string; score: number }>> {
     try {
       const topK = queryDto.topK || 5;
       const threshold = queryDto.threshold ?? 0.5;
+      const libraryIds = queryDto.libraryIds;
 
-      // 1. 生成查询的嵌入
       const queryEmbedding = await this.langChainService.generateEmbedding(queryDto.query);
 
-      // 2. 在 Milvus 中搜索相似向量
       const results = await this.milvusService.searchSimilar(
         queryEmbedding,
         userId,
         topK,
-        threshold
+        threshold,
+        libraryIds
       );
 
       this.logger.log(`查询完成: 找到 ${results.length} 个相关文档`);
@@ -223,18 +238,161 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 使用 RAG 进行增强查询
-   */
+  async advancedQuery(
+    query: string,
+    userId: string,
+    options: AdvancedQueryOptions = {}
+  ): Promise<AdvancedQueryResult[]> {
+    const {
+      useHybridSearch = true,
+      useQueryOptimization = true,
+      useReranking = true,
+      useHyDE = false,
+      topK = 10,
+      threshold = 0.3,
+      rerankTopN = 5,
+      libraryIds,
+    } = options;
+
+    this.logger.log(`高级检索开始: query="${query}", hybrid=${useHybridSearch}, optimize=${useQueryOptimization}, rerank=${useReranking}`);
+
+    let searchQueries = [query];
+    let queryExpansion: AdvancedQueryResult['queryExpansion'];
+
+    if (useQueryOptimization) {
+      const expansion = await this.retrievalOptimizationService.optimizeQuery(query);
+      queryExpansion = {
+        originalQuery: query,
+        rewrittenQuery: expansion.rewrittenQuery,
+        expandedQueries: expansion.expandedQueries,
+        keywords: expansion.keywords,
+      };
+      
+      searchQueries = [expansion.rewrittenQuery, ...expansion.expandedQueries].slice(0, 3);
+      this.logger.log(`查询优化: ${searchQueries.length} 个查询变体`);
+    }
+
+    if (useHyDE && searchQueries.length === 1) {
+      const hypotheticalAnswer = await this.retrievalOptimizationService.generateHypotheticalAnswer(query);
+      searchQueries.push(hypotheticalAnswer.substring(0, 500));
+      this.logger.log('HyDE: 已生成假设性答案用于检索');
+    }
+
+    let allVectorResults: SearchResult[] = [];
+    let allBM25Results: SearchResult[] = [];
+
+    for (const searchQuery of searchQueries) {
+      const queryEmbedding = await this.langChainService.generateEmbedding(searchQuery);
+
+      const vectorResults = await this.milvusService.searchSimilar(
+        queryEmbedding,
+        userId,
+        topK * 2,
+        threshold,
+        libraryIds
+      );
+
+      allVectorResults.push(...vectorResults.map(r => ({ ...r, vectorScore: r.score })));
+
+      if (useHybridSearch) {
+        const bm25Results = this.bm25IndexService.search(searchQuery, {
+          topK: topK * 2,
+          threshold: 0,
+          libraryIds,
+        });
+
+        allBM25Results.push(...bm25Results.map(r => ({ ...r, bm25Score: r.score })));
+      }
+    }
+
+    const seenIds = new Set<string>();
+    const uniqueVectorResults: SearchResult[] = [];
+    for (const result of allVectorResults) {
+      if (!seenIds.has(result.id)) {
+        seenIds.add(result.id);
+        uniqueVectorResults.push(result);
+      }
+    }
+
+    const uniqueBM25Results: SearchResult[] = [];
+    for (const result of allBM25Results) {
+      if (!seenIds.has(result.id)) {
+        seenIds.add(result.id);
+        uniqueBM25Results.push(result);
+      }
+    }
+
+    let fusedResults: SearchResult[];
+
+    if (useHybridSearch && uniqueBM25Results.length > 0) {
+      fusedResults = this.retrievalOptimizationService.fuseSearchResults(
+        uniqueVectorResults.slice(0, topK * 2),
+        uniqueBM25Results.slice(0, topK * 2)
+      );
+      this.logger.log(`混合检索融合: ${uniqueVectorResults.length} 向量 + ${uniqueBM25Results.length} BM25 -> ${fusedResults.length} 结果`);
+    } else {
+      fusedResults = uniqueVectorResults.sort((a, b) => b.score - a.score);
+    }
+
+    let finalResults: SearchResult[];
+
+    if (useReranking && fusedResults.length > 0) {
+      finalResults = await this.retrievalOptimizationService.rerankResults(
+        query,
+        fusedResults,
+        rerankTopN
+      );
+      this.logger.log(`重排序完成: ${fusedResults.length} -> ${finalResults.length} 结果`);
+    } else {
+      finalResults = fusedResults.slice(0, rerankTopN);
+    }
+
+    const searchStrategy = [
+      useQueryOptimization ? 'query_optimization' : null,
+      useHybridSearch ? 'hybrid_search' : 'vector_only',
+      useReranking ? 'reranking' : null,
+      useHyDE ? 'hyde' : null,
+    ].filter(Boolean).join('+');
+
+    this.logger.log(`高级检索完成: 策略=${searchStrategy}, 结果数=${finalResults.length}`);
+
+    return finalResults.map(result => ({
+      ...result,
+      queryExpansion,
+      searchStrategy,
+    }));
+  }
+
+  async rebuildBM25Index(): Promise<{ success: boolean; message: string; stats: any }> {
+    try {
+      await this.bm25IndexService.rebuildIndex();
+      const stats = this.bm25IndexService.getStats();
+      return {
+        success: true,
+        message: 'BM25 索引重建成功',
+        stats,
+      };
+    } catch (error) {
+      this.logger.error('BM25 索引重建失败:', error);
+      return {
+        success: false,
+        message: `索引重建失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        stats: null,
+      };
+    }
+  }
+
+  getBM25Stats(): { totalDocs: number; avgDocLength: number; vocabularySize: number } {
+    return this.bm25IndexService.getStats();
+  }
+
   async ragQuery(
     queryDto: QueryKnowledgeDto,
     userId: string
   ): Promise<{ query: string; contexts: any[]; ragPrompt: string }> {
     try {
-      // 1. 检索相关文档
       const contexts = await this.queryKnowledge(queryDto, userId);
 
-      // 2. 构建 RAG 提示词
       const ragPrompt = this.langChainService.buildRAGPrompt(
         queryDto.query,
         contexts.map((c) => ({
@@ -255,13 +413,15 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 获取用户的所有文档
-   */
-  async getUserDocuments(userId: string): Promise<KnowledgeDocument[]> {
+  async getUserDocuments(userId: string, libraryId?: string): Promise<KnowledgeDocument[]> {
     try {
+      const whereCondition: any = { ownerId: userId };
+      if (libraryId) {
+        whereCondition.libraryId = libraryId;
+      }
+      
       return await this.documentRepository.find({
-        where: { ownerId: userId },
+        where: whereCondition,
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
@@ -270,9 +430,34 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 获取单个文档
-   */
+  async getDocumentsByLibrary(libraryId: string, userId: string): Promise<KnowledgeDocument[]> {
+    try {
+      return await this.documentRepository.find({
+        where: { libraryId, ownerId: userId },
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      this.logger.error('获取知识库文档列表失败:', error);
+      throw new BadRequestException('获取知识库文档列表失败');
+    }
+  }
+
+  async getDocumentsByLibraries(libraryIds: string[], userId: string): Promise<KnowledgeDocument[]> {
+    try {
+      if (!libraryIds || libraryIds.length === 0) {
+        return [];
+      }
+      
+      return await this.documentRepository.find({
+        where: { libraryId: In(libraryIds), ownerId: userId },
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      this.logger.error('获取多知识库文档列表失败:', error);
+      throw new BadRequestException('获取多知识库文档列表失败');
+    }
+  }
+
   async getDocument(documentId: string, userId: string): Promise<KnowledgeDocument> {
     try {
       const document = await this.documentRepository.findOne({
@@ -293,9 +478,6 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 检查文档是否存在
-   */
   async checkDocumentExists(documentId: string, userId: string): Promise<boolean> {
     try {
       const document = await this.documentRepository.findOne({
@@ -311,9 +493,6 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 更新文档
-   */
   async updateDocument(
     documentId: string,
     updateData: Partial<CreateDocumentDto>,
@@ -322,22 +501,19 @@ export class KnowledgeBaseService {
     try {
       const document = await this.getDocument(documentId, userId);
 
-      // 如果内容更新，需要重新处理
       if (updateData.content && updateData.content !== document.content) {
-        // 删除旧向量
         await this.milvusService.deleteVector(documentId);
 
-        // 处理新内容
         const chunks = await this.langChainService.processDocument(
           updateData.content,
           updateData.title || document.title,
           {
             source: updateData.source || document.source,
+            libraryId: updateData.libraryId || document.libraryId,
             ...updateData.metadata,
           }
         );
 
-        // 插入新向量
         for (const chunk of chunks) {
           await this.milvusService.insertVector(
             `${documentId}_${chunk.metadata.chunkIndex}`,
@@ -345,14 +521,15 @@ export class KnowledgeBaseService {
             chunk.metadata.title,
             chunk.chunk,
             chunk.metadata.source || null,
-            userId
+            userId,
+            updateData.libraryId || document.libraryId
           );
         }
 
         document.isProcessed = true;
+        document.status = 'processed';
       }
 
-      // 更新文档字段
       Object.assign(document, updateData);
       const updated = await this.documentRepository.save(document);
 
@@ -364,9 +541,6 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 重新处理文档
-   */
   async reprocessDocument(documentId: string, userId: string): Promise<KnowledgeDocument> {
     try {
       const document = await this.getDocument(documentId, userId);
@@ -376,25 +550,25 @@ export class KnowledgeBaseService {
       }
 
       try {
-        // 1. 删除旧向量
         await this.milvusService.deleteVector(documentId);
       } catch (error) {
         this.logger.warn(`删除旧向量失败: ${documentId}`, error);
-        // 继续处理，不中断流程
       }
 
+      document.status = 'processing';
+      await this.documentRepository.save(document);
+
       try {
-        // 2. 处理文档内容并生成新的向量
         const chunks = await this.langChainService.processDocument(
           document.content,
           document.title,
           {
             source: document.source,
+            libraryId: document.libraryId,
             ...document.metadata,
           }
         );
 
-        // 3. 将新向量插入 Milvus
         for (const chunk of chunks) {
           await this.milvusService.insertVector(
             `${documentId}_${chunk.metadata.chunkIndex}`,
@@ -402,13 +576,15 @@ export class KnowledgeBaseService {
             chunk.metadata.title,
             chunk.chunk,
             chunk.metadata.source || null,
-            userId
+            userId,
+            document.libraryId
           );
         }
 
-        // 4. 更新文档状态为已处理
         document.isProcessed = true;
+        document.status = 'processed';
         document.vectorId = documentId;
+        document.processingError = undefined;
         const updated = await this.documentRepository.save(document);
 
         this.logger.log(`文档已重新处理: ${documentId} (${chunks.length} 个向量)`);
@@ -417,8 +593,9 @@ export class KnowledgeBaseService {
         const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
         this.logger.error(`文档向量处理失败: ${documentId} - ${errorMsg}`, error);
 
-        // 标记为未处理状态，但保存文档
         document.isProcessed = false;
+        document.status = 'failed';
+        document.processingError = errorMsg;
         await this.documentRepository.save(document);
 
         throw new BadRequestException(`文档处理失败: ${errorMsg}`);
@@ -429,17 +606,12 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 删除文档
-   */
   async deleteDocument(documentId: string, userId: string): Promise<void> {
     try {
       const document = await this.getDocument(documentId, userId);
 
-      // 从 Milvus 删除向量
       await this.milvusService.deleteVector(documentId);
-
-      // 从数据库删除文档
+      this.bm25IndexService.removeDocument(documentId);
       await this.documentRepository.remove(document);
 
       this.logger.log(`文档已删除: ${documentId}`);
@@ -449,9 +621,6 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 批量删除文档
-   */
   async batchDeleteDocuments(
     documentIds: string[],
     userId: string
@@ -464,27 +633,22 @@ export class KnowledgeBaseService {
       let deletedCount = 0;
       let failedCount = 0;
 
-      // 逐个删除文档
       for (const documentId of documentIds) {
         try {
           const document = await this.getDocument(documentId, userId);
 
-          // 从 Milvus 删除向量
           try {
             await this.milvusService.deleteVector(documentId);
           } catch (error) {
             this.logger.warn(`删除向量失败: ${documentId}`, error);
-            // 继续删除数据库记录
           }
 
-          // 从数据库删除文档
           await this.documentRepository.remove(document);
           deletedCount++;
           this.logger.log(`文档已删除: ${documentId}`);
         } catch (error) {
           failedCount++;
           this.logger.warn(`删除文档失败: ${documentId}`, error);
-          // 继续删除其他文档
         }
       }
 
@@ -496,16 +660,13 @@ export class KnowledgeBaseService {
     }
   }
 
-  /**
-   * 获取知识库统计信息
-   */
-  async getStatistics(userId: string): Promise<{
+  async getStatistics(userId: string, libraryId?: string): Promise<{
     totalDocuments: number;
     processedDocuments: number;
     pendingDocuments: number;
   }> {
     try {
-      const documents = await this.getUserDocuments(userId);
+      const documents = await this.getUserDocuments(userId, libraryId);
 
       return {
         totalDocuments: documents.length,

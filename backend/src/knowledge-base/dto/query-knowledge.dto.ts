@@ -1,19 +1,28 @@
-import { IsString, IsNotEmpty, IsOptional, Min, Max, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, Min, Max, MinLength, MaxLength, IsArray, IsUUID } from 'class-validator';
 
 export class QueryKnowledgeDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(1)
   @MaxLength(5000)
-  query!: string; // 查询文本，最多 5000 字符
+  query!: string;
 
   @IsOptional()
   @Min(1)
   @Max(20)
-  topK?: number; // 返回最相似的 K 个结果，默认 5
+  topK?: number;
 
   @IsOptional()
   @Min(0)
   @Max(1)
-  threshold?: number; // 相似度阈值，默认 0.5
+  threshold?: number;
+
+  @IsOptional()
+  @IsArray({ message: '知识库ID列表必须是数组' })
+  @IsUUID('4', { message: '知识库ID必须是有效的UUID格式', each: true })
+  libraryIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  searchMode?: 'specific' | 'all';
 }

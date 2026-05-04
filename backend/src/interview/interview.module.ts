@@ -15,6 +15,7 @@ import { InterviewReportService } from './services/interview-report.service';
 import { SpeechRecognitionService } from './services/speech-recognition.service';
 import { SpeechSynthesisService } from './services/speech-synthesis.service';
 import { VideoAnalysisService } from './services/video-analysis.service';
+import { AsrCorrectionService } from './services/asr-correction.service';
 import { ResumeAnalysisModule } from '../resume-analysis/resume-analysis.module';
 import { KnowledgeBaseModule } from '../knowledge-base/knowledge-base.module';
 import { NotesModule } from '../notes/notes.module';
@@ -48,6 +49,7 @@ import { InterviewReportGateway } from './interview-report.gateway';
     SpeechRecognitionService,
     SpeechSynthesisService,
     VideoAnalysisService,
+    AsrCorrectionService,
     InterviewReportGateway,
   ],
   exports: [
@@ -60,6 +62,7 @@ import { InterviewReportGateway } from './interview-report.gateway';
     SpeechRecognitionService,
     SpeechSynthesisService,
     VideoAnalysisService,
+    AsrCorrectionService,
   ],
 })
 export class InterviewModule {}

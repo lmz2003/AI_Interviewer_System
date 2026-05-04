@@ -367,7 +367,8 @@ export const interviewApi = {
   },
 
   /**
-   * 语音通话：发送语音消息，返回AI语音回复
+   * 语音通话：发送语音消息，返回AI语音回复（已废弃，请使用 sendVoiceMessageStream）
+   * @deprecated 使用 sendVoiceMessageStream 替代
    */
   async sendVoiceMessage(
     sessionId: string,
@@ -394,6 +395,86 @@ export const interviewApi = {
     const data = await response.json();
     if (!data.success) throw new Error(data.message || '语音通话处理失败');
     return data.data;
+  },
+
+  /**
+   * 语音通话：流式发送语音消息
+   * 返回 SSE 流，事件类型：
+   * - transcription: 语音识别结果（可立即展示）
+   * - correction: ASR 纠错结果（如果有纠正）
+   * - chunk: AI 回复文本片段
+   * - done: 完成，包含音频数据
+   * - error: 错误
+   */
+  sendVoiceMessageStream(
+    sessionId: string,
+    audioBase64: string,
+    onEvent: (event: { type: string; data: any }) => void,
+    onError: (error: Error) => void,
+    options: {
+      mimeType?: string;
+      language?: string;
+      voice?: string;
+    } = {},
+  ): { abort: () => void } {
+    const { mimeType = 'audio/webm', language = 'zh', voice = 'anna' } = options;
+    const abortController = new AbortController();
+
+    (async () => {
+      try {
+        const response = await fetch(`${API_BASE}/interview/voice-session/${sessionId}/message`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            audio: audioBase64,
+            mimeType,
+            language,
+            voice,
+          }),
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('无法读取响应流');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines[lines.length - 1];
+
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
+            if (!line || !line.startsWith('data: ')) continue;
+
+            try {
+              const jsonStr = line.substring(6);
+              const event = JSON.parse(jsonStr);
+              onEvent(event);
+            } catch (e) {
+              console.error('解析事件失败:', e);
+            }
+          }
+        }
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          onError(error as Error);
+        }
+      }
+    })();
+
+    return {
+      abort: () => abortController.abort(),
+    };
   },
 
   // =================== 视频相关 API ===================
@@ -435,7 +516,8 @@ export const interviewApi = {
   },
 
   /**
-   * 视频通话：发送视频和语音消息，返回AI语音回复
+   * 视频通话：发送视频和语音消息，返回AI语音回复（已废弃，请使用 sendVideoMessageStream）
+   * @deprecated 使用 sendVideoMessageStream 替代
    */
   async sendVideoMessage(
     sessionId: string,
@@ -464,5 +546,87 @@ export const interviewApi = {
     const data = await response.json();
     if (!data.success) throw new Error(data.message || '视频通话处理失败');
     return data.data;
+  },
+
+  /**
+   * 视频通话：流式发送视频和语音消息
+   * 返回 SSE 流，事件类型：
+   * - transcription: 语音识别结果（可立即展示）
+   * - correction: ASR 纠错结果（如果有纠正）
+   * - chunk: AI 回复文本片段
+   * - done: 完成，包含音频数据和视频分析结果
+   * - error: 错误
+   */
+  sendVideoMessageStream(
+    sessionId: string,
+    audioBase64: string,
+    onEvent: (event: { type: string; data: any }) => void,
+    onError: (error: Error) => void,
+    options: {
+      audioMimeType?: string;
+      videoFrame?: string;
+      videoFrames?: string[];
+      voice?: string;
+    } = {},
+  ): { abort: () => void } {
+    const { audioMimeType = 'audio/webm', videoFrame, videoFrames, voice = 'anna' } = options;
+    const abortController = new AbortController();
+
+    (async () => {
+      try {
+        const response = await fetch(`${API_BASE}/interview/video-session/${sessionId}/message`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            audio: audioBase64,
+            audioMimeType,
+            videoFrame,
+            videoFrames,
+            voice,
+          }),
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('无法读取响应流');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines[lines.length - 1];
+
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
+            if (!line || !line.startsWith('data: ')) continue;
+
+            try {
+              const jsonStr = line.substring(6);
+              const event = JSON.parse(jsonStr);
+              onEvent(event);
+            } catch (e) {
+              console.error('解析事件失败:', e);
+            }
+          }
+        }
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          onError(error as Error);
+        }
+      }
+    })();
+
+    return {
+      abort: () => abortController.abort(),
+    };
   },
 };

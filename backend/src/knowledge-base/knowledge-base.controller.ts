@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
   HttpException,
@@ -19,8 +20,10 @@ import { diskStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
 import { KnowledgeBaseService } from './services/knowledge-base.service';
 import { DocumentUploadService } from './services/document-upload.service';
+import { LibraryService } from './services/library.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { QueryKnowledgeDto } from './dto/query-knowledge.dto';
+import { CreateLibraryDto, UpdateLibraryDto } from './dto/library.dto';
 import * as path from 'path';
 import * as iconv from 'iconv-lite';
 
@@ -101,32 +104,178 @@ export class KnowledgeBaseController {
   constructor(
     private readonly knowledgeBaseService: KnowledgeBaseService,
     private readonly documentUploadService: DocumentUploadService,
+    private readonly libraryService: LibraryService,
   ) {}
 
-  /**
-   * 上传单个文档文件
-   */
-  @Post('upload-document')
-  @UseInterceptors(FileInterceptor('file', getMulterOptions()))
-  async uploadDocument(@UploadedFile() file: any, @Request() req: AuthRequest) {
+  @Post('libraries')
+  async createLibrary(
+    @Body() createLibraryDto: CreateLibraryDto,
+    @Request() req: AuthRequest
+  ) {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      const library = await this.libraryService.createLibrary(createLibraryDto, userId);
+      return {
+        success: true,
+        message: '知识库创建成功',
+        data: library,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '创建知识库失败' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Get('libraries')
+  async getLibraries(@Request() req: AuthRequest) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      const libraries = await this.libraryService.getLibraries(userId);
+      return {
+        success: true,
+        message: '获取成功',
+        data: libraries,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '获取知识库列表失败' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Get('libraries/:id')
+  async getLibrary(@Param('id') libraryId: string, @Request() req: AuthRequest) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      const library = await this.libraryService.getLibraryById(libraryId, userId);
+      return {
+        success: true,
+        message: '获取成功',
+        data: library,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '获取知识库失败' },
+        error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Put('libraries/:id')
+  async updateLibrary(
+    @Param('id') libraryId: string,
+    @Body() updateLibraryDto: UpdateLibraryDto,
+    @Request() req: AuthRequest
+  ) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      const library = await this.libraryService.updateLibrary(libraryId, updateLibraryDto, userId);
+      return {
+        success: true,
+        message: '知识库更新成功',
+        data: library,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '更新知识库失败' },
+        error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Delete('libraries/:id')
+  async deleteLibrary(@Param('id') libraryId: string, @Request() req: AuthRequest) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      await this.libraryService.deleteLibrary(libraryId, userId);
+      return {
+        success: true,
+        message: '知识库删除成功',
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '删除知识库失败' },
+        error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Get('libraries/:id/stats')
+  async getLibraryStats(@Param('id') libraryId: string, @Request() req: AuthRequest) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      const stats = await this.libraryService.getLibraryStats(libraryId, userId);
+      return {
+        success: true,
+        message: '获取成功',
+        data: stats,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '获取知识库统计失败' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Post('upload-document')
+  @UseInterceptors(FileInterceptor('file', getMulterOptions()))
+  async uploadDocument(
+    @UploadedFile() file: any,
+    @Body('libraryId') libraryId: string,
+    @Request() req: AuthRequest
+  ) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
 
       if (!file) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未收到文件',
-          },
+          { success: false, message: '未收到文件' },
           HttpStatus.BAD_REQUEST
         );
       }
@@ -144,6 +293,7 @@ export class KnowledgeBaseController {
         fileMimeType: uploadResult.fileMimeType,
         fileUrl: uploadResult.fileUrl,
         uploadType: 'file',
+        libraryId: libraryId || undefined,
       };
 
       const document = await this.knowledgeBaseService.addDocument(createDocumentDto, userId);
@@ -155,47 +305,37 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '上传文档失败',
-        },
+        { success: false, message: error.message || '上传文档失败' },
         error.status || HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 批量上传文档文件
-   */
   @Post('upload-documents')
   @UseInterceptors(FilesInterceptor('files', 10, getMulterOptions()))
-  async uploadDocuments(@UploadedFiles() files: any[], @Request() req: AuthRequest) {
+  async uploadDocuments(
+    @UploadedFiles() files: any[],
+    @Body('libraryId') libraryId: string,
+    @Request() req: AuthRequest
+  ) {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
 
       if (!files || files.length === 0) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未收到任何文件',
-          },
+          { success: false, message: '未收到任何文件' },
           HttpStatus.BAD_REQUEST
         );
       }
 
       const uploadResults = await this.documentUploadService.uploadDocuments(files);
 
-      // 只保存文档到数据库，返回待处理状态
-      // 后台异步处理向量化
       const documents = [];
       for (const uploadResult of uploadResults) {
         const createDocumentDto: CreateDocumentDto = {
@@ -209,6 +349,7 @@ export class KnowledgeBaseController {
           fileMimeType: uploadResult.fileMimeType,
           fileUrl: uploadResult.fileUrl,
           uploadType: 'file',
+          libraryId: libraryId || undefined,
         };
 
         try {
@@ -226,18 +367,12 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '批量上传文档失败',
-        },
+        { success: false, message: error.message || '批量上传文档失败' },
         error.status || HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 添加文档
-   */
   @Post('documents')
   async addDocument(
     @Body() createDocumentDto: CreateDocumentDto,
@@ -247,10 +382,7 @@ export class KnowledgeBaseController {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
@@ -262,18 +394,12 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '添加文档失败',
-        },
+        { success: false, message: error.message || '添加文档失败' },
         HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 查询知识库
-   */
   @Post('query')
   async queryKnowledge(
     @Body() queryDto: QueryKnowledgeDto,
@@ -283,10 +409,7 @@ export class KnowledgeBaseController {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
@@ -298,18 +421,113 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '查询失败',
-        },
+        { success: false, message: error.message || '查询失败' },
         HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * RAG 查询 - 返回增强提示词
-   */
+  @Post('advanced-query')
+  async advancedQuery(
+    @Body() body: {
+      query: string;
+      options?: {
+        useHybridSearch?: boolean;
+        useQueryOptimization?: boolean;
+        useReranking?: boolean;
+        useHyDE?: boolean;
+        topK?: number;
+        threshold?: number;
+        rerankTopN?: number;
+        libraryIds?: string[];
+      };
+    },
+    @Request() req: AuthRequest
+  ) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+
+      if (!body.query || body.query.trim().length === 0) {
+        throw new HttpException(
+          { success: false, message: '查询内容不能为空' },
+          HttpStatus.BAD_REQUEST
+        );
+      }
+
+      const results = await this.knowledgeBaseService.advancedQuery(
+        body.query,
+        userId,
+        body.options
+      );
+      return {
+        success: true,
+        message: '高级检索成功',
+        data: results,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '高级检索失败' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Post('rebuild-bm25-index')
+  async rebuildBM25Index(@Request() req: AuthRequest) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+
+      const result = await this.knowledgeBaseService.rebuildBM25Index();
+      return {
+        success: result.success,
+        message: result.message,
+        data: result.stats,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '索引重建失败' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Get('bm25-stats')
+  async getBM25Stats(@Request() req: AuthRequest) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: '未授权的请求，请先登录' },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+
+      const stats = this.knowledgeBaseService.getBM25Stats();
+      return {
+        success: true,
+        message: '获取成功',
+        data: stats,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        { success: false, message: error.message || '获取统计失败' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
   @Post('rag-query')
   async ragQuery(
     @Body() queryDto: QueryKnowledgeDto,
@@ -319,10 +537,7 @@ export class KnowledgeBaseController {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
@@ -334,32 +549,26 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'RAG 查询失败',
-        },
+        { success: false, message: error.message || 'RAG 查询失败' },
         HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 获取用户的所有文档
-   */
   @Get('documents')
-  async getUserDocuments(@Request() req: AuthRequest) {
+  async getUserDocuments(
+    @Query('libraryId') libraryId: string,
+    @Request() req: AuthRequest
+  ) {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
-      const documents = await this.knowledgeBaseService.getUserDocuments(userId);
+      const documents = await this.knowledgeBaseService.getUserDocuments(userId, libraryId);
       return {
         success: true,
         message: '获取成功',
@@ -367,28 +576,19 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '获取文档失败',
-        },
+        { success: false, message: error.message || '获取文档失败' },
         HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 获取单个文档
-   */
   @Get('documents/:id')
   async getDocument(@Param('id') documentId: string, @Request() req: AuthRequest) {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
@@ -400,18 +600,12 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '获取文档失败',
-        },
+        { success: false, message: error.message || '获取文档失败' },
         error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 更新文档
-   */
   @Put('documents/:id')
   async updateDocument(
     @Param('id') documentId: string,
@@ -422,10 +616,7 @@ export class KnowledgeBaseController {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
@@ -441,28 +632,19 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '更新文档失败',
-        },
+        { success: false, message: error.message || '更新文档失败' },
         error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 重新处理文档
-   */
   @Post('documents/:id/reprocess')
   async reprocessDocument(@Param('id') documentId: string, @Request() req: AuthRequest) {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
@@ -474,28 +656,19 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '重新处理文档失败',
-        },
+        { success: false, message: error.message || '重新处理文档失败' },
         error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 删除文档
-   */
   @Delete('documents/:id')
   async deleteDocument(@Param('id') documentId: string, @Request() req: AuthRequest) {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
@@ -506,18 +679,12 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '删除文档失败',
-        },
+        { success: false, message: error.message || '删除文档失败' },
         error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 批量删除文档
-   */
   @Post('documents/batch-delete')
   async batchDeleteDocuments(
     @Body() deleteDto: { documentIds: string[] },
@@ -527,10 +694,7 @@ export class KnowledgeBaseController {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
@@ -545,32 +709,26 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '批量删除文档失败',
-        },
+        { success: false, message: error.message || '批量删除文档失败' },
         error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
       );
     }
   }
 
-  /**
-   * 获取知识库统计信息
-   */
   @Get('statistics')
-  async getStatistics(@Request() req: AuthRequest) {
+  async getStatistics(
+    @Query('libraryId') libraryId: string,
+    @Request() req: AuthRequest
+  ) {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new HttpException(
-          {
-            success: false,
-            message: '未授权的请求，请先登录',
-          },
+          { success: false, message: '未授权的请求，请先登录' },
           HttpStatus.UNAUTHORIZED
         );
       }
-      const stats = await this.knowledgeBaseService.getStatistics(userId);
+      const stats = await this.knowledgeBaseService.getStatistics(userId, libraryId);
       return {
         success: true,
         message: '获取成功',
@@ -578,10 +736,7 @@ export class KnowledgeBaseController {
       };
     } catch (error: any) {
       throw new HttpException(
-        {
-          success: false,
-          message: error.message || '获取统计信息失败',
-        },
+        { success: false, message: error.message || '获取统计信息失败' },
         HttpStatus.BAD_REQUEST
       );
     }

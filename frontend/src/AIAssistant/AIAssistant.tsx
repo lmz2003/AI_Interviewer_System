@@ -100,8 +100,12 @@ const AIAssistant: React.FC = () => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [useRAG, setUseRAG] = useState(true);
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [libraries, setLibraries] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedLibraryIds, setSelectedLibraryIds] = useState<Set<string>>(new Set());
+  const [showLibrarySelector, setShowLibrarySelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const librarySelectorRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -134,10 +138,27 @@ const AIAssistant: React.FC = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowHistory(false);
       }
+      if (librarySelectorRef.current && !librarySelectorRef.current.contains(event.target as Node)) {
+        setShowLibrarySelector(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const loadLibraries = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_BASE}/knowledge-base/libraries`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) setLibraries(data.data || []);
+    } catch (e) { console.error('加载知识库列表失败:', e); }
+  }, [token]);
+
+  useEffect(() => { loadLibraries(); }, [loadLibraries]);
 
   const loadSessions = useCallback(async () => {
     if (!token) return;
@@ -224,7 +245,14 @@ const AIAssistant: React.FC = () => {
       const response = await fetch(`${API_BASE}/ai-assistant/message/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ message: userInput, sessionId: sessionId || undefined, useRAG, topK: 5, threshold: 0.5 }),
+        body: JSON.stringify({ 
+          message: userInput, 
+          sessionId: sessionId || undefined, 
+          useRAG, 
+          topK: 5, 
+          threshold: 0.5,
+          libraryIds: selectedLibraryIds.size > 0 ? Array.from(selectedLibraryIds) : undefined,
+        }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -315,7 +343,7 @@ const AIAssistant: React.FC = () => {
       setError(errorMessage);
       setStreamingMessageId(null);
     } finally { setIsTyping(false); }
-  }, [input, isTyping, token, sessionId, loadSessions, useRAG]);
+  }, [input, isTyping, token, sessionId, loadSessions, useRAG, selectedLibraryIds]);
 
   useEffect(() => {
     return () => { if (abortControllerRef.current) abortControllerRef.current.abort(); };
@@ -507,6 +535,58 @@ const AIAssistant: React.FC = () => {
             <BookOpenIcon />
             <span className="rag-label">{useRAG ? '知识库' : '普通模式'}</span>
           </button>
+          {useRAG && libraries.length > 0 && (
+            <div className="library-selector-wrapper" ref={librarySelectorRef}>
+              <button
+                className={`library-selector-btn ${selectedLibraryIds.size > 0 ? 'has-selection' : ''}`}
+                onClick={() => setShowLibrarySelector(!showLibrarySelector)}
+                title="选择知识库"
+              >
+                <span className="selector-label">
+                  {selectedLibraryIds.size > 0 
+                    ? `已选 ${selectedLibraryIds.size} 个` 
+                    : '全部知识库'}
+                </span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {showLibrarySelector && (
+                <div className="library-dropdown">
+                  <div className="library-dropdown-header">
+                    <span>选择检索的知识库</span>
+                    <button 
+                      className="clear-selection-btn"
+                      onClick={() => setSelectedLibraryIds(new Set())}
+                      disabled={selectedLibraryIds.size === 0}
+                    >
+                      清除选择
+                    </button>
+                  </div>
+                  <div className="library-list">
+                    {libraries.map(library => (
+                      <label key={library.id} className="library-item">
+                        <input
+                          type="checkbox"
+                          checked={selectedLibraryIds.has(library.id)}
+                          onChange={() => {
+                            const newSet = new Set(selectedLibraryIds);
+                            if (newSet.has(library.id)) {
+                              newSet.delete(library.id);
+                            } else {
+                              newSet.add(library.id);
+                            }
+                            setSelectedLibraryIds(newSet);
+                          }}
+                        />
+                        <span className="library-name">{library.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Input + send */}

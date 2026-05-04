@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
@@ -9,6 +9,7 @@ import {
   SCENE_CONFIG,
   EVALUATION_DIMENSIONS,
 } from '../constants/scene-config';
+import { KnowledgeBaseService } from '../../knowledge-base/services/knowledge-base.service';
 
 interface StreamCallbacks {
   onChunk: (chunk: string) => void;
@@ -26,7 +27,11 @@ export class InterviewLLMService {
   private readonly logger = new Logger(InterviewLLMService.name);
   private modelName = this.configService.get<string>('LLM_MODEL') || 'gpt-3.5-turbo';
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @Inject(forwardRef(() => KnowledgeBaseService))
+    private knowledgeBaseService: KnowledgeBaseService,
+  ) {
     const apiKey = this.configService.get<string>('LLM_API_KEY');
     const baseUrl = this.configService.get<string>('LLM_BASE_URL');
     const provider = this.configService.get<string>('LLM_PROVIDER') || 'openai';
@@ -57,6 +62,50 @@ export class InterviewLLMService {
         maxTokens: 2000,
         disableStreaming: false,
       });
+    }
+  }
+
+  private async getKnowledgeContext(libraryIds: string[] | undefined, query: string, userId: string): Promise<{ context: string; hasQualityContent: boolean }> {
+    if (!libraryIds || libraryIds.length === 0) {
+      return { context: '', hasQualityContent: false };
+    }
+
+    try {
+      const results = await this.knowledgeBaseService.advancedQuery(query, userId, {
+        useHybridSearch: true,
+        useQueryOptimization: true,
+        useReranking: true,
+        topK: 10,
+        threshold: 0.5,
+        rerankTopN: 3,
+        libraryIds,
+      });
+
+      if (results.length === 0) {
+        this.logger.log('知识库检索：未找到相关内容');
+        return { context: '', hasQualityContent: false };
+      }
+
+      const highQualityResults = results.filter(r => r.score > 0.6);
+      
+      if (highQualityResults.length === 0) {
+        this.logger.log(`知识库检索：找到 ${results.length} 条结果，但相关性较低，不作为参考`);
+        return { context: '', hasQualityContent: false };
+      }
+
+      const contextParts = highQualityResults.map((r, i) => 
+        `[${i + 1}] (相关性: ${(r.score * 100).toFixed(0)}%) ${r.title}\n${r.content.substring(0, 500)}`
+      );
+      
+      this.logger.log(`知识库检索：找到 ${highQualityResults.length} 条高质量相关内容`);
+      
+      return {
+        context: `\n\n【可选参考】以下是从知识库检索到的相关内容，仅当与面试主题高度相关时才参考使用：\n${contextParts.join('\n\n')}\n`,
+        hasQualityContent: true
+      };
+    } catch (error) {
+      this.logger.error('获取知识库内容失败:', error);
+      return { context: '', hasQualityContent: false };
     }
   }
 
@@ -152,6 +201,20 @@ ${resumeContent ? `候选人简历摘要：\n${resumeContent}\n` : ''}
     const systemPrompt = sceneConfig.systemPrompt;
     const historyText = this.formatHistory(history);
 
+    const { context: knowledgeContext, hasQualityContent } = await this.getKnowledgeContext(
+      interview.libraryIds,
+      `${interview.jobType || '通用岗位'} ${sceneConfig.name} 面试问题`,
+      interview.userId,
+    );
+
+    const knowledgeInstruction = hasQualityContent 
+      ? `\n【知识库参考说明】
+- 上面提供了从知识库检索到的可选参考内容
+- 仅当这些内容与当前面试主题高度相关时，才参考使用
+- 如果检索内容与面试岗位无关或质量不高，请忽略，按正常面试流程提问
+- 优先根据面试场景、岗位要求和候选人回答情况设计问题`
+      : '\n（知识库未检索到高质量相关内容，请根据面试场景和岗位要求正常提问）';
+
     const questionPrompt = `面试进行中，当前是第${questionCount + 1}个问题。
 
 面试信息：
@@ -162,15 +225,17 @@ ${resumeContent ? `候选人简历摘要：\n${resumeContent}\n` : ''}
 - 剩余问题数量：${sceneConfig.questionCount.max - questionCount}
 
 ${resumeContent ? `候选人简历摘要：\n${resumeContent}\n` : ''}
+${knowledgeContext}${knowledgeInstruction}
 
 历史对话：
 ${historyText}
 
 请生成下一个面试问题。要求：
-1. 问题应该与面试场景和岗位相关
+1. 问题必须与面试场景和岗位紧密相关
 2. 根据候选人的回答情况，可以追问或提出新问题
-3. 问题要有针对性和深度
-4. 不要使用markdown格式，直接输出纯文本`;
+3. 问题要有针对性和深度，考察候选人的真实能力
+4. 知识库内容仅供参考，如不相关请忽略
+5. 不要使用markdown格式，直接输出纯文本`;
 
     try {
       const response = await this.llm.invoke([
@@ -201,6 +266,20 @@ ${historyText}
     const systemPrompt = sceneConfig.systemPrompt;
     const historyText = this.formatHistory(history);
 
+    const { context: knowledgeContext, hasQualityContent } = await this.getKnowledgeContext(
+      interview.libraryIds,
+      `${interview.jobType || '通用岗位'} ${sceneConfig.name} 面试问题`,
+      interview.userId,
+    );
+
+    const knowledgeInstruction = hasQualityContent 
+      ? `\n【知识库参考说明】
+- 上面提供了从知识库检索到的可选参考内容
+- 仅当这些内容与当前面试主题高度相关时，才参考使用
+- 如果检索内容与面试岗位无关或质量不高，请忽略，按正常面试流程提问
+- 优先根据面试场景、岗位要求和候选人回答情况设计问题`
+      : '\n（知识库未检索到高质量相关内容，请根据面试场景和岗位要求正常提问）';
+
     const questionPrompt = `面试进行中，当前是第${questionCount + 1}个问题。
 
 面试信息：
@@ -211,15 +290,17 @@ ${historyText}
 - 剩余问题数量：${sceneConfig.questionCount.max - questionCount}
 
 ${resumeContent ? `候选人简历摘要：\n${resumeContent}\n` : ''}
+${knowledgeContext}${knowledgeInstruction}
 
 历史对话：
 ${historyText}
 
 请生成下一个面试问题。要求：
-1. 问题应该与面试场景和岗位相关
+1. 问题必须与面试场景和岗位紧密相关
 2. 根据候选人的回答情况，可以追问或提出新问题
-3. 问题要有针对性和深度
-4. 不要使用markdown格式，直接输出纯文本`;
+3. 问题要有针对性和深度，考察候选人的真实能力
+4. 知识库内容仅供参考，如不相关请忽略
+5. 不要使用markdown格式，直接输出纯文本`;
 
     return this.streamGenerate(systemPrompt, questionPrompt, callbacks);
   }

@@ -19,11 +19,6 @@ export class UsersService {
     return user;
   }
 
-  // Get user by GitHub id
-  async getUserByGithubId(githubId: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { githubId } });
-  }
-
   // Update user information
   async updateUserInfo(userId: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.getUserById(userId);
@@ -34,11 +29,5 @@ export class UsersService {
     });
 
     return updatedUser;
-  }
-
-  // Create a new user
-  async createUserFromGithub(payload: Partial<User>): Promise<User> {
-    const user = this.userRepository.create(payload);
-    return this.userRepository.save(user);
   }
 }

@@ -4,7 +4,7 @@ import styles from './MainPage.module.scss';
 import NotesListPage from '../Note/NotesListPage';
 import ResumeAnalysis from '../ResumeAnalysis';
 import AIIInterviewModule from '../components/AIIInterviewModule';
-import KnowledgeBase from '../KnowledgeBase/KnowledgeBase';
+import KnowledgeBaseManager from '../KnowledgeBase/KnowledgeBaseManager';
 import AIAssistant from '../AIAssistant/AIAssistant';
 import { AIAssistantProvider, useAIAssistant } from '../context/AIAssistantContext';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -700,7 +700,7 @@ const MainPageLayout: React.FC = () => {
             {activeModule === 'notes'     && <NotesListPage />}
             {activeModule === 'resume'    && <ResumeAnalysis />}
             {activeModule === 'interview' && <AIIInterviewModule />}
-            {activeModule === 'knowledge' && <KnowledgeBase />}
+            {activeModule === 'knowledge' && <KnowledgeBaseManager />}
           </main>
         </div>
 

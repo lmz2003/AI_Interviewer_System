@@ -5,6 +5,7 @@ import LoginCallback from '../LoginPage/LoginCallback';
 import NoteDetailPage from '../Note/NoteDetailPage';
 import ResumeDetail from '../ResumeAnalysis/ResumeDetail';
 import ResumeUpload from '../ResumeAnalysis/ResumeUpload';
+import InterviewPage from '../Interview/InterviewPage';
 import { ProtectedRoute, LoginRedirect } from './RouteComponents';
 
 export const router = createBrowserRouter([
@@ -35,6 +36,10 @@ export const router = createBrowserRouter([
   {
     path: '/dashboard/resume/:id',
     element: <ProtectedRoute element={<ResumeDetail />} />,
+  },
+  {
+    path: '/interview/:interviewId/:mode',
+    element: <ProtectedRoute element={<InterviewPage />} />,
   },
   {
     path: '/dashboard/:module/:subPage/:id',

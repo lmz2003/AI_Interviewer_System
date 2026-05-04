@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { interviewApi } from './api';
 import type { Interview, VideoCallStatus, VideoAnalysisInMessage } from './types';
 import { useToastModal } from '@/components/ui/toast-modal';
+import InterviewPaused from './InterviewPaused';
 
 const MicIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
@@ -15,6 +16,13 @@ const MicIcon = () => (
 const StopSquareIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26">
     <rect x="5" y="5" width="14" height="14" rx="2" />
+  </svg>
+);
+
+const PauseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+    <rect x="6" y="4" width="4" height="16" />
+    <rect x="14" y="4" width="4" height="16" />
   </svg>
 );
 
@@ -90,6 +98,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [callDuration, setCallDuration] = useState(initialDuration);
+  const [isPaused, setIsPaused] = useState(false);
   const [conversations, setConversations] = useState<ConversationMessage[]>(() => {
     // 继续面试：优先使用历史对话记录
     if (initialConversations && initialConversations.length > 0) {
@@ -122,6 +131,13 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   const subtitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+
+  const setVideoPreviewRef = useCallback((node: HTMLVideoElement | null) => {
+    videoPreviewRef.current = node;
+    if (node && videoStreamRef.current) {
+      node.srcObject = videoStreamRef.current;
+    }
+  }, []);
 
   // 帧缓冲：始终在录制（按 roundIndex 区分每轮问答的帧）
   const frameBufferRef = useRef<FrameData[]>([]);
@@ -475,18 +491,22 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
     }
     setWaveformData(new Array(24).fill(2));
 
-    // 当前轮次的帧（在停止录音前收集，保证帧时间段正确）
     const sendRound = currentRoundRef.current;
     const sessionFrames = getFramesForRound(sendRound);
     console.log(`[VideoInterview] 停止录音，收集轮次 ${sendRound} 的帧: ${sessionFrames.length} 帧`);
 
-    // 发送后立即切换到下一轮次，让后续截帧打到新轮次
     currentRoundRef.current = sendRound + 1;
+
+    setConversations((prev) => [
+      ...prev,
+      { role: 'user', text: '正在识别...', timestamp: new Date() },
+    ]);
 
     mediaRecorderRef.current.onstop = async () => {
       if (audioChunksRef.current.length === 0) {
         setCallStatus('idle');
         setCurrentSubtitle('');
+        setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
         return;
       }
 
@@ -500,45 +520,96 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
 
           console.log(`[VideoInterview] 发送：音频 ${base64.length} bytes, 视频帧 ${sessionFrames.length} 帧`);
 
-          const result = await interviewApi.sendVideoMessage(sessionId, base64, {
-            audioMimeType: 'audio/webm',
-            videoFrames: sessionFrames.length > 0 ? sessionFrames : undefined,
-            voice,
-          });
+          let userText = '';
+          let aiText = '';
 
-          setConversations((prev) => [
-            ...prev,
-            { role: 'user', text: result.userText, timestamp: new Date() },
-            { role: 'assistant', text: result.aiText, timestamp: new Date() },
-          ]);
+          interviewApi.sendVideoMessageStream(
+            sessionId,
+            base64,
+            async (event) => {
+              if (event.type === 'transcription') {
+                userText = event.data.text;
+                setConversations((prev) =>
+                  prev.map((msg) =>
+                    msg.text === '正在识别...' ? { ...msg, text: userText } : msg,
+                  ),
+                );
+                setCurrentSubtitle('正在思考...');
+              } else if (event.type === 'correction') {
+                userText = event.data.correctedText;
+                setConversations((prev) =>
+                  prev.map((msg) =>
+                    msg.text === event.data.originalText || msg.text === '正在识别...'
+                      ? { ...msg, text: userText }
+                      : msg,
+                  ),
+                );
+              } else if (event.type === 'chunk') {
+                aiText += event.data.text;
+                setConversations((prev) => {
+                  const lastMsg = prev[prev.length - 1];
+                  if (lastMsg?.role === 'assistant') {
+                    return [...prev.slice(0, -1), { ...lastMsg, text: aiText }];
+                  }
+                  return [...prev, { role: 'assistant', text: aiText, timestamp: new Date() }];
+                });
+                setCurrentSubtitle(`面试官：${aiText}`);
+              } else if (event.type === 'done') {
+                const { audioBase64, audioFormat, shouldEnd, videoAnalysis } = event.data;
 
-          setCurrentSubtitle(`面试官：${result.aiText}`);
+                setConversations((prev) => {
+                  const lastMsg = prev[prev.length - 1];
+                  if (lastMsg?.role === 'assistant' && lastMsg.text !== aiText) {
+                    return [...prev.slice(0, -1), { ...lastMsg, text: aiText }];
+                  }
+                  return prev;
+                });
 
-          if (result.videoAnalysis) {
-            setVideoAnalysisData(result.videoAnalysis);
-          }
+                if (videoAnalysis) {
+                  setVideoAnalysisData(videoAnalysis);
+                }
 
-          setCallStatus('playing');
-          await playAudioBase64(result.audioBase64, result.audioFormat);
+                setCallStatus('playing');
+                await playAudioBase64(audioBase64, audioFormat);
 
-          if (result.shouldEnd) {
-            setCallStatus('ended');
-            try {
-              await interviewApi.endInterview(sessionId);
-              onBack();
-            } catch {
-              setError('结束面试失败，请手动点击结束按钮');
+                if (shouldEnd) {
+                  setCallStatus('ended');
+                  try {
+                    await interviewApi.endInterview(sessionId);
+                    onBack();
+                  } catch {
+                    setError('结束面试失败，请手动点击结束按钮');
+                    setCallStatus('idle');
+                  }
+                } else {
+                  setCallStatus('idle');
+                  setCurrentSubtitle('请说话...');
+                  subtitleTimeoutRef.current = setTimeout(() => setCurrentSubtitle(''), 3000);
+                }
+              } else if (event.type === 'error') {
+                setError(event.data.message || '处理失败');
+                setCallStatus('idle');
+                setCurrentSubtitle('');
+                setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
+              }
+            },
+            (err) => {
+              setError(err.message);
               setCallStatus('idle');
-            }
-          } else {
-            setCallStatus('idle');
-            setCurrentSubtitle('请说话...');
-            subtitleTimeoutRef.current = setTimeout(() => setCurrentSubtitle(''), 3000);
-          }
+              setCurrentSubtitle('');
+              setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
+            },
+            {
+              audioMimeType: 'audio/webm',
+              videoFrames: sessionFrames.length > 0 ? sessionFrames : undefined,
+              voice,
+            },
+          );
         } catch (err) {
           setError(err instanceof Error ? err.message : '处理失败，请重试');
           setCallStatus('idle');
           setCurrentSubtitle('');
+          setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
         }
       };
 
@@ -549,11 +620,33 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   }, [callStatus, sessionId, voice, playAudioBase64, onBack, getFramesForRound]);
 
   // ─── 结束/返回 ─────────────────────────────────────────────────────────────
-    const toastModal = useToastModal();
-    const handleEndInterview = useCallback(async () => {
+  const toastModal = useToastModal();
+
+  const handlePause = useCallback(() => {
+    if (callStatus === 'recording') {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      setCallStatus('idle');
+    }
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      setIsAIPlaying(false);
+    }
+    setIsPaused(true);
+  }, [callStatus]);
+
+  const handleResume = useCallback(() => {
+    setIsPaused(false);
+    if (videoStreamRef.current && videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = videoStreamRef.current;
+    }
+  }, []);
+
+  const handleEndInterview = useCallback(async () => {
     const confirmed = await toastModal.confirm(
-      '确定要结束视频面试吗？',
-      '结束面试',
+      '确定要结束本次面试吗？结束后将无法继续。',
+      '结束面试'
     );
     if (!confirmed) return;
 
@@ -569,11 +662,6 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       setCallStatus('idle');
     }
   }, [cleanup, sessionId, onBack, saveProgress, toastModal]);
-
-  const handleBack = useCallback(async () => {
-    await saveProgress();
-    onBack();
-  }, [saveProgress, onBack]);
 
   // ─── 摄像头开关（不停流，仅禁用视频轨道）─────────────────────────────────
 
@@ -629,21 +717,28 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
 
   return (
     <div className="video-interview-page">
-      <div className="video-header">
-        <button className="back-btn" onClick={handleBack}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          返回
-        </button>
-        <div className="video-header-info">
-          <div className="video-title">{interview.title || interview.sceneName}</div>
-          <div className="video-meta">
-            {interview.jobName || '通用岗位'} · {interview.difficultyName}
+      {isPaused ? (
+        <InterviewPaused
+          interviewTitle={interview.title || interview.sceneName}
+          elapsedTime={callDuration}
+          onResume={handleResume}
+          onEnd={handleEndInterview}
+        />
+      ) : (
+        <>
+          <div className="video-header">
+            <button className="pause-btn" onClick={handlePause}>
+              <PauseIcon />
+              暂停
+            </button>
+            <div className="video-header-info">
+              <div className="video-title">{interview.title || interview.sceneName}</div>
+              <div className="video-meta">
+                {interview.jobName || '通用岗位'} · {interview.difficultyName}
+              </div>
+            </div>
+            <div className="video-duration">{formatDuration(callDuration)}</div>
           </div>
-        </div>
-        <div className="video-duration">{formatDuration(callDuration)}</div>
-      </div>
 
       {error && (
         <div className="error-message" onClick={() => setError(null)}>
@@ -719,7 +814,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
             )}
             <div className={`video-preview ${isCameraOff ? 'camera-off' : ''}`}>
               <video
-                ref={videoPreviewRef}
+                ref={setVideoPreviewRef}
                 autoPlay
                 playsInline
                 muted
@@ -876,6 +971,8 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       </div>
 
       <canvas ref={videoCanvasRef} style={{ display: 'none' }} />
+        </>
+      )}
     </div>
   );
 };

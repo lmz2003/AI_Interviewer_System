@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { interviewApi } from './api';
 import type { Interview, InterviewMessage, SSEEvent } from './types';
 import VoiceInput from './VoiceInput';
+import InterviewPaused from './InterviewPaused';
+import { useToastModal } from '@/components/ui/toast-modal';
 import './Interview.scss';
 
 // SVG 图标
@@ -31,9 +33,10 @@ const MicReadyIcon = () => (
   </svg>
 );
 
-const ChevronLeftIcon = () => (
+const PauseIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-    <polyline points="15 18 9 12 15 6" />
+    <rect x="6" y="4" width="4" height="16" />
+    <rect x="14" y="4" width="4" height="16" />
   </svg>
 );
 
@@ -59,6 +62,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   initialElapsedTime = 0,
   onElapsedTimeChange,
 }) => {
+  const toastModal = useToastModal();
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -66,6 +70,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState(initialElapsedTime);
   const [isConnecting, setIsConnecting] = useState(!initialSessionId);
+  const [isPaused, setIsPaused] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<{ abort: () => void } | null>(null);
@@ -212,6 +217,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   };
 
   const handleEndInterview = useCallback(async () => {
+    const confirmed = await toastModal.confirm(
+      '确定要结束本次面试吗？结束后将无法继续。',
+      '结束面试'
+    );
+    if (!confirmed) return;
+
     if (!sessionIdRef.current) return;
 
     try {
@@ -221,14 +232,17 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     } catch (err) {
       setError(err instanceof Error ? err.message : '结束面试失败');
     }
-  }, [onBack, saveProgress]);
+  }, [onBack, saveProgress, toastModal]);
 
   handleEndInterviewRef.current = handleEndInterview;
 
-  const handleBack = useCallback(async () => {
-    await saveProgress();
-    onBack();
-  }, [saveProgress, onBack]);
+  const handlePause = useCallback(() => {
+    setIsPaused(true);
+  }, []);
+
+  const handleResume = useCallback(() => {
+    setIsPaused(false);
+  }, []);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isTyping || !sessionId) return;
@@ -307,38 +321,47 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
   return (
     <div className="interview-chat-page">
-      {isConnecting && (
-        <div className="interview-modal-overlay">
-          <div className="interview-modal connecting-modal">
-            <div className="modal-icon spinning">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 6v6l4 2" />
-              </svg>
+      {isPaused ? (
+        <InterviewPaused
+          interviewTitle={interview.title || interview.sceneName}
+          elapsedTime={elapsedTime}
+          onResume={handleResume}
+          onEnd={handleEndInterview}
+        />
+      ) : (
+        <>
+          {isConnecting && (
+            <div className="interview-modal-overlay">
+              <div className="interview-modal connecting-modal">
+                <div className="modal-icon spinning">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                </div>
+                <h3>正在连接面试官...</h3>
+                <p>请稍候，AI面试官正在准备面试问题</p>
+              </div>
             </div>
-            <h3>正在连接面试官...</h3>
-            <p>请稍候，AI面试官正在准备面试问题</p>
-          </div>
-        </div>
-      )}
+          )}
 
-      <div className="chat-header">
-        <button className="back-btn" onClick={handleBack}>
-          <ChevronLeftIcon /> 返回
-        </button>
-        <div className="header-info">
-          <h2>{interview.title || interview.sceneName}</h2>
-          <span className="interview-meta">
-            {interview.jobName || '通用岗位'} · {interview.difficultyName}
-          </span>
-        </div>
-        <div className="header-right">
-          <span className="elapsed-time">{formatDuration(elapsedTime)}</span>
-          <button className="end-btn" onClick={handleEndInterview} disabled={isTyping}>
-            结束面试
-          </button>
-        </div>
-      </div>
+          <div className="chat-header">
+            <button className="pause-btn" onClick={handlePause}>
+              <PauseIcon /> 暂停
+            </button>
+            <div className="header-info">
+              <h2>{interview.title || interview.sceneName}</h2>
+              <span className="interview-meta">
+                {interview.jobName || '通用岗位'} · {interview.difficultyName}
+              </span>
+            </div>
+            <div className="header-right">
+              <span className="elapsed-time">{formatDuration(elapsedTime)}</span>
+              <button className="end-btn" onClick={handleEndInterview} disabled={isTyping}>
+                结束面试
+              </button>
+            </div>
+          </div>
 
       {error && (
         <div className="error-message">
@@ -432,6 +455,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           <SendIcon />
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 };

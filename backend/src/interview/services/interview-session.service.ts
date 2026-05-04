@@ -59,6 +59,7 @@ export class InterviewSessionService {
       status: 'pending',
       mode: dto.mode || 'text',
       title: dto.title || `${sceneConfig.name} - ${new Date().toLocaleDateString('zh-CN')}`,
+      libraryIds: dto.libraryIds,
     });
 
     const savedInterview = await this.interviewRepository.save(interview);

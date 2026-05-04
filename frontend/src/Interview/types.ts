@@ -141,6 +141,7 @@ export interface CreateInterviewDto {
   resumeId?: string;
   mode?: InterviewMode;
   title?: string;
+  libraryIds?: string[];
 }
 
 export interface StartSessionResult {

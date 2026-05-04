@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { interviewApi } from './api';
 import { useToastModal } from '../components/ui/toast-modal';
 import type {
@@ -121,7 +122,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 
   return (
     <div className="filter-item">
-      <label id={`${dropdownId.current}-label`}>{label}</label>
+      {label && <label id={`${dropdownId.current}-label`}>{label}</label>}
       <div 
         ref={dropdownRef}
         className={`custom-filter-dropdown ${isOpen ? 'open' : ''}`}
@@ -286,32 +287,65 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
   const [startError, setStartError] = useState<string | null>(null);
   const [openingText, setOpeningText] = useState('');
   const [isPlayingOpening, setIsPlayingOpening] = useState(false);
+  const [callDuration, setCallDuration] = useState(initialElapsedTime);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const initialElapsedTimeRef = useRef(initialElapsedTime);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const callDurationRef = useRef(callDuration);
+
+  callDurationRef.current = callDuration;
+
+  const startCallTimer = useCallback(() => {
+    if (timerRef.current) return;
+    timerRef.current = setInterval(() => {
+      setCallDuration((prev) => prev + 1);
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
 
   const playOpeningAudio = useCallback(async (text: string) => {
-    if (!text.trim()) return;
+    console.log('[VoiceInterview] playOpeningAudio called, text:', text?.substring(0, 50));
+    if (!text.trim()) {
+      console.log('[VoiceInterview] text is empty, returning');
+      return;
+    }
 
+    console.log('[VoiceInterview] Setting isPlayingOpening to true');
     setIsPlayingOpening(true);
+    console.log('[VoiceInterview] isPlayingOpening set to true');
+    
     try {
+      console.log('[VoiceInterview] Calling textToSpeech...');
       const audioBlob = await interviewApi.textToSpeech(text, 'anna', 1.0);
+      console.log('[VoiceInterview] textToSpeech completed, blob size:', audioBlob.size);
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
       audio.onended = () => {
+        console.log('[VoiceInterview] Audio ended');
         setIsPlayingOpening(false);
         URL.revokeObjectURL(audioUrl);
       };
 
       audio.onerror = () => {
+        console.log('[VoiceInterview] Audio error');
         setIsPlayingOpening(false);
         URL.revokeObjectURL(audioUrl);
       };
 
+      console.log('[VoiceInterview] Starting audio play...');
       await audio.play();
+      console.log('[VoiceInterview] Audio play started');
     } catch (err) {
-      console.error('播放开场白失败:', err);
+      console.error('[VoiceInterview] 播放开场白失败:', err);
       setIsPlayingOpening(false);
     }
   }, []);
@@ -332,11 +366,10 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
           tempText += event.data as string;
           setOpeningText(tempText);
         } else if (event.type === 'done') {
-          if (tempSessionId) {
-            setSessionId(tempSessionId);
-            onSessionReady(tempSessionId);
-          }
           setIsStarting(false);
+          startCallTimer();
+          onSessionReady(tempSessionId || '');
+          setSessionId(tempSessionId);
           if (tempText.trim()) {
             playOpeningAudio(tempText);
           }
@@ -484,66 +517,14 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
     );
   }
 
-  if (isPlayingOpening) {
-    return (
-      <div className="voice-interview-page">
-        <div className="voice-header">
-          <button className="back-btn" onClick={onBack}>
-            <ChevronLeftIcon /> 返回
-          </button>
-          <div className="voice-header-info">
-            <div className="voice-title">{interview.title || interview.sceneName}</div>
-            <div className="voice-meta">
-              {interview.jobName || '通用岗位'} · {interview.difficultyName}
-            </div>
-          </div>
-        </div>
-        <div className="voice-main">
-          <div className={`ai-avatar-section ${isPlayingOpening ? 'speaking' : ''}`}>
-            <div className="ai-avatar">
-              <BotIcon className="ai-avatar-svg" />
-              <div className={`ai-speaking-ring${isPlayingOpening ? '' : ' hidden'}`} />
-            </div>
-            <div className="ai-label">AI 面试官</div>
-            <div className={`ai-waveform${isPlayingOpening ? '' : ' hidden'}`}>
-              {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} className="ai-wave-bar" style={{ animationDelay: `${i * 0.1}s` }} />
-              ))}
-            </div>
-          </div>
-          <div className="subtitles-area">
-            <div className="current-subtitle">{openingText}</div>
-          </div>
-          <div className="voice-status-label">面试官正在说话...</div>
-        </div>
-        <div className="voice-controls">
-          <button className="control-btn mute-btn" disabled={true}>
-            <VolumeIcon />
-            <span>静音</span>
-          </button>
-          <button
-            className="main-mic-btn"
-            disabled={true}
-            title="麦克风"
-            aria-label="麦克风"
-          >
-            <MicBtnIcon />
-          </button>
-          <button className="control-btn end-call-btn" disabled={true}>
-            <PhoneOffIcon />
-            <span>结束面试</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <VoiceInterview
       interview={interview}
       sessionId={sessionId}
       onBack={onBack}
-      initialDuration={initialElapsedTimeRef.current}
+      initialDuration={callDuration}
+      openingMessage={openingText}
+      isPlayingOpening={isPlayingOpening}
     />
   );
 };
@@ -707,6 +688,7 @@ const VideoInterviewLoader: React.FC<VideoInterviewLoaderProps> = ({
 };
 
 const InterviewModule: React.FC = () => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [jobTypes, setJobTypes] = useState<JobType[]>([]);
@@ -722,6 +704,8 @@ const InterviewModule: React.FC = () => {
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [useResume, setUseResume] = useState(false);
   const [selectedMode, setSelectedMode] = useState<InterviewMode>('text');
+  const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
+  const [libraries, setLibraries] = useState<Array<{ id: string; name: string; description?: string }>>([]);
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionElapsedTime, setCurrentSessionElapsedTime] = useState<number>(0);
@@ -773,6 +757,20 @@ const InterviewModule: React.FC = () => {
       } catch (resumeErr) {
         console.warn('加载简历列表失败:', resumeErr);
         setResumes([]);
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/knowledge-base/libraries`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (data.success && data.data) {
+          setLibraries(data.data);
+        }
+      } catch (libErr) {
+        console.warn('加载知识库列表失败:', libErr);
+        setLibraries([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载数据失败');
@@ -937,17 +935,11 @@ const InterviewModule: React.FC = () => {
         difficulty: selectedDifficulty,
         resumeId: useResume && selectedResumeId ? selectedResumeId : undefined,
         mode: selectedMode,
+        libraryIds: selectedLibraryIds.length > 0 ? selectedLibraryIds : undefined,
       };
 
       const interview = await interviewApi.createInterview(dto);
-      setCurrentInterview(interview);
-      if (selectedMode === 'voice') {
-        setViewMode('voice');
-      } else if (selectedMode === 'video') {
-        setViewMode('video');
-      } else {
-        setViewMode('chat');
-      }
+      navigate(`/interview/${interview.id}/${selectedMode}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建面试失败');
     } finally {
@@ -955,47 +947,8 @@ const InterviewModule: React.FC = () => {
     }
   };
 
-  const handleResumeInterview = async (interview: Interview) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      if (currentInterview?.id === interview.id && currentSessionId) {
-        if (interview.mode === 'voice') {
-          setViewMode('voice');
-        } else if (interview.mode === 'video') {
-          setViewMode('video');
-        } else {
-          setViewMode('chat');
-        }
-        setLoading(false);
-        return;
-      }
-
-      const data = await interviewApi.getInterview(interview.id);
-      setCurrentInterview(data.interview);
-
-      const activeSession = data.sessions.find((s) => s.status === 'active');
-      if (activeSession) {
-        setCurrentSessionId(activeSession.id);
-        setCurrentSessionElapsedTime(activeSession.elapsedTime || 0);
-      } else {
-        setCurrentSessionId(null);
-        setCurrentSessionElapsedTime(0);
-      }
-
-      if (data.interview.mode === 'voice') {
-        setViewMode('voice');
-      } else if (data.interview.mode === 'video') {
-        setViewMode('video');
-      } else {
-        setViewMode('chat');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '恢复面试失败');
-    } finally {
-      setLoading(false);
-    }
+  const handleStartExistingInterview = async (interview: Interview) => {
+    navigate(`/interview/${interview.id}/${interview.mode}`);
   };
 
   const handleViewReport = async (interview: Interview) => {
@@ -1230,20 +1183,13 @@ const InterviewModule: React.FC = () => {
 
           <div className="select-section">
             <h3>岗位类型</h3>
-            <div className="job-type-select">
-              <select
-                aria-label="选择岗位类型"
-                title="选择岗位类型"
-                value={selectedJobType}
-                onChange={(e) => setSelectedJobType(e.target.value)}
-              >
-                {jobTypes.map((jobType) => (
-                  <option key={jobType.code} value={jobType.code}>
-                    {jobType.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label=""
+              value={selectedJobType}
+              onChange={setSelectedJobType}
+              options={jobTypes.map(jobType => ({ value: jobType.code, label: jobType.name }))}
+              ariaLabel="选择岗位类型"
+            />
           </div>
 
           <div className="select-section">
@@ -1307,6 +1253,40 @@ const InterviewModule: React.FC = () => {
                       ))}
                     </select>
                   )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="select-section">
+            <h3>参照知识库（可选）</h3>
+            <p className="section-hint">选择知识库后，面试问题将基于知识库内容生成</p>
+            <div className="library-options">
+              {libraries.length === 0 ? (
+                <p className="no-resume-hint">
+                  暂无知识库，请先在"知识库"模块创建知识库并上传文档
+                </p>
+              ) : (
+                <div className="library-checkboxes">
+                  {libraries.map((library) => (
+                    <label key={library.id} className="library-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedLibraryIds.includes(library.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedLibraryIds([...selectedLibraryIds, library.id]);
+                          } else {
+                            setSelectedLibraryIds(selectedLibraryIds.filter((id) => id !== library.id));
+                          }
+                        }}
+                      />
+                      <span className="library-name">{library.name}</span>
+                      {library.description && (
+                        <span className="library-desc">{library.description}</span>
+                      )}
+                    </label>
+                  ))}
                 </div>
               )}
             </div>
@@ -1550,7 +1530,7 @@ const InterviewModule: React.FC = () => {
                       {interview.status === 'in_progress' && (
                         <button
                           className="action-btn resume"
-                          onClick={() => handleResumeInterview(interview)}
+                          onClick={() => handleStartExistingInterview(interview)}
                         >
                           继续面试
                         </button>

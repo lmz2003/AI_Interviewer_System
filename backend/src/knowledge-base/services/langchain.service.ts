@@ -3,6 +3,23 @@ import { ConfigService } from '@nestjs/config';
 import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { Document } from 'langchain/document';
+import { RetrievalOptimizationService, ProcessedChunk } from './retrieval-optimization.service';
+
+export interface ChunkResult {
+  chunk: string;
+  embedding: number[];
+  metadata: {
+    title: string;
+    chunkIndex: number;
+    totalChunks: number;
+    source?: string;
+    libraryId?: string;
+    chunkType?: string;
+    startPosition?: number;
+    endPosition?: number;
+    parentContext?: string;
+  };
+}
 
 @Injectable()
 export class LangChainService {
@@ -10,7 +27,10 @@ export class LangChainService {
   private readonly logger = new Logger(LangChainService.name);
   private textSplitter: RecursiveCharacterTextSplitter;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private retrievalOptimizationService: RetrievalOptimizationService
+  ) {
     const embeddingProvider = this.configService.get<string>('EMBEDDING_PROVIDER');
     const apiKey = this.configService.get<string>('LLM_API_KEY');
     const baseUrl = this.configService.get<string>('LLM_BASE_URL');
@@ -63,7 +83,7 @@ export class LangChainService {
   /**
    * 生成多个文本的向量嵌入
    */
-  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+  private async generateEmbeddings(texts: string[]): Promise<number[][]> {
     try {
       if (!texts || texts.length === 0) {
         throw new Error('文本列表不能为空');
@@ -181,6 +201,75 @@ export class LangChainService {
       this.logger.error(`文档处理失败: ${title} - ${errorMsg}`, error);
       throw error;
     }
+  }
+
+  async processDocumentWithSemanticChunking(
+    content: string,
+    title: string,
+    metadata?: Record<string, any>
+  ): Promise<ChunkResult[]> {
+    try {
+      if (!content || content.trim().length === 0) {
+        throw new Error('文档内容不能为空');
+      }
+
+      if (!title || title.trim().length === 0) {
+        throw new Error('文档标题不能为空');
+      }
+
+      this.logger.log(`开始语义分块处理文档: ${title}`);
+
+      const semanticChunks = await this.retrievalOptimizationService.semanticChunking(
+        content,
+        title,
+        metadata
+      );
+
+      if (semanticChunks.length === 0) {
+        throw new Error('语义分块后没有得到任何块');
+      }
+
+      const chunks = semanticChunks.map(c => c.chunk);
+      this.logger.log(`语义分块完成: ${chunks.length} 个块`);
+
+      this.logger.log(`开始为 ${chunks.length} 个块生成嵌入...`);
+      const embeddings = await this.generateEmbeddings(chunks);
+
+      if (embeddings.length !== chunks.length) {
+        throw new Error(`生成的嵌入数量 (${embeddings.length}) 与文本块数量 (${chunks.length}) 不匹配`);
+      }
+
+      const results: ChunkResult[] = semanticChunks.map((semanticChunk, index) => ({
+        chunk: semanticChunk.chunk,
+        embedding: embeddings[index],
+        metadata: {
+          title,
+          chunkIndex: semanticChunk.metadata.chunkIndex,
+          totalChunks: semanticChunks.length,
+          source: semanticChunk.metadata.source,
+          libraryId: semanticChunk.metadata.libraryId,
+          chunkType: semanticChunk.metadata.chunkType,
+          startPosition: semanticChunk.metadata.startPosition,
+          endPosition: semanticChunk.metadata.endPosition,
+          parentContext: semanticChunk.metadata.parentContext,
+        },
+      }));
+
+      this.logger.log(`语义分块文档处理完成: ${title} (${results.length} 个块)`);
+      return results;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+      this.logger.error(`语义分块文档处理失败: ${title} - ${errorMsg}`, error);
+      throw error;
+    }
+  }
+
+  async generateQueryEmbedding(query: string): Promise<number[]> {
+    return this.generateEmbedding(query);
+  }
+
+  async generateBatchEmbeddings(texts: string[]): Promise<number[][]> {
+    return this.generateEmbeddings(texts);
   }
 
   /**

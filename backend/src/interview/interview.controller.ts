@@ -23,9 +23,11 @@ import { InterviewReportService } from './services/interview-report.service';
 import { SpeechRecognitionService } from './services/speech-recognition.service';
 import { SpeechSynthesisService } from './services/speech-synthesis.service';
 import { VideoAnalysisService } from './services/video-analysis.service';
+import { AsrCorrectionService } from './services/asr-correction.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { Interview } from './entities/interview.entity';
+import { InterviewMessage } from './entities/interview-message.entity';
 import { ResumeAnalysisService } from '../resume-analysis/services/resume-analysis.service';
 
 @Controller('interview')
@@ -41,6 +43,7 @@ export class InterviewController {
     private speechSynthesisService: SpeechSynthesisService,
     private videoAnalysisService: VideoAnalysisService,
     private resumeAnalysisService: ResumeAnalysisService,
+    private asrCorrectionService: AsrCorrectionService,
   ) {}
 
   @Get('scenes')
@@ -844,6 +847,14 @@ export class InterviewController {
         return;
       }
 
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const sendEvent = (event: string, data: any) => {
+        res.write(`data: ${JSON.stringify({ type: event, data })}\n\n`);
+      };
+
       // 1. 语音识别 - 将用户语音转为文字
       this.logger.log(`[语音通话] 开始处理语音消息，会话: ${sessionId}`);
       const transcriptionResult = await this.speechRecognitionService.transcribeBase64Audio(
@@ -851,18 +862,23 @@ export class InterviewController {
         { mimeType },
       );
 
-      const userText = transcriptionResult.text;
+      let userText = transcriptionResult.text;
       if (!userText || userText.trim().length === 0) {
-        res.status(400).json({ success: false, message: '未能识别到语音内容' });
+        sendEvent('error', { message: '未能识别到语音内容' });
+        res.end();
         return;
       }
 
       this.logger.log(`[语音通话] 识别文本: "${userText.substring(0, 50)}"`);
 
+      // 立即返回识别结果给前端展示
+      sendEvent('transcription', { text: userText });
+
       // 2. 获取会话和面试信息
       const session = await this.sessionService.getSessionById(sessionId);
       if (!session) {
-        res.status(404).json({ success: false, message: '会话不存在' });
+        sendEvent('error', { message: '会话不存在' });
+        res.end();
         return;
       }
 
@@ -878,14 +894,29 @@ export class InterviewController {
         }
       }
 
-      // 3. 发送给 LLM 处理，收集完整 AI 回复
+      // 2.5 ASR 纠错 - 使用 LLM 纠正识别错误
+      if (this.asrCorrectionService.isEnabled()) {
+        const recentMessages = await this.getRecentMessages(sessionId, 3);
+        const correctionResult = await this.asrCorrectionService.correctTranscription(userText, {
+          jobPosition: interview.jobType,
+          resumeKeywords: resumeContent ? this.extractKeywords(resumeContent) : undefined,
+          recentMessages,
+        });
+        if (correctionResult.wasCorrected) {
+          userText = correctionResult.correctedText;
+          sendEvent('correction', { 
+            originalText: correctionResult.originalText, 
+            correctedText: correctionResult.correctedText 
+          });
+        }
+      }
+
+      // 3. 发送给 LLM 处理，流式返回 AI 回复
       const requestId = `voice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       this.messageService.registerAbortController(userId, requestId);
 
       let aiText = '';
       let shouldEnd = false;
-
-      res.setHeader('Content-Type', 'application/json');
 
       const generator = this.messageService.processMessageStream(
         sessionId,
@@ -899,6 +930,7 @@ export class InterviewController {
       for await (const event of generator) {
         if (event.type === 'chunk') {
           aiText += event.data as string;
+          sendEvent('chunk', { text: event.data });
         } else if (event.type === 'done') {
           shouldEnd = (event.data as any)?.shouldEnd || false;
         }
@@ -913,17 +945,16 @@ export class InterviewController {
         speed: 1.0,
       });
 
-      // 5. 返回结果（用户文本 + AI文本 + AI音频的base64）
-      res.json({
-        success: true,
-        data: {
-          userText,
-          aiText,
-          audioBase64: ttsResult.audioBuffer.toString('base64'),
-          audioFormat: ttsResult.format,
-          shouldEnd,
-        },
+      // 5. 返回最终结果
+      sendEvent('done', {
+        userText,
+        aiText,
+        audioBase64: ttsResult.audioBuffer.toString('base64'),
+        audioFormat: ttsResult.format,
+        shouldEnd,
       });
+
+      res.end();
     } catch (error: any) {
       this.logger.error('语音通话处理失败:', error);
       if (!res.headersSent) {
@@ -931,6 +962,9 @@ export class InterviewController {
           success: false,
           message: error.message || '语音通话处理失败',
         });
+      } else {
+        res.write(`data: ${JSON.stringify({ type: 'error', data: { message: error.message || '语音通话处理失败' } })}\n\n`);
+        res.end();
       }
     }
   }
@@ -1034,6 +1068,14 @@ export class InterviewController {
         return;
       }
 
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const sendEvent = (event: string, data: any) => {
+        res.write(`data: ${JSON.stringify({ type: event, data })}\n\n`);
+      };
+
       this.logger.log(`[视频通话] 开始处理视频消息，会话: ${sessionId}`);
 
       // 1. 语音识别 - 将用户语音转为文字
@@ -1042,18 +1084,23 @@ export class InterviewController {
         { mimeType: audioMimeType },
       );
 
-      const userText = transcriptionResult.text;
+      let userText = transcriptionResult.text;
       if (!userText || userText.trim().length === 0) {
-        res.status(400).json({ success: false, message: '未能识别到语音内容' });
+        sendEvent('error', { message: '未能识别到语音内容' });
+        res.end();
         return;
       }
 
       this.logger.log(`[视频通话] 识别文本: "${userText.substring(0, 50)}"`);
 
+      // 立即返回识别结果给前端展示
+      sendEvent('transcription', { text: userText });
+
       // 2. 获取会话和面试信息
       const session = await this.sessionService.getSessionById(sessionId);
       if (!session) {
-        res.status(404).json({ success: false, message: '会话不存在' });
+        sendEvent('error', { message: '会话不存在' });
+        res.end();
         return;
       }
 
@@ -1066,6 +1113,23 @@ export class InterviewController {
           resumeContent = this.extractResumeContent(resume);
         } catch (error) {
           this.logger.warn('获取简历内容失败:', error);
+        }
+      }
+
+      // 2.5 ASR 纠错 - 使用 LLM 纠正识别错误
+      if (this.asrCorrectionService.isEnabled()) {
+        const recentMessages = await this.getRecentMessages(sessionId, 3);
+        const correctionResult = await this.asrCorrectionService.correctTranscription(userText, {
+          jobPosition: interview.jobType,
+          resumeKeywords: resumeContent ? this.extractKeywords(resumeContent) : undefined,
+          recentMessages,
+        });
+        if (correctionResult.wasCorrected) {
+          userText = correctionResult.correctedText;
+          sendEvent('correction', {
+            originalText: correctionResult.originalText,
+            correctedText: correctionResult.correctedText,
+          });
         }
       }
 
@@ -1103,7 +1167,7 @@ export class InterviewController {
         }
       }
 
-      // 4. 发送给 LLM 处理，收集完整 AI 回复
+      // 4. 发送给 LLM 处理，流式返回 AI 回复
       const requestId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       this.messageService.registerAbortController(userId, requestId);
 
@@ -1123,6 +1187,7 @@ export class InterviewController {
       for await (const event of generator) {
         if (event.type === 'chunk') {
           aiText += event.data as string;
+          sendEvent('chunk', { text: event.data });
         } else if (event.type === 'done') {
           shouldEnd = (event.data as any)?.shouldEnd || false;
         }
@@ -1137,18 +1202,17 @@ export class InterviewController {
         speed: 1.0,
       });
 
-      // 6. 返回结果
-      res.json({
-        success: true,
-        data: {
-          userText,
-          aiText,
-          audioBase64: ttsResult.audioBuffer.toString('base64'),
-          audioFormat: ttsResult.format,
-          shouldEnd,
-          videoAnalysis,
-        },
+      // 6. 返回最终结果
+      sendEvent('done', {
+        userText,
+        aiText,
+        audioBase64: ttsResult.audioBuffer.toString('base64'),
+        audioFormat: ttsResult.format,
+        shouldEnd,
+        videoAnalysis,
       });
+
+      res.end();
     } catch (error: any) {
       this.logger.error('视频通话处理失败:', error);
       if (!res.headersSent) {
@@ -1156,6 +1220,9 @@ export class InterviewController {
           success: false,
           message: error.message || '视频通话处理失败',
         });
+      } else {
+        res.write(`data: ${JSON.stringify({ type: 'error', data: { message: error.message || '视频通话处理失败' } })}\n\n`);
+        res.end();
       }
     }
   }
@@ -1243,5 +1310,35 @@ export class InterviewController {
     }
 
     return resume.content?.substring(0, 500) || '';
+  }
+
+  private async getRecentMessages(
+    sessionId: string,
+    limit: number,
+  ): Promise<Array<{ role: 'user' | 'assistant'; text: string }>> {
+    try {
+      const messages = await this.messageService.getMessageHistory(sessionId);
+      return messages
+        .slice(-limit)
+        .map((msg: InterviewMessage) => ({
+          role: msg.role as 'user' | 'assistant',
+          text: msg.content,
+        }));
+    } catch {
+      return [];
+    }
+  }
+
+  private extractKeywords(text: string): string[] {
+    const keywords: string[] = [];
+    const skillMatch = text.match(/技能[：:]\s*([^\n]+)/);
+    if (skillMatch) {
+      keywords.push(...skillMatch[1].split(/[,，、]/).map((s) => s.trim()));
+    }
+    const techTerms = text.match(/[A-Z][a-zA-Z]+(?:\.[A-Z][a-zA-Z]+)*|[A-Z]{2,}|React|Vue|Node|Python|Java|Go|Rust|TypeScript|JavaScript|Docker|Kubernetes|AWS|MySQL|Redis|MongoDB/g);
+    if (techTerms) {
+      keywords.push(...techTerms);
+    }
+    return [...new Set(keywords)].slice(0, 15);
   }
 }
