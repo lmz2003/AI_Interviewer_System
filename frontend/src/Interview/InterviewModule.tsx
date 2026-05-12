@@ -21,7 +21,9 @@ import { io, Socket } from 'socket.io-client';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import './Interview.scss';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
+// WebSocket 连接地址：生产环境使用当前页面同源（window.location.origin），
+// 开发环境可通过 VITE_WS_URL 覆盖（默认 localhost:3001）
+const WS_URL = import.meta.env.VITE_WS_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001');
 
 type ViewMode = 'list' | 'select' | 'chat' | 'voice' | 'video' | 'report';
 
@@ -333,7 +335,7 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
     console.log('[VoiceInterview] Setting isPlayingOpening to true');
     setIsPlayingOpening(true);
     console.log('[VoiceInterview] isPlayingOpening set to true');
-    
+
     try {
       console.log('[VoiceInterview] Calling textToSpeech...');
       const audioBlob = await interviewApi.textToSpeech(text, 'anna', 1.0);
@@ -341,9 +343,13 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
       await playOpeningBlob(audioBlob);
       console.log('[VoiceInterview] Audio play completed');
       setIsPlayingOpening(false);
+      // 播放完成后，重置 openingReady，避免重新显示开始按钮
+      setOpeningReady(false);
     } catch (err) {
       console.error('[VoiceInterview] 播放开场白失败:', err);
       setIsPlayingOpening(false);
+      // 即使播放失败，也重置 openingReady，让用户可以正常开始面试
+      setOpeningReady(false);
     }
   }, [playOpeningBlob, unlockAudio]);
 

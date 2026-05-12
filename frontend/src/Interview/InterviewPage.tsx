@@ -54,14 +54,18 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
     unlockAudio();
 
     setIsPlayingOpening(true);
-    
+
     try {
       const audioBlob = await interviewApi.textToSpeech(text, 'anna', 1.0);
       await playOpeningBlob(audioBlob);
       setIsPlayingOpening(false);
+      // 播放完成后，重置 openingReady，避免重新显示开始按钮
+      setOpeningReady(false);
     } catch (err) {
       console.error('[VoiceInterview] 播放开场白失败:', err);
       setIsPlayingOpening(false);
+      // 即使播放失败，也重置 openingReady，让用户可以正常开始面试
+      setOpeningReady(false);
     }
   }, [playOpeningBlob, unlockAudio]);
 

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
+// WebSocket 连接地址：生产环境使用当前页面同源（window.location.origin），
+// 开发环境可通过 VITE_WS_URL 覆盖（默认 localhost:3001）
+const WS_URL = import.meta.env.VITE_WS_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001');
 
 type SocketCallback = (...args: unknown[]) => void;
 
