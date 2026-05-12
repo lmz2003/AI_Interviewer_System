@@ -23,7 +23,6 @@ import { InterviewReportService } from './services/interview-report.service';
 import { SpeechRecognitionService } from './services/speech-recognition.service';
 import { SpeechSynthesisService } from './services/speech-synthesis.service';
 import { VideoAnalysisService } from './services/video-analysis.service';
-import { AsrCorrectionService } from './services/asr-correction.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { Interview } from './entities/interview.entity';
@@ -43,7 +42,6 @@ export class InterviewController {
     private speechSynthesisService: SpeechSynthesisService,
     private videoAnalysisService: VideoAnalysisService,
     private resumeAnalysisService: ResumeAnalysisService,
-    private asrCorrectionService: AsrCorrectionService,
   ) {}
 
   @Get('scenes')
@@ -894,23 +892,6 @@ export class InterviewController {
         }
       }
 
-      // 2.5 ASR 纠错 - 使用 LLM 纠正识别错误
-      if (this.asrCorrectionService.isEnabled()) {
-        const recentMessages = await this.getRecentMessages(sessionId, 3);
-        const correctionResult = await this.asrCorrectionService.correctTranscription(userText, {
-          jobPosition: interview.jobType,
-          resumeKeywords: resumeContent ? this.extractKeywords(resumeContent) : undefined,
-          recentMessages,
-        });
-        if (correctionResult.wasCorrected) {
-          userText = correctionResult.correctedText;
-          sendEvent('correction', { 
-            originalText: correctionResult.originalText, 
-            correctedText: correctionResult.correctedText 
-          });
-        }
-      }
-
       // 3. 发送给 LLM 处理，流式返回 AI 回复
       const requestId = `voice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       this.messageService.registerAbortController(userId, requestId);
@@ -1116,58 +1097,77 @@ export class InterviewController {
         }
       }
 
-      // 2.5 ASR 纠错 - 使用 LLM 纠正识别错误
-      if (this.asrCorrectionService.isEnabled()) {
-        const recentMessages = await this.getRecentMessages(sessionId, 3);
-        const correctionResult = await this.asrCorrectionService.correctTranscription(userText, {
-          jobPosition: interview.jobType,
-          resumeKeywords: resumeContent ? this.extractKeywords(resumeContent) : undefined,
-          recentMessages,
-        });
-        if (correctionResult.wasCorrected) {
-          userText = correctionResult.correctedText;
-          sendEvent('correction', {
-            originalText: correctionResult.originalText,
-            correctedText: correctionResult.correctedText,
-          });
-        }
-      }
-
-      // 3. 如果提供了视频帧，先进行分析
-      let videoAnalysis: any = null;
+      // 3. 异步分析视频帧（不阻塞问题生成）
       const framesToAnalyze = videoFrames && videoFrames.length > 0 ? videoFrames : (videoFrame ? [videoFrame] : []);
       
       this.logger.log(`[视频通话] 收到视频帧数量: ${framesToAnalyze.length}`);
       
+      let videoAnalysisPromise: Promise<any> | null = null;
+      
       if (framesToAnalyze.length > 0) {
-        try {
-          this.logger.log(`[视频通话] 开始并行分析 ${framesToAnalyze.length} 个视频帧...`);
-          
-          const startTime = Date.now();
-          const frameAnalyses = await Promise.all(
-            framesToAnalyze.map((frame, index) =>
-              this.videoAnalysisService.analyzeFrameBase64(frame, Date.now() - (framesToAnalyze.length - index) * 2000)
-            )
-          );
-          const analysisDuration = Date.now() - startTime;
-          
-          if (frameAnalyses.length === 1) {
-            videoAnalysis = frameAnalyses[0];
-            this.logger.log(`[视频通话] 单帧分析完成，耗时 ${analysisDuration}ms`);
-          } else {
-            videoAnalysis = {
+        this.logger.log(`[视频通话] 开始异步分析视频帧`);
+        
+        // 创建异步分析 Promise
+        videoAnalysisPromise = (async () => {
+          try {
+            const maxFramesToAnalyze = 2;
+            const sampledFrames = this.sampleFrames(framesToAnalyze, maxFramesToAnalyze);
+            
+            this.logger.log(`[视频通话] 随机抽样 ${sampledFrames.length} 帧进行分析 (原始: ${framesToAnalyze.length} 帧)`);
+            
+            const startTime = Date.now();
+            const frameAnalyses: any[] = [];
+            
+            // 逐帧分析
+            for (let i = 0; i < sampledFrames.length; i++) {
+              try {
+                this.logger.log(`[视频通话] 正在分析第 ${i + 1}/${sampledFrames.length} 帧`);
+                const result = await this.videoAnalysisService.analyzeFrameBase64(
+                  sampledFrames[i],
+                  Date.now() - (sampledFrames.length - i) * 2000
+                );
+                
+                if (result !== null) {
+                  frameAnalyses.push(result);
+                  this.logger.log(`[视频通话] 第 ${i + 1} 帧分析成功`);
+                } else {
+                  this.logger.warn(`[视频通话] 第 ${i + 1} 帧分析失败，舍弃此帧`);
+                }
+              } catch (error) {
+                this.logger.warn(`[视频通话] 第 ${i + 1} 帧分析出错:`, error);
+              }
+            }
+            
+            const analysisDuration = Date.now() - startTime;
+            
+            // 如果没有有效分析结果，直接返回
+            if (frameAnalyses.length === 0) {
+              this.logger.warn('[视频通话] 所有帧分析失败');
+              return null;
+            }
+            
+            // 生成摘要
+            const summary = this.videoAnalysisService.generateSummary(frameAnalyses);
+            const videoAnalysis = {
               frames: frameAnalyses,
-              summary: this.videoAnalysisService.generateSummary(frameAnalyses),
+              summary,
             };
-            this.logger.log(`[视频通话] 多帧分析完成，共 ${frameAnalyses.length} 帧，耗时 ${analysisDuration}ms`);
-            this.logger.log(`[视频通话] 分析摘要: 主导情绪=${videoAnalysis.summary.dominantEmotion}, 眼神交流比例=${(videoAnalysis.summary.eyeContactRatio * 100).toFixed(1)}%, 总分=${videoAnalysis.summary.overallScore}`);
+            
+            this.logger.log(`[视频通话] 分析完成，有效帧: ${frameAnalyses.length}/${sampledFrames.length}，耗时 ${analysisDuration}ms`);
+            this.logger.log(`[视频通话] 分析摘要: 主导情绪=${summary.dominantEmotion}, 眼神交流比例=${(summary.eyeContactRatio * 100).toFixed(1)}%, 总分=${summary.overallScore}`);
+            
+            // 通过 SSE 发送视频分析结果
+            sendEvent('videoAnalysis', { data: videoAnalysis });
+            
+            return videoAnalysis;
+          } catch (error) {
+            this.logger.warn('[视频通话] 视频帧分析失败:', error);
+            return null;
           }
-        } catch (error) {
-          this.logger.warn('视频帧分析失败:', error);
-        }
+        })();
       }
 
-      // 4. 发送给 LLM 处理，流式返回 AI 回复
+      // 4. 立即发送给 LLM 处理，流式返回 AI 回复
       const requestId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       this.messageService.registerAbortController(userId, requestId);
 
@@ -1181,7 +1181,8 @@ export class InterviewController {
         resumeContent,
         requestId,
         userId,
-        videoAnalysis,
+        null, // 这里先传 null，视频分析在后台进行
+        videoAnalysisPromise, // 传入视频分析 Promise
       );
 
       for await (const event of generator) {
@@ -1202,14 +1203,13 @@ export class InterviewController {
         speed: 1.0,
       });
 
-      // 6. 返回最终结果
+      // 6. 返回最终结果（视频分析结果通过 SSE 异步发送）
       sendEvent('done', {
         userText,
         aiText,
         audioBase64: ttsResult.audioBuffer.toString('base64'),
         audioFormat: ttsResult.format,
         shouldEnd,
-        videoAnalysis,
       });
 
       res.end();
@@ -1340,5 +1340,14 @@ export class InterviewController {
       keywords.push(...techTerms);
     }
     return [...new Set(keywords)].slice(0, 15);
+  }
+
+  private sampleFrames(frames: string[], maxFrames: number): string[] {
+    if (frames.length <= maxFrames) {
+      return frames;
+    }
+    
+    const shuffled = [...frames].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, maxFrames);
   }
 }

@@ -95,6 +95,7 @@ export class InterviewMessageService {
     requestId?: string,
     userId?: string,
     videoAnalysis?: any,
+    videoAnalysisPromise?: Promise<any> | null,
   ): AsyncGenerator<SSEEvent> {
     this.logger.log(`[流式处理] 开始处理消息 - 会话: ${sessionId}`);
 
@@ -113,14 +114,31 @@ export class InterviewMessageService {
       .find((msg) => msg.role === 'assistant');
     const currentQuestion = lastAssistantMessage?.content || '';
 
-    // 将视频帧分析数据一并传入评估，使评分参考候选人的视频行为表现
-    this.evaluateAnswerAsync(
-      tempMessage.id,
-      currentQuestion,
-      userMessage,
-      interview,
-      videoAnalysis,
-    );
+    // 异步评估，等待视频分析完成（如果有）
+    (async () => {
+      let finalVideoAnalysis = videoAnalysis;
+      
+      if (videoAnalysisPromise) {
+        this.logger.log(`[异步评估] 等待视频分析完成...`);
+        finalVideoAnalysis = await videoAnalysisPromise;
+        if (finalVideoAnalysis) {
+          // 更新消息中的视频分析数据
+          await this.messageRepository.update(
+            { id: tempMessage.id },
+            { videoAnalysis: finalVideoAnalysis },
+          );
+          this.logger.log(`[异步评估] 消息视频分析数据已更新`);
+        }
+      }
+      
+      this.evaluateAnswerAsync(
+        tempMessage.id,
+        currentQuestion,
+        userMessage,
+        interview,
+        finalVideoAnalysis,
+      );
+    })();
 
     const sceneConfig = SCENE_CONFIG[interview.sceneType as keyof typeof SCENE_CONFIG];
     const shouldEnd = session.questionCount >= (sceneConfig?.questionCount.max || 8);

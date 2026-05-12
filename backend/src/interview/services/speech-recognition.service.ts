@@ -36,7 +36,23 @@ export class SpeechRecognitionService {
   ): Promise<TranscriptionResult> {
     const { fileName = 'audio.webm', mimeType = 'audio/webm', model = this.defaultModel } = options;
 
-    this.logger.log(`[语音识别] 开始转录，文件: ${fileName}, 大小: ${audioBuffer.length} bytes, 模型: ${model}`);
+    this.logger.log(`[语音识别] 开始转录，文件: ${fileName}, 大小: ${audioBuffer.length} bytes, 模型: ${model}, MIME: ${mimeType}`);
+
+    // 检查音频大小是否合理
+    if (audioBuffer.length < 500) {
+      this.logger.warn(`[语音识别] 警告：音频文件过小 (${audioBuffer.length} bytes)，可能是空录音或录音时间过短`);
+    }
+
+    // 检查音频数据是否有效（检查前几个字节是否符合webm格式）
+    if (audioBuffer.length > 0) {
+      const header = audioBuffer.slice(0, 4).toString('hex');
+      this.logger.log(`[语音识别] 音频文件头: 0x${header}`);
+      
+      // WebM 文件头应该是 1a 45 df a3
+      if (mimeType === 'audio/webm' && header !== '1a45dfa3') {
+        this.logger.warn(`[语音识别] 警告：WebM 文件头不正确，期望 1a45dfa3，实际 ${header}`);
+      }
+    }
 
     try {
       const formData = new FormData();
@@ -46,18 +62,30 @@ export class SpeechRecognitionService {
       });
       formData.append('model', model);
 
+      this.logger.log(`[语音识别] 正在调用API: ${this.baseUrl}/audio/transcriptions`);
+
       const response = await axios.post(`${this.baseUrl}/audio/transcriptions`, formData, {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           ...formData.getHeaders(),
         },
+        timeout: 60000,
       });
 
       const result = response.data;
 
-      this.logger.log(`[语音识别] 转录成功: "${result.text.substring(0, 50)}..."`);
+      this.logger.log(`[语音识别] API响应状态: ${response.status}`);
+      this.logger.log(`[语音识别] API响应数据: ${JSON.stringify(result).substring(0, 200)}`);
+
+      const transcribedText = result.text || '';
+      this.logger.log(`[语音识别] 转录成功: "${transcribedText.substring(0, 50)}..." (完整长度: ${transcribedText.length} 字符)`);
+      
+      if (!transcribedText.trim()) {
+        this.logger.warn(`[语音识别] 警告：转录结果为空字符串`);
+      }
+
       return {
-        text: result.text,
+        text: transcribedText,
       };
     } catch (error) {
       const errorMsg = axios.isAxiosError(error) 

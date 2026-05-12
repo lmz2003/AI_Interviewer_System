@@ -308,14 +308,36 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
     return new Promise((resolve) => {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
       const audioDataUrl = `data:audio/${format};base64,${base64Audio}`;
       const audio = new Audio(audioDataUrl);
+      audio.volume = 1.0;
       currentAudioRef.current = audio;
       setIsAIPlaying(true);
-      audio.onended = () => { setIsAIPlaying(false); currentAudioRef.current = null; resolve(); };
-      audio.onerror = () => { setIsAIPlaying(false); currentAudioRef.current = null; resolve(); };
-      audio.play().catch(() => { setIsAIPlaying(false); resolve(); });
+
+      const handleEnd = () => {
+        setIsAIPlaying(false);
+        if (currentAudioRef.current === audio) {
+          currentAudioRef.current = null;
+        }
+        resolve();
+      };
+
+      audio.onended = handleEnd;
+      audio.onerror = handleEnd;
+
+      const playAudio = async () => {
+        try {
+          await audio.play();
+        } catch (error) {
+          console.warn('Audio play failed:', error);
+          setIsAIPlaying(false);
+          resolve();
+        }
+      };
+
+      playAudio();
     });
   }, []);
 
@@ -420,6 +442,10 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       return;
     }
     if (isMuted) return;
+    if (isAIPlaying) {
+      console.log('[VideoInterview] Cannot start: AI is playing audio');
+      return;
+    }
     if (!videoStreamRef.current) {
       setError('摄像头未就绪，请等待摄像头初始化完成');
       return;
@@ -554,8 +580,13 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
                   return [...prev, { role: 'assistant', text: aiText, timestamp: new Date() }];
                 });
                 setCurrentSubtitle(`面试官：${aiText}`);
+              } else if (event.type === 'videoAnalysis') {
+                const { data: videoAnalysis } = event.data;
+                if (videoAnalysis) {
+                  setVideoAnalysisData(videoAnalysis);
+                }
               } else if (event.type === 'done') {
-                const { audioBase64, audioFormat, shouldEnd, videoAnalysis } = event.data;
+                const { audioBase64, audioFormat, shouldEnd } = event.data;
 
                 setConversations((prev) => {
                   const lastMsg = prev[prev.length - 1];
@@ -564,10 +595,6 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
                   }
                   return prev;
                 });
-
-                if (videoAnalysis) {
-                  setVideoAnalysisData(videoAnalysis);
-                }
 
                 setCallStatus('playing');
                 await playAudioBase64(audioBase64, audioFormat);
@@ -709,9 +736,8 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
     return emojis[emotion] || '😐';
   };
 
-  // 开场白播放期间（只有一条 assistant 消息且正在播放）禁用麦克风
-  const isOpeningPlaying = isAIPlaying && conversations.length === 1 && conversations[0].role === 'assistant';
-  const micDisabled = callStatus === 'processing' || callStatus === 'ended' || isMuted || !cameraReady || isOpeningPlaying;
+  // AI播放音频期间禁用麦克风，包括开场白和回答
+  const micDisabled = callStatus === 'processing' || callStatus === 'ended' || isMuted || !cameraReady || isAIPlaying;
 
   // ─── Render ────────────────────────────────────────────────────────────────
 

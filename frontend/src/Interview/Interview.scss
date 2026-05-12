@@ -3225,8 +3225,9 @@ $dark-warning-light: #3F2F0F;
     align-items: center;
     justify-content: center;
     gap: 20px;
-    padding: 24px 0 12px;
+    padding: 24px 0 max(env(safe-area-inset-bottom), 24px);
     flex-shrink: 0;
+    box-sizing: content-box;
 
     .control-btn {
       display: flex;
@@ -3374,6 +3375,122 @@ $dark-warning-light: #3F2F0F;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
+    }
+  }
+
+  // 移动端响应式
+  @media (max-width: 480px) {
+    .voice-header {
+      padding: 12px 16px;
+      gap: 12px;
+
+      .pause-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      .voice-header-info {
+        .voice-title {
+          font-size: 14px;
+        }
+
+        .voice-meta {
+          font-size: 12px;
+        }
+      }
+
+      .voice-duration {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+    }
+
+    .voice-main {
+      padding: 24px 16px 16px;
+    }
+
+    .ai-avatar-section {
+      min-height: 140px;
+
+      .ai-avatar {
+        width: 96px;
+        height: 96px;
+
+        .ai-avatar-svg {
+          width: 48px;
+          height: 48px;
+        }
+
+        .ai-speaking-ring {
+          inset: -10px;
+        }
+      }
+    }
+
+    .subtitles-area {
+      padding: 16px 0;
+
+      .subtitles-list {
+        width: 100%;
+        padding-right: 4px;
+      }
+
+      .subtitle-item {
+        font-size: 13px;
+        padding: 10px 14px;
+        max-width: 90%;
+
+        .subtitle-role {
+          font-size: 10px;
+        }
+      }
+    }
+
+    .voice-status-label {
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .voice-controls {
+      gap: 12px;
+      padding: 16px 12px max(env(safe-area-inset-bottom), 20px);
+
+      .control-btn {
+        padding: 10px 14px;
+        min-width: 64px;
+        gap: 6px;
+
+        svg {
+          width: 20px;
+          height: 20px;
+        }
+
+        span:not(:first-child) {
+          font-size: 10px;
+        }
+      }
+
+      .main-mic-btn {
+        width: 68px;
+        height: 68px;
+
+        svg {
+          width: 26px;
+          height: 26px;
+        }
+
+        .btn-spinner {
+          width: 24px;
+          height: 24px;
+        }
+      }
+    }
+
+    .voice-error-toast {
+      max-width: calc(100% - 32px);
+      white-space: normal;
+      text-align: center;
+      padding: 12px 16px;
     }
   }
 }
@@ -4036,11 +4153,12 @@ $dark-warning-light: #3F2F0F;
     align-items: center;
     justify-content: center;
     gap: 14px;
-    padding: 20px 0 16px;
+    padding: 20px 0 max(env(safe-area-inset-bottom), 24px);
     flex-shrink: 0;
     flex-wrap: wrap;
     position: relative;
     z-index: 5;
+    box-sizing: content-box;
 
     .control-btn {
       display: flex;
@@ -4293,6 +4411,174 @@ $dark-warning-light: #3F2F0F;
 
       &:hover {
         background: $primary-dark;
+      }
+    }
+  }
+
+  // 移动端响应式
+  @media (max-width: 480px) {
+    .video-header {
+      padding: 12px 16px;
+      gap: 12px;
+
+      .pause-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      .video-header-info {
+        .video-title {
+          font-size: 14px;
+        }
+
+        .video-meta {
+          font-size: 12px;
+        }
+      }
+
+      .video-duration {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+    }
+
+    .video-main {
+      padding: 16px;
+    }
+
+    .video-container {
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .user-video-section {
+      .video-preview {
+        height: 180px;
+        width: 100%;
+        max-width: 280px;
+        border-radius: 16px;
+      }
+
+      .user-label {
+        font-size: 12px;
+      }
+    }
+
+    .ai-video-section {
+      .ai-avatar-large {
+        width: 100px;
+        height: 100px;
+
+        .ai-avatar-svg-large {
+          width: 54px;
+          height: 54px;
+        }
+
+        .ai-speaking-ring-large {
+          inset: -10px;
+        }
+      }
+
+      .ai-label {
+        font-size: 10px;
+      }
+
+      .ai-waveform-large {
+        gap: 4px;
+        padding: 8px 14px;
+
+        .ai-wave-bar-large {
+          width: 4px;
+        }
+      }
+    }
+
+    .video-info-row {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .subtitles-area {
+      padding: 12px 0;
+
+      .subtitles-list {
+        width: 100%;
+        padding-right: 4px;
+      }
+
+      .subtitle-item {
+        font-size: 13px;
+        padding: 10px 14px;
+        max-width: 95%;
+
+        .subtitle-role {
+          font-size: 10px;
+        }
+      }
+    }
+
+    .video-status-label {
+      font-size: 12px;
+    }
+
+    .video-controls {
+      gap: 10px;
+      padding: 14px 10px max(env(safe-area-inset-bottom), 20px);
+
+      .control-btn {
+        padding: 10px 12px;
+        min-width: 60px;
+        gap: 4px;
+
+        svg {
+          width: 20px;
+          height: 20px;
+        }
+
+        span:not(:first-child) {
+          font-size: 10px;
+        }
+      }
+
+      .main-mic-btn {
+        width: 64px;
+        height: 64px;
+
+        svg {
+          width: 24px;
+          height: 24px;
+        }
+
+        .btn-spinner {
+          width: 22px;
+          height: 22px;
+        }
+      }
+    }
+
+    .error-message {
+      max-width: calc(100% - 24px);
+      white-space: normal;
+      text-align: center;
+      padding: 12px 14px;
+      bottom: 100px;
+    }
+
+    // 移动端隐藏分析面板（空间不足），通过按钮查看
+    .user-video-section .analysis-panel {
+      position: fixed;
+      right: 16px;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: auto;
+      max-height: 70vh;
+      height: auto;
+      max-width: 320px;
+      margin: 0 auto;
+
+      .analysis-content {
+        max-height: 40vh;
       }
     }
   }

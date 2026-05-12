@@ -208,30 +208,38 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     return new Promise((resolve) => {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
 
       const audioDataUrl = `data:audio/${format};base64,${base64Audio}`;
       const audio = new Audio(audioDataUrl);
+      audio.volume = 1.0;
       currentAudioRef.current = audio;
 
       setIsAIPlaying(true);
 
-      audio.onended = () => {
+      const handleEnd = () => {
         setIsAIPlaying(false);
-        currentAudioRef.current = null;
+        if (currentAudioRef.current === audio) {
+          currentAudioRef.current = null;
+        }
         resolve();
       };
 
-      audio.onerror = () => {
-        setIsAIPlaying(false);
-        currentAudioRef.current = null;
-        resolve(); // 即使出错也继续
+      audio.onended = handleEnd;
+      audio.onerror = handleEnd;
+
+      const playAudio = async () => {
+        try {
+          await audio.play();
+        } catch (error) {
+          console.warn('Audio play failed, retrying with user interaction context:', error);
+          setIsAIPlaying(false);
+          resolve();
+        }
       };
 
-      audio.play().catch(() => {
-        setIsAIPlaying(false);
-        resolve();
-      });
+      playAudio();
     });
   }, []);
 
@@ -239,22 +247,33 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   const startRecording = useCallback(async () => {
     if (callStatus !== 'idle' && callStatus !== 'playing') return;
     if (isMuted) return;
+    if (isAIPlaying) {
+      console.log('[VoiceInterview] Cannot start: AI is playing audio');
+      return;
+    }
 
     setError(null);
 
     try {
+      console.log('[VoiceInterview] Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           sampleRate: 16000,
+          channelCount: 1,
         },
       });
 
+      console.log('[VoiceInterview] Microphone access granted');
       streamRef.current = stream;
 
-      // 音频分析器（波形）
-      const audioContext = new AudioContext();
+      const audioTrack = stream.getAudioTracks()[0];
+      const audioConstraints = audioTrack.getConstraints();
+      console.log('[VoiceInterview] Audio track constraints:', audioConstraints);
+      console.log('[VoiceInterview] Audio track enabled:', audioTrack.enabled);
+
+      const audioContext = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioContext;
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
@@ -283,18 +302,34 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         mimeType = 'audio/webm';
       }
 
-      const audioTrack = stream.getAudioTracks()[0];
-      const audioStream = new MediaStream([audioTrack]);
+      console.log('[VoiceInterview] Using mimeType:', mimeType);
 
-      const mediaRecorder = new MediaRecorder(audioStream, { mimeType });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          console.log('[VoiceInterview] Audio chunk received:', e.data.size, 'bytes');
+          audioChunksRef.current.push(e.data);
+        } else {
+          console.log('[VoiceInterview] Empty audio chunk received');
+        }
+      };
+
+      mediaRecorder.onerror = (e) => {
+        console.error('[VoiceInterview] MediaRecorder error:', e);
+        if (audioChunksRef.current.length === 0) {
+          setError('录音设备异常，请检查麦克风连接');
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        console.log('[VoiceInterview] MediaRecorder stopped, chunks collected:', audioChunksRef.current.length);
       };
 
       mediaRecorder.start(100);
+      console.log('[VoiceInterview] Recording started successfully');
       setCallStatus('recording');
 
       if (!timerRef.current) {
@@ -303,10 +338,13 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
 
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
     } catch (err) {
+      console.error('[VoiceInterview] Start recording error:', err);
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setError('麦克风权限被拒绝');
+        setError('麦克风权限被拒绝，请在浏览器设置中允许麦克风权限');
+      } else if (err instanceof DOMException && err.name === 'NotFoundError') {
+        setError('未找到麦克风设备，请检查设备连接');
       } else {
-        setError('无法启动录音');
+        setError('无法启动录音: ' + (err instanceof Error ? err.message : String(err)));
       }
     }
   }, [callStatus, isMuted, startCallTimer, updateWaveform]);
@@ -330,15 +368,29 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
       { role: 'user', text: '正在识别...', timestamp: new Date() },
     ]);
 
-    mediaRecorderRef.current.onstop = async () => {
+    const recorder = mediaRecorderRef.current;
+    const recorderMimeType = recorder.mimeType;
+    
+    const handleStop = async () => {
+      console.log('[VoiceInterview] Recording stopped, chunks:', audioChunksRef.current.length);
+      
       if (audioChunksRef.current.length === 0) {
+        console.warn('[VoiceInterview] No audio chunks recorded - microphone may not be working');
+        setError('未检测到声音，请检查麦克风是否正常工作');
         setCallStatus('idle');
         setCurrentSubtitle('');
         setConversations((prev) => prev.filter((msg) => msg.text !== '正在识别...'));
         return;
       }
 
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const totalSize = audioChunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+      console.log('[VoiceInterview] Total audio size:', totalSize, 'bytes');
+
+      if (totalSize < 500) {
+        console.warn('[VoiceInterview] Audio file too small - may be empty or very short recording');
+      }
+
+      const audioBlob = new Blob(audioChunksRef.current, { type: recorderMimeType });
       audioChunksRef.current = [];
 
       if (streamRef.current) {
@@ -445,7 +497,9 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
       reader.readAsDataURL(audioBlob);
     };
 
-    mediaRecorderRef.current.stop();
+    recorder.addEventListener('stop', handleStop, { once: true });
+    console.log('[VoiceInterview] Stopping recording, mimeType:', recorderMimeType);
+    recorder.stop();
   }, [callStatus, sessionId, voice, playAudioBase64, onBack]);
 
   const handlePause = useCallback(() => {
@@ -640,7 +694,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         <button
           className={`main-mic-btn ${callStatus === 'recording' ? 'recording' : ''} ${callStatus === 'processing' ? 'processing' : ''}`}
           onClick={callStatus === 'recording' ? stopRecordingAndSend : startRecording}
-          disabled={callStatus === 'processing' || callStatus === 'ended' || isMuted || isPlayingOpening}
+          disabled={callStatus === 'processing' || callStatus === 'ended' || isMuted || isPlayingOpening || isAIPlaying}
           title={getStatusLabel()}
         >
           {callStatus === 'processing' ? (
