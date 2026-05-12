@@ -18,6 +18,7 @@ import InterviewModeSelector from './InterviewModeSelector';
 import VoiceInterview from './VoiceInterview';
 import VideoInterview from './VideoInterview';
 import { io, Socket } from 'socket.io-client';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import './Interview.scss';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
@@ -288,9 +289,15 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
   const [openingText, setOpeningText] = useState('');
   const [isPlayingOpening, setIsPlayingOpening] = useState(false);
   const [callDuration, setCallDuration] = useState(initialElapsedTime);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const callDurationRef = useRef(callDuration);
+
+  // 使用通用音频播放 Hook（解决移动端自动播放限制）
+  const { playBlob: playOpeningBlob, stop: stopOpeningAudio } = useAudioPlayer({
+    onPlayError: (err) => {
+      console.warn('[VoiceInterviewLoader] 开场白音频播放失败:', err.message);
+    },
+  });
 
   callDurationRef.current = callDuration;
 
@@ -325,30 +332,14 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
       console.log('[VoiceInterview] Calling textToSpeech...');
       const audioBlob = await interviewApi.textToSpeech(text, 'anna', 1.0);
       console.log('[VoiceInterview] textToSpeech completed, blob size:', audioBlob.size);
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        console.log('[VoiceInterview] Audio ended');
-        setIsPlayingOpening(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      audio.onerror = () => {
-        console.log('[VoiceInterview] Audio error');
-        setIsPlayingOpening(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      console.log('[VoiceInterview] Starting audio play...');
-      await audio.play();
-      console.log('[VoiceInterview] Audio play started');
+      await playOpeningBlob(audioBlob);
+      console.log('[VoiceInterview] Audio play completed');
+      setIsPlayingOpening(false);
     } catch (err) {
       console.error('[VoiceInterview] 播放开场白失败:', err);
       setIsPlayingOpening(false);
     }
-  }, []);
+  }, [playOpeningBlob]);
 
   useEffect(() => {
     if (sessionId) return;
@@ -386,10 +377,7 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
 
     return () => {
       control.abort();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      stopOpeningAudio();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);

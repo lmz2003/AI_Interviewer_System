@@ -3,6 +3,7 @@ import { interviewApi } from './api';
 import type { Interview, VideoCallStatus, VideoAnalysisInMessage } from './types';
 import { useToastModal } from '@/components/ui/toast-modal';
 import InterviewPaused from './InterviewPaused';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 const MicIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
@@ -127,8 +128,14 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const subtitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 使用通用音频播放 Hook（解决移动端自动播放限制）
+  const { unlock: unlockAudio, playBase64: playAudioPlayerBase64, playBlob: playAudioPlayerBlob, stop: stopAudio, audioRef: playerAudioRef } = useAudioPlayer({
+    onPlayError: (err) => {
+      console.warn('[VideoInterview] AI音频播放失败:', err.message);
+    },
+  });
   const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
@@ -302,46 +309,15 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
   }, []);
 
-  // ─── AI 音频播放 ───────────────────────────────────────────────────────────
+  // ─── AI 音频播放（使用 useAudioPlayer，解决移动端自动播放限制）────────────
 
-  const playAudioBase64 = useCallback((base64Audio: string, format: string = 'mp3'): Promise<void> => {
-    return new Promise((resolve) => {
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
-      }
-      const audioDataUrl = `data:audio/${format};base64,${base64Audio}`;
-      const audio = new Audio(audioDataUrl);
-      audio.volume = 1.0;
-      currentAudioRef.current = audio;
-      setIsAIPlaying(true);
+  const handlePlayAudio = useCallback(async (base64Audio: string, format: string = 'mp3') => {
+    setIsAIPlaying(true);
+    await playAudioPlayerBase64(base64Audio, format);
+    setIsAIPlaying(false);
+  }, [playAudioPlayerBase64]);
 
-      const handleEnd = () => {
-        setIsAIPlaying(false);
-        if (currentAudioRef.current === audio) {
-          currentAudioRef.current = null;
-        }
-        resolve();
-      };
-
-      audio.onended = handleEnd;
-      audio.onerror = handleEnd;
-
-      const playAudio = async () => {
-        try {
-          await audio.play();
-        } catch (error) {
-          console.warn('Audio play failed:', error);
-          setIsAIPlaying(false);
-          resolve();
-        }
-      };
-
-      playAudio();
-    });
-  }, []);
-
-  // ─── 开场白播放（在摄像头就绪后执行）─────────────────────────────────────
+  // ─── 开场白播放（使用 useAudioPlayer，解决移动端自动播放限制）─────────────
 
   const playOpeningAudio = useCallback(async () => {
     if (!openingText.trim()) return;
@@ -349,24 +325,8 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       setIsAIPlaying(true);
       setCurrentSubtitle(`面试官：${openingText}`);
       const audioBlob = await interviewApi.textToSpeech(openingText, voice, 1.0);
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      currentAudioRef.current = audio;
-      await new Promise<void>((resolve) => {
-        audio.onended = () => {
-          setIsAIPlaying(false);
-          URL.revokeObjectURL(audioUrl);
-          currentAudioRef.current = null;
-          resolve();
-        };
-        audio.onerror = () => {
-          setIsAIPlaying(false);
-          URL.revokeObjectURL(audioUrl);
-          currentAudioRef.current = null;
-          resolve();
-        };
-        audio.play().catch(() => { setIsAIPlaying(false); resolve(); });
-      });
+      await playAudioPlayerBlob(audioBlob);
+      setIsAIPlaying(false);
       // 开场白播放完成，进入第 1 轮（等待用户回答）
       currentRoundRef.current = 1;
       setCurrentSubtitle('请说话...');
@@ -376,7 +336,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       setIsAIPlaying(false);
       currentRoundRef.current = 1;
     }
-  }, [openingText, voice]);
+  }, [openingText, voice, playAudioPlayerBlob]);
 
   // ─── 生命周期 ──────────────────────────────────────────────────────────────
 
@@ -426,9 +386,9 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    if (currentAudioRef.current) { currentAudioRef.current.pause(); currentAudioRef.current = null; }
+    stopAudio();
     if (subtitleTimeoutRef.current) clearTimeout(subtitleTimeoutRef.current);
-  }, [stopGlobalFrameCapture]);
+  }, [stopGlobalFrameCapture, stopAudio]);
 
   useEffect(() => {
     return cleanup;
@@ -492,6 +452,9 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
+      // 在用户交互（点击麦克风）时解锁音频播放权限
+      unlockAudio();
+
       mediaRecorder.start(100);
       setCallStatus('recording');
       if (callDuration === 0) startCallTimer();
@@ -502,7 +465,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       console.error('[VideoInterview] 启动录音失败:', err);
       setError('无法启动录音: ' + (err instanceof Error ? err.message : String(err)));
     }
-  }, [callStatus, isMuted, callDuration, startCallTimer, updateWaveform]);
+  }, [callStatus, isMuted, callDuration, startCallTimer, updateWaveform, unlockAudio]);
 
   const stopRecordingAndSend = useCallback(async () => {
     if (callStatus !== 'recording') return;
@@ -597,7 +560,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
                 });
 
                 setCallStatus('playing');
-                await playAudioBase64(audioBase64, audioFormat);
+                await handlePlayAudio(audioBase64, audioFormat);
 
                 if (shouldEnd) {
                   setCallStatus('ended');
@@ -644,7 +607,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
     };
 
     mediaRecorderRef.current.stop();
-  }, [callStatus, sessionId, voice, playAudioBase64, onBack, getFramesForRound]);
+  }, [callStatus, sessionId, voice, handlePlayAudio, onBack, getFramesForRound]);
 
   // ─── 结束/返回 ─────────────────────────────────────────────────────────────
   const toastModal = useToastModal();
@@ -656,19 +619,24 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       }
       setCallStatus('idle');
     }
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      setIsAIPlaying(false);
+    stopAudio();
+    setIsAIPlaying(false);
+    // 暂停时停止计时器
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
     setIsPaused(true);
   }, [callStatus]);
 
   const handleResume = useCallback(() => {
     setIsPaused(false);
+    // 恢复时重启计时器
+    startCallTimer();
     if (videoStreamRef.current && videoPreviewRef.current) {
       videoPreviewRef.current.srcObject = videoStreamRef.current;
     }
-  }, []);
+  }, [startCallTimer]);
 
   const handleEndInterview = useCallback(async () => {
     const confirmed = await toastModal.confirm(

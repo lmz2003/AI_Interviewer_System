@@ -5,6 +5,7 @@ import type { Interview } from './types';
 import InterviewChat from './InterviewChat';
 import VoiceInterview from './VoiceInterview';
 import VideoInterview from './VideoInterview';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import './Interview.scss';
 
 interface VoiceInterviewLoaderProps {
@@ -27,7 +28,13 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
   const [startError, setStartError] = useState<string | null>(null);
   const [openingText, setOpeningText] = useState('');
   const [isPlayingOpening, setIsPlayingOpening] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // 使用通用音频播放 Hook（解决移动端自动播放限制）
+  const { playBlob: playOpeningBlob, stop: stopOpeningAudio } = useAudioPlayer({
+    onPlayError: (err) => {
+      console.warn('[VoiceInterviewLoader/Page] 开场白音频播放失败:', err.message);
+    },
+  });
 
   const playOpeningAudio = useCallback(async (text: string) => {
     if (!text.trim()) return;
@@ -36,26 +43,13 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
     
     try {
       const audioBlob = await interviewApi.textToSpeech(text, 'anna', 1.0);
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        setIsPlayingOpening(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      audio.onerror = () => {
-        setIsPlayingOpening(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      await audio.play();
+      await playOpeningBlob(audioBlob);
+      setIsPlayingOpening(false);
     } catch (err) {
       console.error('[VoiceInterview] 播放开场白失败:', err);
       setIsPlayingOpening(false);
     }
-  }, []);
+  }, [playOpeningBlob]);
 
   useEffect(() => {
     if (sessionId) return;
@@ -92,10 +86,7 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
 
     return () => {
       control.abort();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      stopOpeningAudio();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);

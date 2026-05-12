@@ -3,6 +3,7 @@ import { interviewApi } from './api';
 import type { Interview, VoiceCallStatus } from './types';
 import { useToastModal } from '@/components/ui/toast-modal';
 import InterviewPaused from './InterviewPaused';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 // SVG 图标
 const MicIcon = () => (
@@ -98,8 +99,14 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const subtitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 使用通用音频播放 Hook（解决移动端自动播放限制）
+  const { unlock: unlockAudio, playBase64: playAudioBase64, stop: stopAudio, audioRef: playerAudioRef, isPlaying: isAudioPlaying } = useAudioPlayer({
+    onPlayError: (err) => {
+      console.warn('[VoiceInterview] AI音频播放失败:', err.message);
+    },
+  });
 
   const subtitlesEndRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef(sessionId);
@@ -168,14 +175,11 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-    }
+    stopAudio();
     if (subtitleTimeoutRef.current) {
       clearTimeout(subtitleTimeoutRef.current);
     }
-  }, []);
+  }, [stopAudio]);
 
   useEffect(() => {
     return cleanup;
@@ -203,45 +207,12 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
   }, []);
 
-  // 播放 AI 语音
-  const playAudioBase64 = useCallback((base64Audio: string, format: string = 'mp3'): Promise<void> => {
-    return new Promise((resolve) => {
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
-      }
-
-      const audioDataUrl = `data:audio/${format};base64,${base64Audio}`;
-      const audio = new Audio(audioDataUrl);
-      audio.volume = 1.0;
-      currentAudioRef.current = audio;
-
-      setIsAIPlaying(true);
-
-      const handleEnd = () => {
-        setIsAIPlaying(false);
-        if (currentAudioRef.current === audio) {
-          currentAudioRef.current = null;
-        }
-        resolve();
-      };
-
-      audio.onended = handleEnd;
-      audio.onerror = handleEnd;
-
-      const playAudio = async () => {
-        try {
-          await audio.play();
-        } catch (error) {
-          console.warn('Audio play failed, retrying with user interaction context:', error);
-          setIsAIPlaying(false);
-          resolve();
-        }
-      };
-
-      playAudio();
-    });
-  }, []);
+  // 播放 AI 语音（使用 useAudioPlayer，支持移动端自动播放）
+  const handlePlayAudio = useCallback(async (base64Audio: string, format: string = 'mp3') => {
+    setIsAIPlaying(true);
+    await playAudioBase64(base64Audio, format);
+    setIsAIPlaying(false);
+  }, [playAudioBase64]);
 
   // 开始录音
   const startRecording = useCallback(async () => {
@@ -328,6 +299,9 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         console.log('[VoiceInterview] MediaRecorder stopped, chunks collected:', audioChunksRef.current.length);
       };
 
+      // 在用户交互（点击麦克风）时解锁音频播放权限
+      unlockAudio();
+
       mediaRecorder.start(100);
       console.log('[VoiceInterview] Recording started successfully');
       setCallStatus('recording');
@@ -347,7 +321,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
         setError('无法启动录音: ' + (err instanceof Error ? err.message : String(err)));
       }
     }
-  }, [callStatus, isMuted, startCallTimer, updateWaveform]);
+  }, [callStatus, isMuted, startCallTimer, updateWaveform, unlockAudio]);
 
   // 停止录音并发送
   const stopRecordingAndSend = useCallback(async () => {
@@ -449,7 +423,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
                 });
 
                 setCallStatus('playing');
-                await playAudioBase64(audioBase64, audioFormat);
+                await handlePlayAudio(audioBase64, audioFormat);
 
                 if (shouldEnd) {
                   setCallStatus('ended');
@@ -500,7 +474,7 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
     recorder.addEventListener('stop', handleStop, { once: true });
     console.log('[VoiceInterview] Stopping recording, mimeType:', recorderMimeType);
     recorder.stop();
-  }, [callStatus, sessionId, voice, playAudioBase64, onBack]);
+  }, [callStatus, sessionId, voice, handlePlayAudio, onBack]);
 
   const handlePause = useCallback(() => {
     if (callStatus === 'recording') {
@@ -509,10 +483,8 @@ const VoiceInterview: React.FC<VoiceInterviewProps> = ({
       }
       setCallStatus('idle');
     }
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      setIsAIPlaying(false);
-    }
+    stopAudio();
+    setIsAIPlaying(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;

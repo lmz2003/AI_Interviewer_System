@@ -3381,27 +3381,39 @@ $dark-warning-light: #3F2F0F;
   // 移动端响应式
   @media (max-width: 480px) {
     .voice-header {
-      padding: 12px 16px;
-      gap: 12px;
+      padding: 10px 12px;
+      gap: 10px;
 
       .pause-btn {
-        padding: 8px 12px;
-        font-size: 13px;
+        padding: 7px 10px;
+        font-size: 12px;
+        flex-shrink: 0;
       }
 
       .voice-header-info {
+        flex: 1;
+        min-width: 0; // 允许 flex 子项收缩
+
         .voice-title {
-          font-size: 14px;
+          font-size: 13px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .voice-meta {
-          font-size: 12px;
+          font-size: 11px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
 
       .voice-duration {
-        padding: 6px 12px;
-        font-size: 13px;
+        padding: 5px 10px;
+        font-size: 12px;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
     }
 
@@ -4418,27 +4430,39 @@ $dark-warning-light: #3F2F0F;
   // 移动端响应式
   @media (max-width: 480px) {
     .video-header {
-      padding: 12px 16px;
-      gap: 12px;
+      padding: 10px 12px;
+      gap: 10px;
 
       .pause-btn {
-        padding: 8px 12px;
-        font-size: 13px;
+        padding: 7px 10px;
+        font-size: 12px;
+        flex-shrink: 0;
       }
 
       .video-header-info {
+        flex: 1;
+        min-width: 0; // 允许 flex 子项收缩
+
         .video-title {
-          font-size: 14px;
+          font-size: 13px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .video-meta {
-          font-size: 12px;
+          font-size: 11px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
 
       .video-duration {
-        padding: 6px 12px;
-        font-size: 13px;
+        padding: 5px 10px;
+        font-size: 12px;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
     }
 
@@ -5390,6 +5414,131 @@ $dark-warning-light: #3F2F0F;
     padding: 10px 14px;
     font-size: 12px;
   }
+
+  // ==========================================
+  // 文字面试页面 - 移动端适配
+  // ==========================================
+  .interview-chat-page {
+    .chat-header {
+      padding: 10px 12px;
+      gap: 8px;
+      flex-wrap: nowrap;
+      min-height: auto;
+
+      .pause-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      .header-info {
+        flex: 1;
+        min-width: 0;
+
+        h2 {
+          font-size: 14px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .interview-meta {
+          font-size: 11px;
+        }
+      }
+
+      .header-right {
+        gap: 8px;
+        flex-shrink: 0;
+
+        .elapsed-time {
+          font-size: 12px;
+          padding: 4px 8px;
+          white-space: nowrap;
+        }
+
+        .end-btn {
+          padding: 6px 12px;
+          font-size: 12px;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .chat-messages {
+      padding: 16px 12px;
+
+      .message {
+        gap: 8px;
+
+        .message-avatar {
+          width: 32px;
+          height: 32px;
+          flex-shrink: 0;
+
+          svg {
+            width: 18px;
+            height: 18px;
+          }
+        }
+
+        .message-content {
+          .message-bubble {
+            font-size: 14px;
+            padding: 10px 14px;
+            border-radius: 12px;
+          }
+
+          .message-meta {
+            .timestamp {
+              font-size: 11px;
+            }
+          }
+        }
+
+        &.user .message-content {
+          max-width: calc(100% - 40px);
+        }
+
+        &.assistant .message-content {
+          max-width: calc(100% - 40px);
+        }
+      }
+
+      .empty-chat {
+        p {
+          font-size: 14px;
+        }
+      }
+    }
+
+    .chat-input {
+      padding: 12px 12px max(env(safe-area-inset-bottom), 16px);
+      gap: 8px;
+
+      .input-field-wrapper {
+        textarea {
+          font-size: 14px;
+          padding: 10px 12px 10px 14px;
+          min-height: 40px;
+          border-radius: 20px;
+        }
+      }
+
+      .send-btn {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        flex-shrink: 0;
+      }
+    }
+
+    .error-message {
+      margin: 8px 12px;
+      font-size: 13px;
+      padding: 8px 12px;
+    }
+  }
 }
 
 .empty-search-state {
@@ -6033,7 +6182,15 @@ $dark-warning-light: #3F2F0F;
   right: 0;
   bottom: 0;
   width: 100vw;
-  height: 100vh;
+  // 使用 100dvh（动态视口高度）替代 100vh，避免移动端浏览器 UI 导致内容被遮挡
+  height: 100dvh;
+  // 兼容不支持 dvh 的浏览器
+  @supports not (height: 100dvh) {
+    height: 100vh;
+    // 在 iOS Safari 等不支持 dvh 的环境中，用 safe-area 补偿
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    box-sizing: border-box;
+  }
   display: flex;
   flex-direction: column;
   background: $bg;
@@ -6048,7 +6205,16 @@ $dark-warning-light: #3F2F0F;
   > .voice-interview-page,
   > .video-interview-page {
     flex: 1;
-    height: 100%;
+    min-height: 0; // 防止 flex 子项溢出
+    overflow: hidden;
+  }
+
+  // 移动端额外适配：确保底部不被系统 UI 遮挡
+  @media (max-width: 768px) {
+    @supports not (height: 100dvh) {
+      padding-bottom: env(safe-area-inset-bottom, 0);
+      box-sizing: border-box;
+    }
   }
 }
 

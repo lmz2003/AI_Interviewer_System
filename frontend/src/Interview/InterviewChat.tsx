@@ -237,11 +237,26 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   handleEndInterviewRef.current = handleEndInterview;
 
   const handlePause = useCallback(() => {
+    // 暂停时停止计时器
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     setIsPaused(true);
   }, []);
 
   const handleResume = useCallback(() => {
     setIsPaused(false);
+    // 恢复时重启计时器
+    if (!timerRef.current) {
+      timerRef.current = setInterval(() => {
+        setElapsedTime((prev) => {
+          const next = prev + 1;
+          onElapsedTimeChangeRef.current?.(next);
+          return next;
+        });
+      }, 1000);
+    }
   }, []);
 
   const handleSend = useCallback(async () => {
