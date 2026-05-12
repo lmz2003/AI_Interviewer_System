@@ -309,10 +309,17 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   // ─── 音频波形 ──────────────────────────────────────────────────────────────
 
   const updateWaveform = useCallback(() => {
-    if (!analyserRef.current) return;
+    if (!analyserRef.current) {
+      console.log('[VideoInterview] updateWaveform: analyser is null');
+      return;
+    }
     const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     analyserRef.current.getByteFrequencyData(dataArray);
+
+    // 计算平均音量用于调试
+    const average = dataArray.reduce((sum, val) => sum + val, 0) / bufferLength;
+
     const bars = 24;
     const step = Math.floor(bufferLength / bars);
     const newWaveform = Array.from({ length: bars }, (_, i) => {
@@ -320,8 +327,22 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       const end = Math.min(start + step, bufferLength);
       let sum = 0;
       for (let j = start; j < end; j++) sum += dataArray[j];
-      return Math.min(100, Math.max(2, (sum / (end - start) / 255) * 100));
+      const avgValue = sum / (end - start);
+
+      // 语音优化：使用非线性放大，让小的声音也能显示波动
+      // 1. 归一化到 0-1
+      const normalized = avgValue / 255;
+      // 2. 应用曲线放大：小值放大更多，大值保持相对稳定
+      const amplified = Math.pow(normalized, 0.6); // 0.6 次方曲线，小值放大
+      // 3. 映射到 2-100 的显示范围
+      return Math.min(100, Math.max(2, amplified * 100));
     });
+
+    // 每隔 30 帧输出一次日志（约 500ms），避免刷屏
+    if (Math.random() < 0.03) {
+      console.log('[VideoInterview] Waveform - average:', average.toFixed(2), 'peak:', Math.max(...newWaveform).toFixed(2));
+    }
+
     setWaveformData(newWaveform);
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
   }, []);
