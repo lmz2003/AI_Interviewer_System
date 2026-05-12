@@ -11,6 +11,7 @@ import { UploadModule } from './upload/upload.module';
 import { ResumeAnalysisModule } from './resume-analysis/resume-analysis.module';
 import { InterviewModule } from './interview/interview.module';
 import { PlateAiModule } from './plate-ai/plate-ai.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { PlateAiModule } from './plate-ai/plate-ai.module';
     ResumeAnalysisModule,
     InterviewModule,
     PlateAiModule,
+    DashboardModule,
   ],
   controllers: [],
   providers: [],

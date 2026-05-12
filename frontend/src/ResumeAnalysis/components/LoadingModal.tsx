@@ -32,6 +32,16 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
     typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
   );
 
+  // 移动端检测
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 640
+  );
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   useEffect(() => {
     const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains('dark'));
@@ -60,16 +70,18 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
         fontFamily: C.font,
       }}>
         <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '14px' : '18px',
           background: C.surface,
           border: `1px solid ${C.border}`,
-          borderRadius: '16px',
-          padding: '36px 48px',
-          minWidth: '280px',
+          borderRadius: isMobile ? '14px' : '16px',
+          padding: isMobile ? '28px 24px' : '36px 48px',
+          minWidth: isMobile ? undefined : '280px',
+          width: isMobile ? 'calc(100% - 48px)' : undefined,
+          maxWidth: isMobile ? 'calc(100% - 48px)' : undefined,
           animation: 'lm-fade 0.3s ease-out',
           boxShadow: isDark
-            ? '0 20px 60px rgba(0,0,0,0.5)'
-            : '0 20px 60px rgba(30,27,75,0.12)',
+            ? '0 16px 44px rgba(0,0,0,0.5)'
+            : '0 16px 44px rgba(30,27,75,0.12)',
         }}>
           {/* Spinner */}
           <div style={{

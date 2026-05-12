@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './MainPage.module.scss';
 import NotesListPage from '../Note/NotesListPage';
@@ -212,19 +212,71 @@ interface DashboardHomeProps {
   onNavigate: (module: string) => void;
 }
 
+// 统计数据类型
+interface DashboardStats {
+  notesCount: number;
+  interviewCount: number;
+  knowledgeDocCount: number;
+  resumeScore: number | null;
+  resumeScoreLabel: string;
+}
+
 const DashboardHome: React.FC<DashboardHomeProps> = ({ userName, onNavigate }) => {
+  const [statsData, setStatsData] = useState<DashboardStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // 获取仪表盘统计数据
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${apiBaseUrl}/dashboard/stats`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setStatsData(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
+
+  // 根据数据生成统计卡片
+  const getStatsCards = () => {
+    const baseStats = statsData || {
+      notesCount: 0,
+      interviewCount: 0,
+      knowledgeDocCount: 0,
+      resumeScore: null,
+      resumeScoreLabel: '暂无',
+    };
+
+    return [
+      { label: '笔记数量', value: String(baseStats.notesCount), icon: <FileTextIcon />, color: '#6366F1', change: `${baseStats.notesCount} 篇` },
+      { label: '面试次数', value: String(baseStats.interviewCount), icon: <MessageSquareIcon />, color: '#F59E0B', change: `${baseStats.interviewCount} 场` },
+      { label: '知识条目', value: String(baseStats.knowledgeDocCount), icon: <BookOpenIcon />, color: '#EC4899', change: `${baseStats.knowledgeDocCount} 条` },
+      { label: '简历评分', value: baseStats.resumeScore !== null ? String(baseStats.resumeScore) : '--', icon: <TrendingUpIcon />, color: '#10B981', change: baseStats.resumeScoreLabel },
+    ];
+  };
+
+  const stats = getStatsCards();
+
   const quickActions = [
     { key: 'notes', label: '创建笔记', description: '记录学习心得', icon: <FileTextIcon />, color: '#6366F1' },
     { key: 'resume', label: '上传简历', description: '获取优化建议', icon: <BriefcaseIcon />, color: '#10B981' },
     { key: 'interview', label: '开始面试', description: '模拟真实场景', icon: <MessageSquareIcon />, color: '#F59E0B' },
     { key: 'knowledge', label: '添加知识', description: '构建知识库', icon: <BookOpenIcon />, color: '#EC4899' },
-  ];
-
-  const stats = [
-    { label: '笔记数量', value: '12', icon: <FileTextIcon />, color: '#6366F1', change: '+3 本周' },
-    { label: '面试次数', value: '8', icon: <MessageSquareIcon />, color: '#F59E0B', change: '+2 本周' },
-    { label: '知识条目', value: '45', icon: <BookOpenIcon />, color: '#EC4899', change: '+10 本周' },
-    { label: '简历评分', value: '85', icon: <TrendingUpIcon />, color: '#10B981', change: '优秀' },
   ];
 
   const tips = [

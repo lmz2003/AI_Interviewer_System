@@ -1,4 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+// ---- 移动端检测 Hook ----
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < breakpoint);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
 import { useParams, useNavigate } from 'react-router-dom';
 import { useToastModal } from '../components/ui/toast-modal';
 import { useResumeAnalysisWebSocket } from '../hooks/useResumeAnalysisWebSocket';
@@ -77,12 +88,16 @@ const ResumeDetail: React.FC = () => {
   const { error } = useToastModal();
   const { colors: C } = useTheme();
   const { getSignal, abort } = useAbortController();
+  const isMobile = useIsMobile(768);
 
   const [resume, setResume] = useState<Resume | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
   const [analysisStage, setAnalysisStage] = useState(0);
   const [stageMessage, setStageMessage] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // 移动端：简历预览 / 分析报告 Tab 切换
+  const [mobileView, setMobileView] = useState<'resume' | 'analysis'>('resume');
 
   const { leftPercent, containerRef, onMouseDown } = useDividerDrag(50, 25, 75);
 
@@ -188,130 +203,222 @@ const ResumeDetail: React.FC = () => {
 
   if (!resume) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: C.font }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: C.surface, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ 
+        display: 'flex', flexDirection: 'column', 
+        height: isMobile ? '100dvh' : '100vh', 
+        minHeight: isMobile ? '-webkit-fill-available' : undefined,
+        fontFamily: C.font,
+        paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0)' : undefined,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '12px 16px' : '16px 20px', background: C.surface, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <button
             onClick={() => navigate('/dashboard/resume')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: 'none', borderRadius: '6px', background: C.primarySoft, color: C.primary, padding: '7px 14px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: C.font }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: 'none', borderRadius: '8px', background: C.primarySoft, color: C.primary, padding: isMobile ? '6px 12px' : '7px 14px', fontSize: isMobile ? '0.82rem' : '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: C.font, transition: 'background 0.15s' }}
+            onMouseEnter={!isMobile ? (e => (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.14)') : undefined}
+            onMouseLeave={!isMobile ? (e => (e.currentTarget as HTMLElement).style.background = C.primarySoft) : undefined}
           >
             <ArrowLeftIcon /> 返回
           </button>
-          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: C.text }}>简历分析</h2>
+          <h2 style={{ margin: 0, fontSize: isMobile ? '0.95rem' : '1.1rem', fontWeight: 800, color: C.text }}>简历分析</h2>
           <div />
         </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textMuted, fontFamily: C.font }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textMuted, fontFamily: C.font, padding: isMobile ? '20px' : undefined }}>
           <p>简历不存在</p>
         </div>
       </div>
     );
   }
 
+  // ---- 移动端 Tab 切换栏 ----
+  const renderMobileTabBar = () => (
+    <div style={{
+      display: 'flex', gap: 0, background: C.surface, borderBottom: `1px solid ${C.border}`,
+      flexShrink: 0, paddingTop: '4px',
+    }}>
+      {[{ key: 'resume' as const, label: '📄 简历原文' }, { key: 'analysis' as const, label: '📊 分析报告' }].map(tab => (
+        <button
+          key={tab.key}
+          onClick={() => setMobileView(tab.key)}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+            background: 'none', border: 'none', borderBottom: `3px solid ${mobileView === tab.key ? C.primary : 'transparent'}`,
+            padding: '11px 8px', marginBottom: '-1px',
+            color: mobileView === tab.key ? C.primary : C.textMuted,
+            fontWeight: mobileView === tab.key ? 700 : 500,
+            fontSize: '0.85rem', cursor: 'pointer', fontFamily: C.font,
+            transition: 'all 0.15s',
+          }}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+
   const isPdf = resume.fileType === 'pdf' && resume.fileName;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', background: C.bg, overflow: 'hidden', fontFamily: C.font }}>
+    <div style={{ 
+      display: 'flex', flexDirection: 'column', 
+      height: isMobile ? '100dvh' : '100vh', 
+      width: '100%', background: C.bg, overflow: 'hidden', fontFamily: C.font,
+      minHeight: isMobile ? '-webkit-fill-available' : undefined,
+    }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', background: C.surface, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+      <div style={{ 
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+        padding: isMobile ? '10px 12px' : '14px 20px', 
+        background: C.surface, borderBottom: `1px solid ${C.border}`, flexShrink: 0,
+        paddingBottom: isMobile ? 'max(10px, env(safe-area-inset-top))' : undefined,
+      }}>
         <button
           onClick={() => navigate('/dashboard/resume')}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: 'none', borderRadius: '6px', background: C.primarySoft, color: C.primary, padding: '7px 14px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: C.font, transition: 'background 0.15s' }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.14)'}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = C.primarySoft}
+          style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '5px', 
+            border: 'none', borderRadius: '8px', 
+            background: C.primarySoft, color: C.primary, 
+            padding: isMobile ? '6px 11px' : '7px 14px', 
+            fontSize: isMobile ? '0.82rem' : '0.875rem', 
+            fontWeight: 600, cursor: 'pointer', fontFamily: C.font, transition: 'background 0.15s',
+            flexShrink: 0,
+          }}
+          onMouseEnter={!isMobile ? (e => (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.14)') : undefined}
+          onMouseLeave={!isMobile ? (e => (e.currentTarget as HTMLElement).style.background = C.primarySoft) : undefined}
         >
           <ArrowLeftIcon /> 返回
         </button>
-        <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: C.text, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '50%' }}>{resume.title}</h2>
-        <div />
+        <h2 style={{ 
+          margin: 0, fontSize: isMobile ? '0.9rem' : '1rem', 
+          fontWeight: 800, color: C.text, letterSpacing: '-0.01em', 
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', 
+          flex: 1, minWidth: 0, textAlign: 'center',
+        }}>{resume.title}</h2>
+        {/* 占位，保持标题居中 */}
+        <div style={{ width: isMobile ? '60px' : '70px', flexShrink: 0 }} />
       </div>
 
-      {/* Content — 可拖拽左右分栏 */}
-      <div
-        ref={containerRef}
-        style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0, position: 'relative' }}
-      >
-        {/* Left: PDF / Text viewer */}
-        <div style={{ width: `${leftPercent}%`, overflow: 'hidden', background: C.surface, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
-          {isPdf ? (
-            // PDF：撑满整个左栏
-            <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-              <PDFViewer resumeId={resume.id} />
+      {/* Content */}
+      {isMobile ? (
+        // ====== 移动端：Tab 切换模式 ======
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          {/* 移动端 Tab 切换栏 */}
+          {renderMobileTabBar()}
+
+          {/* 简历预览视图 */}
+          {mobileView === 'resume' && (
+            <div style={{ flex: 1, overflow: 'hidden', background: C.surface, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              {isPdf ? (
+                <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+                  <PDFViewer resumeId={resume.id} />
+                </div>
+              ) : (
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px', fontFamily: C.font, fontSize: '0.85rem', lineHeight: 1.8, color: C.text, whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: C.bg }}>
+                  {resume.content || <span style={{ color: C.textMuted, fontStyle: 'italic' }}>暂无内容</span>}
+                </div>
+              )}
             </div>
-          ) : (
-            // 文本：带标题栏 + 可滚动正文
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-              <div style={{
-                padding: '10px 16px',
-                borderBottom: `1px solid ${C.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '7px',
-                flexShrink: 0,
-                background: C.surface,
-              }}>
-                <span style={{ color: C.primary, display: 'flex' }}><FileTextIcon /></span>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: C.textMuted }}>简历原文</span>
-              </div>
-              <div style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '20px 24px',
-                fontFamily: C.font,
-                fontSize: '0.875rem',
-                lineHeight: 1.8,
-                color: C.text,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                background: C.bg,
-              }}>
-                {resume.content || <span style={{ color: C.textMuted, fontStyle: 'italic' }}>暂无内容</span>}
-              </div>
+          )}
+
+          {/* 分析报告视图 */}
+          {mobileView === 'analysis' && (
+            <div style={{ flex: 1, overflow: 'hidden', background: C.surface, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              {!analysis ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: C.textMuted, fontFamily: C.font }}>
+                  <p>等待分析完成...</p>
+                </div>
+              ) : (
+                <AnalysisPanel analysis={analysis} isMobile={true} />
+              )}
             </div>
           )}
         </div>
-
-        {/* 可拖拽分割线 */}
+      ) : (
+        // ====== 桌面端：可拖拽左右分栏 ======
         <div
-          onMouseDown={onMouseDown}
-          style={{
-            width: '5px',
-            flexShrink: 0,
-            cursor: 'col-resize',
-            background: C.border,
-            position: 'relative',
-            transition: 'background 0.15s',
-            zIndex: 10,
-          }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = C.primary}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = C.border}
+          ref={containerRef}
+          style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0, position: 'relative' }}
         >
-          {/* 中间抓手提示点 */}
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '3px',
-            height: '32px',
-            borderRadius: '2px',
-            background: 'currentColor',
-            opacity: 0.4,
-          }} />
-        </div>
+          {/* Left: PDF / Text viewer */}
+          <div style={{ width: `${leftPercent}%`, overflow: 'hidden', background: C.surface, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
+            {isPdf ? (
+              <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+                <PDFViewer resumeId={resume.id} />
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+                <div style={{
+                  padding: '10px 16px',
+                  borderBottom: `1px solid ${C.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  flexShrink: 0,
+                  background: C.surface,
+                }}>
+                  <span style={{ color: C.primary, display: 'flex' }}><FileTextIcon /></span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: C.textMuted }}>简历原文</span>
+                </div>
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: '20px 24px',
+                  fontFamily: C.font,
+                  fontSize: '0.875rem',
+                  lineHeight: 1.8,
+                  color: C.text,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  background: C.bg,
+                }}>
+                  {resume.content || <span style={{ color: C.textMuted, fontStyle: 'italic' }}>暂无内容</span>}
+                </div>
+              </div>
+            )}
+          </div>
 
-        {/* Right: Analysis Panel */}
-        <div style={{ flex: 1, overflow: 'hidden', background: C.surface, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
-          {!analysis ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: C.textMuted, fontFamily: C.font }}>
-              <p>等待分析完成...</p>
-            </div>
-          ) : (
-            <AnalysisPanel analysis={analysis} />
-          )}
-        </div>
-      </div>
+          {/* 可拖拽分割线 */}
+          <div
+            onMouseDown={onMouseDown}
+            style={{
+              width: '5px',
+              flexShrink: 0,
+              cursor: 'col-resize',
+              background: C.border,
+              position: 'relative',
+              transition: 'background 0.15s',
+              zIndex: 10,
+            }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = C.primary}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = C.border}
+          >
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '3px',
+              height: '32px',
+              borderRadius: '2px',
+              background: 'currentColor',
+              opacity: 0.4,
+            }} />
+          </div>
 
-      {/* Analysis loading modal */}
-      {!analysis && (
+          {/* Right: Analysis Panel */}
+          <div style={{ flex: 1, overflow: 'hidden', background: C.surface, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
+            {!analysis ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: C.textMuted, fontFamily: C.font }}>
+                <p>等待分析完成...</p>
+              </div>
+            ) : (
+              <AnalysisPanel analysis={analysis} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Analysis loading modal — 桌面端全屏遮罩；移动端内嵌在分析视图中 */}
+      {!analysis && !isMobile && (
         <LoadingModal
           isOpen={true}
           title={getAnalysisStageInfo(analysisStage).title}

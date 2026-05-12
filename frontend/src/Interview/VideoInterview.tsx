@@ -118,6 +118,8 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   const [videoAnalysisData, setVideoAnalysisData] = useState<VideoAnalysisInMessage | null>(null);
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  // 开场白等待用户点击播放（解决移动端自动播放限制：cameraReady 不是用户交互上下文）
+  const [openingNeedsTap, setOpeningNeedsTap] = useState(false);
 
   // 媒体相关 refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -322,6 +324,10 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   const playOpeningAudio = useCallback(async () => {
     if (!openingText.trim()) return;
     try {
+      // 先解锁浏览器音频权限（必须在用户交互上下文中调用）
+      unlockAudio();
+      setOpeningNeedsTap(false);
+
       setIsAIPlaying(true);
       setCurrentSubtitle(`面试官：${openingText}`);
       const audioBlob = await interviewApi.textToSpeech(openingText, voice, 1.0);
@@ -336,7 +342,7 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
       setIsAIPlaying(false);
       currentRoundRef.current = 1;
     }
-  }, [openingText, voice, playAudioPlayerBlob]);
+  }, [openingText, voice, playAudioPlayerBlob, unlockAudio]);
 
   // ─── 生命周期 ──────────────────────────────────────────────────────────────
 
@@ -360,16 +366,16 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 摄像头就绪后：启动全局截帧 + 播放开场白 + 计时器
+  // 摄像头就绪后：启动全局截帧 + 计时器 + 标记开场白待播放
   useEffect(() => {
     if (!cameraReady) return;
 
     startGlobalFrameCapture();
     startCallTimer(); // 面试计时从摄像头就绪开始
 
-    // 如果有开场白文本就播放（新建面试）；继续面试时不再播放
+    // 如果有开场白文本，不直接播放（非用户交互上下文），而是标记等待用户点击
     if (openingText.trim()) {
-      playOpeningAudio();
+      setOpeningNeedsTap(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraReady]);
@@ -711,6 +717,69 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
 
   return (
     <div className="video-interview-page">
+      {/* 开场白等待用户点击（解决移动端自动播放限制） */}
+      {openingNeedsTap && !isPaused && (
+        <div
+          onClick={playOpeningAudio}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(15, 15, 26, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ textAlign: 'center', padding: '48px 32px' }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: 'rgba(99,102,241,0.2)',
+              border: '2px solid rgba(99,102,241,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+              animation: 'pulse 2s ease-in-out infinite',
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="1.5" width="36" height="36">
+                <rect x="3" y="11" width="18" height="10" rx="2" />
+                <circle cx="12" cy="5" r="2" />
+                <path d="M12 7v4" />
+                <line x1="8" y1="16" x2="8" y2="16" strokeWidth="3" />
+                <line x1="16" y1="16" x2="16" y2="16" strokeWidth="3" />
+              </svg>
+            </div>
+            <h3 style={{ color: 'white', fontSize: '20px', fontWeight: 600, marginBottom: '8px', marginTop: 0 }}>面试官已就绪</h3>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', margin: '0 0 32px' }}>点击任意位置开始视频面试</p>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '14px 28px',
+              borderRadius: '999px',
+              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+              color: 'white',
+              fontSize: '15px',
+              fontWeight: '600',
+              fontFamily: '"Plus Jakarta Sans", sans-serif',
+              boxShadow: '0 4px 20px rgba(99,102,241,0.4)',
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20"><path d="M23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>
+              开始面试
+            </div>
+          </div>
+        </div>
+      )}
+
       {isPaused ? (
         <InterviewPaused
           interviewTitle={interview.title || interview.sceneName}

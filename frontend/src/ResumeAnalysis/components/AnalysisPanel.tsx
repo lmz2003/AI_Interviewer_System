@@ -116,6 +116,7 @@ interface Analysis {
 
 interface AnalysisPanelProps {
   analysis: Analysis | any;
+  isMobile?: boolean;
 }
 
 type TabId = 'overview' | 'jobMatch' | 'competency' | 'report' | 'keywords';
@@ -136,7 +137,7 @@ const TABS: { id: TabId; label: string; Icon: React.FC }[] = [
   { id: 'keywords',   label: '关键词',   Icon: KeyIcon },
 ];
 
-const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
+const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isMobile = false }) => {
   // 判断是否有岗位匹配数据（用于控制 jobMatch Tab 的显示）
   const hasJobMatch = !!analysis.jobMatchAnalysis && analysis.jobMatchAnalysis !== 'null';
 
@@ -355,16 +356,23 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden', fontFamily: C.font }}>
+    <div style={{ 
+      display: 'flex', flexDirection: 'column', 
+      height: isMobile ? undefined : '100%', minHeight: 0, overflow: 'hidden', fontFamily: C.font,
+      // 移动端：让内容自然撑开高度，外层容器控制滚动
+    }}>
       {/* Panel Header: Score Cards */}
-      <div style={{ padding: '16px 20px', background: C.surface, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: '0.95rem', fontWeight: 700, color: C.text }}>简历分析报告</h3>
+      <div style={{ 
+        padding: isMobile ? '14px 16px' : '16px 20px', 
+        background: C.surface, borderBottom: `1px solid ${C.border}`, flexShrink: 0,
+        paddingBottom: isMobile ? 'max(14px, env(safe-area-inset-top, 0))' : undefined,
+      }}>
+        <h3 style={{ margin: isMobile ? '0 0 10px' : '0 0 12px', fontSize: isMobile ? '0.9rem' : '0.95rem', fontWeight: 700, color: C.text }}>简历分析报告</h3>
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', 
-          gap: '8px' 
-        }}>
-          {[
+          gridTemplateColumns: isMobile ? 'repeat(5, 1fr)' : 'repeat(auto-fit, minmax(80px, 1fr))', 
+          gap: isMobile ? '6px' : '8px' 
+        }}>{
             { label: '总体评分', key: 'overallScore' },
             { label: '完整性', key: 'completenessScore' },
             { label: '关键词', key: 'keywordScore' },
@@ -374,9 +382,15 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
             const val = Math.round(analysis[key] ?? 0);
             const color = getScoreColor(val);
             return (
-              <div key={key} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: C.radiusSm, padding: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, color, lineHeight: 1 }}>{val}</div>
-                <div style={{ fontSize: '0.7rem', color: C.textMuted, fontWeight: 600, marginTop: '3px', lineHeight: 1.3 }}>{label}</div>
+              <div key={key} style={{ 
+                background: C.bg, border: `1px solid ${C.border}`, borderRadius: C.radiusSm, 
+                padding: isMobile ? '6px 4px' : '8px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: isMobile ? '1.05rem' : '1.25rem', fontWeight: 800, color, lineHeight: 1 }}>{val}</div>
+                <div style={{ 
+                  fontSize: isMobile ? '0.6rem' : '0.7rem', color: C.textMuted, fontWeight: 600, 
+                  marginTop: '2px', lineHeight: 1.2,
+                }}>{label}</div>
               </div>
             );
           })}
@@ -384,20 +398,26 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }}>
+      <div style={{ 
+        display: 'flex', gap: 0, borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0,
+        overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch',
+        // 隐藏滚动条但保持可滚动
+        scrollbarWidth: 'none', msOverflowStyle: 'none',
+        ...(isMobile ? { cssMaskImage: 'linear-gradient(to right, black 95%, transparent)' } : {}),
+      }}>
         {visibleTabs.map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              display: 'inline-flex', alignItems: 'center', gap: isMobile ? '4px' : '5px',
               background: 'none', border: 'none',
               borderBottom: `2px solid ${activeTab === id ? C.primary : 'transparent'}`,
-              padding: '10px 14px', marginBottom: '-1px',
+              padding: isMobile ? '10px 12px' : '10px 14px', marginBottom: '-1px',
               color: activeTab === id ? C.primary : C.textMuted,
               fontWeight: activeTab === id ? 700 : 500,
-              fontSize: '0.8rem', cursor: 'pointer', fontFamily: C.font,
-              whiteSpace: 'nowrap',
+              fontSize: isMobile ? '0.78rem' : '0.8rem', cursor: 'pointer', fontFamily: C.font,
+              whiteSpace: 'nowrap', flexShrink: 0,
               transition: 'all 0.15s',
             }}
           >
@@ -407,7 +427,13 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis }) => {
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', minHeight: 0 }}>
+      <div style={{ 
+        flex: 1, overflowY: 'auto', 
+        padding: isMobile ? '14px 16px' : '20px', 
+        paddingBottom: isMobile ? 'max(14px, env(safe-area-inset-bottom, 16px))' : undefined,
+        minHeight: 0,
+        WebkitOverflowScrolling: 'touch',
+      }}>
         {renderTabContent()}
       </div>
     </div>
