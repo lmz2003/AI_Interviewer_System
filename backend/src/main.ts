@@ -27,18 +27,18 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   
   // 配置CORS
-  app.use(cors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'https://ai-interviewer-system.vercel.app/',
-      'http://101.201.237.30',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }));
-  
+  // app.use(cors({
+  //   origin: [
+  //     'http://localhost:5173',
+  //     'http://localhost:3000',
+  //     'https://ai-interviewer-system.vercel.app/',
+  //     'http://101.201.237.30',
+  //   ],
+  //   credentials: true,
+  //   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  //   allowedHeaders: ['Content-Type', 'Authorization'],
+  // }));
+  app.use(cors());
   // 增加body-parser请求体大小限制，解决头像上传问题
   app.use(bodyParser.json({ limit: '5mb' })); // 增加JSON请求体大小限制到5MB
   app.use(bodyParser.urlencoded({ limit: '5mb', extended: true })); // 增加URL编码请求体大小限制到5MB
