@@ -372,7 +372,8 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isMobile = fals
           display: 'grid', 
           gridTemplateColumns: isMobile ? 'repeat(5, 1fr)' : 'repeat(auto-fit, minmax(80px, 1fr))', 
           gap: isMobile ? '6px' : '8px' 
-        }}>{
+        }}>
+          {[
             { label: '总体评分', key: 'overallScore' },
             { label: '完整性', key: 'completenessScore' },
             { label: '关键词', key: 'keywordScore' },
@@ -382,13 +383,13 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isMobile = fals
             const val = Math.round(analysis[key] ?? 0);
             const color = getScoreColor(val);
             return (
-              <div key={key} style={{ 
-                background: C.bg, border: `1px solid ${C.border}`, borderRadius: C.radiusSm, 
+              <div key={key} style={{
+                background: C.bg, border: `1px solid ${C.border}`, borderRadius: C.radiusSm,
                 padding: isMobile ? '6px 4px' : '8px', textAlign: 'center',
               }}>
                 <div style={{ fontSize: isMobile ? '1.05rem' : '1.25rem', fontWeight: 800, color, lineHeight: 1 }}>{val}</div>
-                <div style={{ 
-                  fontSize: isMobile ? '0.6rem' : '0.7rem', color: C.textMuted, fontWeight: 600, 
+                <div style={{
+                  fontSize: isMobile ? '0.6rem' : '0.7rem', color: C.textMuted, fontWeight: 600,
                   marginTop: '2px', lineHeight: 1.2,
                 }}>{label}</div>
               </div>

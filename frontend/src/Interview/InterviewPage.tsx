@@ -80,7 +80,7 @@ const VoiceInterviewLoader: React.FC<VoiceInterviewLoaderProps> = ({
             // 不直接播放，而是标记为就绪，等用户点击后再播放（解决移动端自动播放限制）
             setOpeningReady(true);
           }
-        } else if (event.type === 'error') => {
+        } else if (event.type === 'error') {
           setStartError((event.data?.message as string) || '启动面试失败');
           setIsStarting(false);
         }
