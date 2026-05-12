@@ -117,6 +117,21 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
   const [waveformData, setWaveformData] = useState<number[]>(new Array(24).fill(2));
   const [videoAnalysisData, setVideoAnalysisData] = useState<VideoAnalysisInMessage | null>(null);
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false);
+
+  // 监听 videoAnalysisData 变化，输出调试日志
+  useEffect(() => {
+    console.log('[VideoInterview] videoAnalysisData 状态变化:', {
+      hasData: !!videoAnalysisData,
+      data: videoAnalysisData,
+      framesCount: videoAnalysisData?.frames?.length,
+      summary: videoAnalysisData?.summary,
+    });
+  }, [videoAnalysisData]);
+
+  // 监听 showAnalysisPanel 变化
+  useEffect(() => {
+    console.log('[VideoInterview] showAnalysisPanel 状态变化:', showAnalysisPanel);
+  }, [showAnalysisPanel]);
   const [cameraReady, setCameraReady] = useState(false);
   // 开场白等待用户点击播放（解决移动端自动播放限制：cameraReady 不是用户交互上下文）
   const [openingNeedsTap, setOpeningNeedsTap] = useState(false);
@@ -514,6 +529,11 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
           const base64 = (reader.result as string).split(',')[1];
 
           console.log(`[VideoInterview] 发送：音频 ${base64.length} bytes, 视频帧 ${sessionFrames.length} 帧`);
+          console.log(`[VideoInterview] 视频帧详情:`, sessionFrames.map((f, i) => ({
+            index: i,
+            length: f.length,
+            preview: f.substring(0, 50) + '...',
+          })));
 
           let userText = '';
           let aiText = '';
@@ -550,9 +570,18 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
                 });
                 setCurrentSubtitle(`面试官：${aiText}`);
               } else if (event.type === 'videoAnalysis') {
-                const { data: videoAnalysis } = event.data;
+                console.log('[VideoInterview] 收到视频分析事件:', event);
+                // 后端发送格式: { type: 'videoAnalysis', data: { data: videoAnalysis } }
+                const videoAnalysis = event.data?.data;
+                console.log('[VideoInterview] 解析后的视频分析数据:', videoAnalysis);
                 if (videoAnalysis) {
                   setVideoAnalysisData(videoAnalysis);
+                  console.log('[VideoInterview] 视频分析数据已设置到状态:', {
+                    framesCount: videoAnalysis.frames?.length,
+                    summary: videoAnalysis.summary,
+                  });
+                } else {
+                  console.warn('[VideoInterview] 视频分析数据为空，原始事件:', event);
                 }
               } else if (event.type === 'done') {
                 const { audioBase64, audioFormat, shouldEnd } = event.data;
@@ -1006,10 +1035,13 @@ const VideoInterview: React.FC<VideoInterviewProps> = ({
         <button
           className={`control-btn analysis-btn ${showAnalysisPanel ? 'active' : ''} ${!videoAnalysisData ? 'no-data' : ''}`}
           onClick={() => {
+            console.log('[VideoInterview] 分析按钮被点击，当前 videoAnalysisData:', videoAnalysisData);
             if (!videoAnalysisData) {
+              console.log('[VideoInterview] 无视频分析数据，显示提示');
               toastModal.error('完成第一轮回答后即可查看实时分析数据', '暂无分析数据');
               return;
             }
+            console.log('[VideoInterview] 切换分析面板显示状态');
             setShowAnalysisPanel((prev) => !prev);
           }}
           title={videoAnalysisData ? '显示分析面板' : '完成一轮回答后可查看'}
