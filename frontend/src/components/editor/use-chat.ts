@@ -53,12 +53,10 @@ export const useChat = () => {
   const editor = useEditorRef();
   const options = usePluginOption(aiChatPlugin, 'chatOptions');
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-
   const baseChat = useBaseChat<ChatMessage>({
     id: 'editor',
     transport: new DefaultChatTransport({
-      api: options.api || `${apiBaseUrl}/ai/command`,
+      api: 'https://ai-interviewer-system-uz66.onrender.com/api/ai/command',
       fetch: async (input, init) => {
         const token = localStorage.getItem('token');
         const bodyOptions = editor.getOptions(aiChatPlugin).chatOptions?.body;
