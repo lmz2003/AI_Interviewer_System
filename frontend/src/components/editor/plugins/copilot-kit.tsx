@@ -14,7 +14,7 @@ export const CopilotKit = [
   CopilotPlugin.configure(({ api }) => ({
     options: {
       completeOptions: {
-        api: '/api/ai/copilot',
+        api: `${import.meta.env.VITE_API_BASE_URL || '/api'}/ai/copilot`,
         body: {
           system: `你是一个专业的中文文本补全助手，类似于 VSCode Copilot，但专注于通用文本。你的任务是根据给定的上下文预测并生成文本的后续部分。
 

@@ -53,10 +53,12 @@ export const useChat = () => {
   const editor = useEditorRef();
   const options = usePluginOption(aiChatPlugin, 'chatOptions');
 
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+
   const baseChat = useBaseChat<ChatMessage>({
     id: 'editor',
     transport: new DefaultChatTransport({
-      api: options.api || '/api/ai/command',
+      api: options.api || `${apiBaseUrl}/ai/command`,
       fetch: async (input, init) => {
         const token = localStorage.getItem('token');
         const bodyOptions = editor.getOptions(aiChatPlugin).chatOptions?.body;
