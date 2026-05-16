@@ -351,6 +351,8 @@ const NotesListPage: React.FC = () => {
             </div>
           </>
         )}
+      </div>
+
       {/* Knowledge Library Selector Modal */}
       <KnowledgeLibrarySelector
         isOpen={showLibrarySelector}
