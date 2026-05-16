@@ -62,7 +62,7 @@ export interface UploadResult {
 export class DocumentUploadService {
   private readonly uploadDir = path.join(process.cwd(), 'uploads', 'documents');
   private readonly logger = new Logger(DocumentUploadService.name);
-  private readonly maxFileSize = 50 * 1024 * 1024; // 50MB
+  private readonly maxFileSize = 10 * 1024 * 1024; // 10MB（适配 Render 免费版代理层限制）
 
   constructor(private fileParserService: FileParserService) {
     // 确保上传目录存在

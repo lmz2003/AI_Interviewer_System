@@ -72,9 +72,12 @@ export class LangChainService {
       const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
       this.logger.error(`生成嵌入失败: ${errorMsg}`, error);
       
-      // 检查是否是 API 密钥问题
+      // 检查是否是 API 密钥/权限/余额问题
       if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('API key')) {
-        throw new Error('API 密钥无效或未配置。请检查环境变量');
+        throw new Error('API 密钥无效或未配置，请检查环境变量 LLM_API_KEY');
+      }
+      if (errorMsg.includes('403') || errorMsg.includes('Forbidden') || errorMsg.includes('insufficient') || errorMsg.includes('balance')) {
+        throw new Error('API 账户余额不足或无权限访问该模型，请前往硅基流动控制台充值或检查模型权限');
       }
       throw error;
     }
@@ -102,7 +105,10 @@ export class LangChainService {
       this.logger.error(`批量生成嵌入失败: ${errorMsg}`, error);
       
       if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('API key')) {
-        throw new Error('API 密钥无效或未配置。请检查环境变量');
+        throw new Error('API 密钥无效或未配置，请检查环境变量 LLM_API_KEY');
+      }
+      if (errorMsg.includes('403') || errorMsg.includes('Forbidden') || errorMsg.includes('insufficient') || errorMsg.includes('balance')) {
+        throw new Error('API 账户余额不足或无权限访问该模型，请前往硅基流动控制台充值或检查模型权限');
       }
       throw error;
     }

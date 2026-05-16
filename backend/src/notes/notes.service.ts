@@ -424,7 +424,7 @@ export class NotesService {
   /**
    * 上传笔记到知识库
    */
-  async uploadToKnowledgeBase(noteId: string, userId: string): Promise<{ success: boolean; message: string; documentId?: string }> {
+  async uploadToKnowledgeBase(noteId: string, userId: string, libraryId?: string): Promise<{ success: boolean; message: string; documentId?: string }> {
     try {
       const note = await this.getNoteById(noteId);
 
@@ -451,6 +451,7 @@ export class NotesService {
           createdAt: note.createdAt,
         },
         uploadType: 'input',
+        libraryId: libraryId || undefined,
       };
 
       const document = await this.knowledgeBaseService.addDocument(createDocumentDto, userId);

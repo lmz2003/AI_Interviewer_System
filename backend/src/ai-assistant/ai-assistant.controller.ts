@@ -151,6 +151,7 @@ export class AIAssistantController {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // 禁用 Nginx 缓冲
       res.setHeader('Access-Control-Allow-Origin', '*');
       
       res.write(`data: ${JSON.stringify({
@@ -159,6 +160,17 @@ export class AIAssistantController {
       })}\n\n`);
 
       this.logger.log('[流式消息] SSE 响应头设置完成，开始流式处理...');
+
+      // 启动心跳定时器，每 15 秒发送一次 heartbeat，防止连接因空闲超时被断开
+      const heartbeatInterval = setInterval(() => {
+        try {
+          res.write(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`);
+          this.logger.debug('[流式消息] 发送心跳包');
+        } catch (e) {
+          this.logger.warn('[流式消息] 发送心跳包失败，连接可能已断开');
+          clearInterval(heartbeatInterval);
+        }
+      }, 15000);
 
       try {
         let chunkCount = 0;
@@ -189,6 +201,17 @@ export class AIAssistantController {
           },
           requestId,
           libraryIds,
+          (status: string) => {
+            try {
+              this.logger.log(`[流式消息] 发送状态事件: ${status}`);
+              res.write(`data: ${JSON.stringify({
+                type: 'status',
+                data: status,
+              })}\n\n`);
+            } catch (writeError) {
+              this.logger.warn('写入状态事件失败:', writeError);
+            }
+          },
         );
 
         this.logger.log(`[流式消息] 流式处理完成，共发送 ${chunkCount} 个数据块，会话: ${result.sessionId}`);
@@ -201,16 +224,19 @@ export class AIAssistantController {
           },
         })}\n\n`);
 
+        clearInterval(heartbeatInterval);
         res.end();
       } catch (error: any) {
         this.logger.error('流式处理消息失败:', error);
+        clearInterval(heartbeatInterval);
         res.write(`data: ${JSON.stringify({
           type: 'error',
           message: error.message || '流式处理失败',
         })}\n\n`);
         res.end();
       } finally {
-        // 清理中止控制器
+        // 清理中止控制器和心跳定时器
+        clearInterval(heartbeatInterval);
         if (requestId) {
           this.aiAssistantService.cleanupAbortController(userId, requestId);
         }

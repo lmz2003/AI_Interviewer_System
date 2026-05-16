@@ -249,6 +249,7 @@ export class AIAssistantService {
     sessionId?: string,
     requestId?: string,
     libraryIds?: string[],
+    onStatus?: (status: string) => void,
   ): Promise<{
     answer: string;
     sources: Array<{ title: string; score: number }>;
@@ -291,6 +292,7 @@ export class AIAssistantService {
 
         try {
           this.logger.log('[流式生成] 开始高级检索...');
+          if (onStatus) onStatus('searching_knowledge_base');
           
           const advancedResults = await this.knowledgeBaseService.advancedQuery(
             message,
@@ -383,6 +385,7 @@ ${contextsText}
 
         try {
           this.logger.log('[流式生成] 开始调用 LLM 流式生成...');
+          if (onStatus) onStatus('generating_answer');
           
           const response = await this.llmIntegrationService.generateRAGAnswerStream(
             {
@@ -412,6 +415,7 @@ ${contextsText}
         }
       } else {
         this.logger.log('[流式生成] 不使用知识库，直接调用 LLM...');
+        if (onStatus) onStatus('generating_answer');
         try {
           const response = await this.llmIntegrationService.generateRAGAnswerStream(
             {
@@ -455,6 +459,7 @@ ${contextsText}
     onChunk?: (chunk: string) => void,
     requestId?: string,
     libraryIds?: string[],
+    onStatus?: (status: string) => void,
   ): Promise<{
     answer: string;
     sources: Array<{ title: string; score: number }>;
@@ -492,6 +497,7 @@ ${contextsText}
         currentSessionId,
         requestId,
         libraryIds,
+        onStatus,
       );
 
       if (answer && answer.trim().length > 0) {

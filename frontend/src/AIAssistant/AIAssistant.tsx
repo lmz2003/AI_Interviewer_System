@@ -103,6 +103,7 @@ const AIAssistant: React.FC = () => {
   const [libraries, setLibraries] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedLibraryIds, setSelectedLibraryIds] = useState<Set<string>>(new Set());
   const [showLibrarySelector, setShowLibrarySelector] = useState(false);
+  const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const librarySelectorRef = useRef<HTMLDivElement>(null);
@@ -267,6 +268,7 @@ const AIAssistant: React.FC = () => {
         if (done) {
           setStreamingMessageId(null);
           setRequestId(null);
+          setStreamingStatus(null);
           loadSessions();
           break;
         }
@@ -286,6 +288,10 @@ const AIAssistant: React.FC = () => {
 
               if (data.type === 'request-id' && data.data?.requestId) {
                 setRequestId(data.data.requestId);
+              } else if (data.type === 'status' && data.data) {
+                setStreamingStatus(data.data);
+              } else if (data.type === 'heartbeat') {
+                // 心跳包，仅用于保持连接活跃，无需处理
               } else if (data.type === 'chunk' && data.data) {
                 let chunkContent: string;
                 if (typeof data.data === 'string') {
@@ -339,9 +345,22 @@ const AIAssistant: React.FC = () => {
         }
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '发送消息失败，请重试';
-      setError(errorMessage);
-      setStreamingMessageId(null);
+      let errorMessage: string;
+      if (err instanceof Error) {
+        // 针对网络错误提供更友好的提示
+        if (err.name === 'TypeError' && err.message.includes('Failed to fetch')) {
+          errorMessage = '网络连接异常，请检查网络后重试';
+        } else if (err.message.includes('network') || err.message.includes('Network')) {
+          errorMessage = '网络连接异常，请检查网络后重试';
+        } else {
+          errorMessage = err.message;
+        }
+      } else {
+        errorMessage = '发送消息失败，请重试';
+      }
+        setError(errorMessage);
+        setStreamingMessageId(null);
+        setStreamingStatus(null);
     } finally { setIsTyping(false); }
   }, [input, isTyping, token, sessionId, loadSessions, useRAG, selectedLibraryIds]);
 
@@ -363,6 +382,7 @@ const AIAssistant: React.FC = () => {
     setIsTyping(false);
     setStreamingMessageId(null);
     setRequestId(null);
+    setStreamingStatus(null);
   }, [requestId, token]);
 
   const handleResendLastMessage = useCallback(() => {
@@ -504,10 +524,34 @@ const AIAssistant: React.FC = () => {
             <div className="avatar assistant-avatar"><BotIcon /></div>
             <div className="message-content-wrapper">
               <div className="message-bubble">
-                <div className="typing-indicator">
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
+                <div className="streaming-status-indicator">
+                  {streamingStatus === 'searching_knowledge_base' ? (
+                    <>
+                      <span className="status-icon status-icon-search"><BookOpenIcon /></span>
+                      <span className="status-text">正在查询知识库</span>
+                      <span className="status-dots">
+                        <span className="status-dot" />
+                        <span className="status-dot" />
+                        <span className="status-dot" />
+                      </span>
+                    </>
+                  ) : streamingStatus === 'generating_answer' ? (
+                    <>
+                      <span className="status-icon status-icon-thinking"><BotIcon /></span>
+                      <span className="status-text">正在思考回答</span>
+                      <span className="status-dots">
+                        <span className="status-dot" />
+                        <span className="status-dot" />
+                        <span className="status-dot" />
+                      </span>
+                    </>
+                  ) : (
+                    <div className="typing-indicator">
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -319,13 +319,21 @@ const KnowledgeBase: React.FC = () => {
   const handleFileSelect = async (files: FileList) => {
     if (!files) return;
     const newFiles = Array.from(files);
-    const maxFileSize = 50 * 1024 * 1024;
+    // 注意：后端限制 50MB，但 Render 免费版代理层有请求体大小限制，
+    // 建议单个文件不超过 10MB，总体不超过 20MB，否则可能被代理层拦截返回 403
+    const maxFileSize = 10 * 1024 * 1024; // 单个文件 10MB（适配 Render 免费版）
+    const maxTotalSize = 20 * 1024 * 1024; // 单次上传总量 20MB
+    const backendMaxFileSize = 50 * 1024 * 1024; // 后端实际支持的最大值
     const supported = ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.csv', '.md', '.txt', '.json'];
     const valid: File[] = [];
+    let totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
     for (const file of newFiles) {
       const ext = '.' + file.name.split('.').pop()?.toLowerCase();
       if (!supported.includes(ext)) { await toastModal.warning(`不支持的文件类型: ${ext}`, '文件格式错误'); continue; }
-      if (file.size > maxFileSize) { await toastModal.warning(`文件 ${file.name} 过大，最大 50MB`, '文件过大'); continue; }
+      if (file.size > backendMaxFileSize) { await toastModal.warning(`文件 ${file.name} 过大，最大 50MB`, '文件过大'); continue; }
+      if (file.size > maxFileSize) { await toastModal.warning(`文件 ${file.name} 超过 10MB，在线环境上传可能失败，建议使用较小文件`, '文件较大'); continue; }
+      if (totalSize + file.size > maxTotalSize) { await toastModal.warning(`单次上传总量不能超过 20MB，请减少文件数量`, '总量超限'); break; }
+      totalSize += file.size;
       valid.push(file);
     }
     if (valid.length > 0) setSelectedFiles([...selectedFiles, ...valid]);
@@ -345,9 +353,11 @@ const KnowledgeBase: React.FC = () => {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener('progress', e => { if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100)); });
       const uploadPromise = new Promise<string>((resolve, reject) => {
-        xhr.addEventListener('load', () => { if (xhr.status >= 200 && xhr.status < 300) { try { JSON.parse(xhr.responseText); resolve(xhr.responseText); } catch { reject(new Error('响应解析失败')); } } else reject(new Error(`上传失败: ${xhr.status}`)); });
-        xhr.addEventListener('error', () => reject(new Error('网络错误')));
+        xhr.addEventListener('load', () => { if (xhr.status >= 200 && xhr.status < 300) { try { JSON.parse(xhr.responseText); resolve(xhr.responseText); } catch { reject(new Error('响应解析失败')); } } else if (xhr.status === 403) { reject(new Error('上传被拒绝(403)，文件可能过大或服务器暂时不可用，请尝试较小的文件')); } else reject(new Error(`上传失败: ${xhr.status}`)); });
+        xhr.addEventListener('error', () => reject(new Error('网络错误，可能是跨域问题或文件过大，请尝试较小的文件')));
         xhr.addEventListener('abort', () => reject(new Error('上传被中止')));
+        xhr.addEventListener('timeout', () => reject(new Error('上传超时，文件可能过大，请尝试较小的文件')));
+        xhr.timeout = 120000; // 120秒超时（Render免费版冷启动可能需要较长时间）
         xhr.open('POST', `${API_BASE}/upload-documents`);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.send(formData);

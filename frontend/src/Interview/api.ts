@@ -169,10 +169,11 @@ export const interviewApi = {
     return data.data;
   },
 
-  async syncReportToKnowledge(reportId: string): Promise<{ success: boolean; message: string; documentId?: string }> {
+  async syncReportToKnowledge(reportId: string, libraryId?: string): Promise<{ success: boolean; message: string; documentId?: string }> {
     const response = await fetch(`${API_BASE}/interview/report/${reportId}/sync-to-knowledge`, {
       method: 'POST',
       headers: getAuthHeaders(),
+      body: JSON.stringify(libraryId ? { libraryId } : {}),
     });
     const data = await response.json();
     return data;

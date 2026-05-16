@@ -118,10 +118,10 @@ export class NotesController {
 
   // Upload note to knowledge base
   @Post(':id/upload-to-knowledge')
-  async uploadToKnowledgeBase(@Param('id') id: string, @Request() req: ExpressRequest) {
+  async uploadToKnowledgeBase(@Param('id') id: string, @Body() body: { libraryId?: string }, @Request() req: ExpressRequest) {
     const userId = req.user?.id as string;
     try {
-      const result = await this.notesService.uploadToKnowledgeBase(id, userId);
+      const result = await this.notesService.uploadToKnowledgeBase(id, userId, body.libraryId);
       return {
         code: 0,
         message: result.message,

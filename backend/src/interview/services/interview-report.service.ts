@@ -472,7 +472,7 @@ export class InterviewReportService {
     return suggestions.slice(0, 5);
   }
 
-  async syncToKnowledgeBase(reportId: string, userId: string): Promise<{ success: boolean; message: string; documentId?: string }> {
+  async syncToKnowledgeBase(reportId: string, userId: string, libraryId?: string): Promise<{ success: boolean; message: string; documentId?: string }> {
     try {
       const report = await this.getReportById(reportId);
       if (!report) {
@@ -513,6 +513,7 @@ export class InterviewReportService {
           createdAt: report.createdAt,
         },
         uploadType: 'input',
+        libraryId: libraryId || undefined,
       };
 
       const document = await this.knowledgeBaseService.addDocument(createDocumentDto, userId);

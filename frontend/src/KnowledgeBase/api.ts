@@ -119,13 +119,21 @@ export const documentApi = {
     }
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/upload-document`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}/upload-document`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+    } catch (fetchError) {
+      throw new Error('网络错误，可能是跨域问题或文件过大，请尝试较小的文件');
+    }
+    if (response.status === 403) {
+      throw new Error('上传被拒绝(403)，文件可能过大或服务器暂时不可用，请尝试较小的文件');
+    }
     const data = await response.json();
     if (!data.success) throw new Error(data.message || '上传文档失败');
     return data.data;
@@ -139,13 +147,21 @@ export const documentApi = {
     }
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/upload-documents`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}/upload-documents`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+    } catch (fetchError) {
+      throw new Error('网络错误，可能是跨域问题或文件过大，请尝试较小的文件');
+    }
+    if (response.status === 403) {
+      throw new Error('上传被拒绝(403)，文件可能过大或服务器暂时不可用，请尝试较小的文件');
+    }
     const data = await response.json();
     if (!data.success) throw new Error(data.message || '上传文档失败');
     return data.data || [];

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToastModal } from '../components/ui/toast-modal';
+import KnowledgeLibrarySelector from '../components/KnowledgeLibrarySelector';
 import styles from './NotesListPage.module.scss';
 
 // ---- SVG Icons ----
@@ -140,12 +141,26 @@ const NotesListPage: React.FC = () => {
     });
   };
 
+  const [showLibrarySelector, setShowLibrarySelector] = useState(false);
+  const [pendingNoteId, setPendingNoteId] = useState<string | null>(null);
+
   const handleUploadToKnowledge = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!await toastModal.confirm('确认将此笔记上传到知识库吗？', '确认上传')) return;
+    setPendingNoteId(id);
+    setShowLibrarySelector(true);
+  };
+
+  const handleLibrarySelect = async (libraryId: string | undefined) => {
+    if (!pendingNoteId) return;
+    const id = pendingNoteId;
+    setPendingNoteId(null);
     try {
       const token = localStorage.getItem('token');
-      const r = await fetch(`${API_BASE}/notes/${id}/upload-to-knowledge`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+      const r = await fetch(`${API_BASE}/notes/${id}/upload-to-knowledge`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ libraryId }),
+      });
       const result = await r.json();
       if (result.code === 0) { await toastModal.success('笔记已成功上传到知识库'); fetchNotes(); }
       else throw new Error(result.message || '上传到知识库失败');
@@ -336,7 +351,14 @@ const NotesListPage: React.FC = () => {
             </div>
           </>
         )}
-      </div>
+      {/* Knowledge Library Selector Modal */}
+      <KnowledgeLibrarySelector
+        isOpen={showLibrarySelector}
+        onClose={() => { setShowLibrarySelector(false); setPendingNoteId(null); }}
+        onSelect={handleLibrarySelect}
+        title="选择知识库"
+        description="请选择将笔记上传到哪个知识库"
+      />
     </div>
   );
 };

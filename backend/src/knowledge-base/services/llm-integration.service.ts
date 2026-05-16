@@ -83,6 +83,10 @@ export class LLMIntegrationService {
       };
     } catch (error) {
       this.logger.error('LLM 调用失败:', error);
+      const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+      if (errorMsg.includes('403') || errorMsg.includes('Forbidden') || errorMsg.includes('insufficient') || errorMsg.includes('balance')) {
+        throw new Error('API 账户余额不足或无权限访问该模型，请前往硅基流动控制台充值或检查模型权限');
+      }
       throw error;
     }
   }
@@ -104,6 +108,10 @@ export class LLMIntegrationService {
       return response.content as string;
     } catch (error) {
       this.logger.error('文档总结失败:', error);
+      const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+      if (errorMsg.includes('403') || errorMsg.includes('Forbidden') || errorMsg.includes('insufficient') || errorMsg.includes('balance')) {
+        throw new Error('API 账户余额不足或无权限访问该模型，请前往硅基流动控制台充值或检查模型权限');
+      }
       throw error;
     }
   }
@@ -146,6 +154,10 @@ export class LLMIntegrationService {
       return { score, feedback };
     } catch (error) {
       this.logger.error('答案评估失败:', error);
+      const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+      if (errorMsg.includes('403') || errorMsg.includes('Forbidden') || errorMsg.includes('insufficient') || errorMsg.includes('balance')) {
+        throw new Error('API 账户余额不足或无权限访问该模型，请前往硅基流动控制台充值或检查模型权限');
+      }
       throw error;
     }
   }
@@ -214,6 +226,10 @@ export class LLMIntegrationService {
       };
     } catch (error) {
       this.logger.error('LLM 流式调用失败:', error);
+      const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+      if (errorMsg.includes('403') || errorMsg.includes('Forbidden') || errorMsg.includes('insufficient') || errorMsg.includes('balance')) {
+        throw new Error('API 账户余额不足或无权限访问该模型，请前往硅基流动控制台充值或检查模型权限');
+      }
       throw error;
     }
   }

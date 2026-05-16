@@ -17,7 +17,7 @@ export interface ParsedDocument {
 @Injectable()
 export class FileParserService {
   private readonly logger = new Logger(FileParserService.name);
-  private readonly maxFileSize = 50 * 1024 * 1024; // 50MB
+  private readonly maxFileSize = 10 * 1024 * 1024; // 10MB（适配 Render 免费版代理层限制）
 
   constructor() {}
 

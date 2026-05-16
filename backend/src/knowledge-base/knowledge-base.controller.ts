@@ -82,7 +82,7 @@ const getMulterOptions = () => {
       }
     },
     limits: {
-      fileSize: 50 * 1024 * 1024,
+      fileSize: 10 * 1024 * 1024, // 单个文件限制 10MB（适配 Render 免费版代理层限制）
     },
   };
 };

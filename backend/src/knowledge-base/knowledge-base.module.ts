@@ -21,7 +21,7 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
     MulterModule.register({
       limits: {
-        fileSize: 50 * 1024 * 1024,
+        fileSize: 10 * 1024 * 1024, // 10MB（适配 Render 免费版代理层限制）
       },
     }),
   ],

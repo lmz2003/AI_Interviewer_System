@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { interviewApi } from './api';
 import type { Interview, InterviewReport } from './types';
+import KnowledgeLibrarySelector from '../components/KnowledgeLibrarySelector';
 import './Interview.scss';
 
 // SVG 图标
@@ -109,6 +110,7 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
   const [syncingToKnowledge, setSyncingToKnowledge] = useState(false);
   const [syncingToNotes, setSyncingToNotes] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [showLibrarySelector, setShowLibrarySelector] = useState(false);
 
   useEffect(() => {
     loadReport();
@@ -126,14 +128,20 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
     }
   };
 
-  const handleSyncToKnowledge = async () => {
+  const handleSyncToKnowledge = () => {
+    if (!report || syncingToKnowledge) return;
+    setShowLibrarySelector(true);
+  };
+
+  const handleLibrarySelect = async (libraryId: string | undefined) => {
     if (!report || syncingToKnowledge) return;
     
+    setShowLibrarySelector(false);
     setSyncingToKnowledge(true);
     setSyncMessage(null);
     
     try {
-      const result = await interviewApi.syncReportToKnowledge(reportId);
+      const result = await interviewApi.syncReportToKnowledge(reportId, libraryId);
       if (result.success) {
         setReport({ ...report, knowledgeDocumentId: result.documentId, syncedToKnowledgeAt: new Date().toISOString() });
         setSyncMessage('已成功同步到知识库');
@@ -570,6 +578,14 @@ const InterviewReportPage: React.FC<InterviewReportProps> = ({
           </div>
         )}
       </div>
+      {/* Knowledge Library Selector Modal */}
+      <KnowledgeLibrarySelector
+        isOpen={showLibrarySelector}
+        onClose={() => setShowLibrarySelector(false)}
+        onSelect={handleLibrarySelect}
+        title="同步到知识库"
+        description="请选择将面试报告同步到哪个知识库"
+      />
     </div>
   );
 };

@@ -602,10 +602,11 @@ export class InterviewController {
   async syncReportToKnowledge(
     @Request() req: any,
     @Param('reportId') reportId: string,
+    @Body() body: { libraryId?: string },
   ) {
     try {
       const userId = req.user.id;
-      const result = await this.reportService.syncToKnowledgeBase(reportId, userId);
+      const result = await this.reportService.syncToKnowledgeBase(reportId, userId, body.libraryId);
 
       return {
         success: result.success,
